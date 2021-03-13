@@ -1,0 +1,8 @@
+#include "tcc897x.dtsi"
+#include "tcc897x-pinctrl.dtsi"
+
+/ {
+	cpus {
+		telechips,cpuid = <0x1011 2>;
+	};
+};

@@ -1,0 +1,50 @@
+config VIDEO_HDMI_IN_SENSOR_EP9553T
+	tristate "EP9553T Module(24bit) support"
+	depends on VIDEO_HDMI_IN_SENSOR
+	help
+	   HDMI IN Receiver support for EP9553T
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 

@@ -1,0 +1,59 @@
+config VIDEO_TCCXX_HDMI_IN
+	tristate "Telechips HDMI Receiver device support"
+	select VIDEOBUF_GEN
+	select VIDEOBUF_DMA_SG
+	select VIDEOBUF_VMALLOC
+	depends on VIDEO_DEV
+	help
+	  V4L2 HDMI IN Receiver driver support for TCCXXX.
+	
+config VIDEO_HDMI_IN_SENSOR
+	tristate "HDMI/MHL Module support"
+	depends on VIDEO_TCCXX_HDMI_IN
+	help
+	   HDMI IN Receiver support
+
+source drivers/media/platform/tcchdin/module/Kconfig
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 

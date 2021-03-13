@@ -1,0 +1,314 @@
+
+# Telechips VIN (Vidoe INput) Driver Configuration
+#----------------------------------------------------------------
+
+config VIDEO_TCC_ENABLE_MAX_CLK
+	bool "Enable max-clock"
+	depends on VIDEO_SENSOR
+	depends on NOT_USE_THIS_CONFIG ### NOTE: only application can control DDI-clock.
+	help
+	  Operate sensor with max-clock regardless of DVFS.
+
+#
+# Telechips video device configuration
+#
+config VIDEO_SENSOR
+	bool "Video sensor support"
+	depends on VIDEO_TCC_VIN
+	help
+	  V4L2 video (camera/decoder) sensor driver support for Telechips SoC.
+
+config TCC_V4L2_DEV_VIDEO0
+	bool "Enable v4l2 video0 (/dev/video0)"
+	depends on VIDEO_SENSOR
+	help
+	  Say Y here to enable v4l2 video0 interface (/dev/video0).
+	  This feature is dependent on the hardware. 
+	  (check out the arch/arm/mach-tccXXXX/board-tccXXXX-vin.c)
+
+config TCC_V4L2_DEV_VIDEO1
+	bool "Enable v4l2 video1 (/dev/video1)"
+	depends on VIDEO_SENSOR
+	help
+	  Say Y here to enable v4l2 video1 interface (/dev/video1).
+	  This feature is dependent on the hardware. 
+	  (check out the arch/arm/mach-tccXXXX/board-tccXXXX-vin.c)
+
+config TCC_V4L2_DEV_VIDEO2
+	bool "Enable v4l2 video2 (/dev/video2)"
+	depends on VIDEO_SENSOR
+	help
+	  Say Y here to enable v4l2 video2 interface (/dev/video2).
+	  This feature is dependent on the hardware. 
+	  (check out the arch/arm/mach-tccXXXX/board-tccXXXX-vin.c)
+
+config TCC_V4L2_DEV_VIDEO3
+	bool "Enable v4l2 video3 (/dev/video3)"
+	depends on VIDEO_SENSOR
+	help
+	  Say Y here to enable v4l2 video3 interface (/dev/video3).
+	  This feature is dependent on the hardware. 
+	  (check out the arch/arm/mach-tccXXXX/board-tccXXXX-vin.c)
+
+config TCC_V4L2_DEV_VIDEO4
+	bool "Enable v4l2 video4 (/dev/video4)"
+	depends on VIDEO_SENSOR
+	help
+	  Say Y here to enable v4l2 video4 interface (/dev/video4).
+	  This feature is dependent on the hardware. 
+	  (check out the arch/arm/mach-tccXXXX/board-tccXXXX-vin.c)
+
+#----------------------------------------------------------------
+# Sensor module configuration
+#----------------------------------------------------------------
+
+comment "Support camera modules"
+#
+# Camera configuration
+#
+config VIDEO_CAMERA_MT9D111
+	bool "MT9D111 support"
+	depends on VIDEO_SENSOR && I2C
+	help
+	  Support for MT9D111 driver.
+	  1/3.2-Inch 2Mp System-On-A-Chip (SOC) CMOS Digital Image Sensor
+	  with Aptina Imaging Corporation (MICRON technology).
+
+config VIDEO_CAMERA_MT9D112
+	bool "MT9D112 support"
+	depends on VIDEO_SENSOR && I2C
+	help
+	  Support for MT9D111 driver.
+	  1/4-Inch 2Mp System-On-A-Chip (SOC) CMOS Digital Image Sensor
+	  with Aptina Imaging Corporation.
+
+config VIDEO_CAMERA_OV2643
+	bool "OV2643 support"
+	depends on VIDEO_SENSOR && I2C
+	help
+	  Support for OV2643 driver.
+	  1/4-inch color CMOS 2Mp CMOS Image Sensor
+	  with OmniVision (OmniPixel3-HS) technology.
+
+config VIDEO_CAMERA_OV5640
+	bool "OV5640 support"
+	depends on VIDEO_SENSOR && I2C
+	help
+	  Support for OV5640 driver.
+	  color CMOS @1920x1080p 30fps (Full-HD, 5 megapixel) image sensor
+	  with OniBSI TM technology.
+
+config VIDEO_CAMERA_NT99141
+	bool "NT99141 support"
+	depends on VIDEO_SENSOR && I2C
+	help
+	  Support for NT99141 driver.
+	  1/4-inch HD CMOS @1280x720p 30fps image sensor
+	  with NOVATEK Microelectronics crop.
+
+comment "Support decoder modules"
+#
+# Decoder module configuration
+#
+config VIDEO_DECODER_TVP5150
+	bool "TVP5150 support"
+	depends on VIDEO_SENSOR && I2C
+	help
+	  Support for TVP5150 driver.
+	  Utralow-Power NTSC/PAL Video Decoder
+	  with TI Inc.
+
+#config VIDEO_DECODER_TW2867
+#	bool "TW2867 support"
+#	depends on VIDEO_SENSOR && I2C
+#	help
+#	  Support for TW2867 driver.
+#	  4-Channel Video Decoder
+#	  with Techwell Inc.
+
+#config VIDEO_DECODER_TVP5158
+#	bool "TVP5158 support"
+#	depends on VIDEO_SENSOR && I2C
+#	help
+#	  Support for TVP5158 driver.
+#	  4-Channel Utralow-Power NTSC/PAL Video Decoder
+#	  with TI Inc.
+
+config VIDEO_DECODER_THCV220
+	bool "THCV220 support"
+	depends on VIDEO_SENSOR && I2C
+	help
+	  Support for THCV220 driver.
+	  V-by-One HS High-speed Video Data Receiver
+	  with THine Electronics, Inc.
+
+config VIDEO_DECODER_TW9900
+	bool "TW9900 support"
+	depends on VIDEO_SENSOR && I2C && MACH_TCC8935AVN
+	help
+	  Support for TW9900 driver.
+	  Utralow-Power NTSC/PAL Video Decoder
+	  with TI Inc.
+
+config VIDEO_DECODER_ADV7182
+	bool "ADV7182 support"
+	depends on VIDEO_SENSOR && I2C
+	help
+	  Support for ADV7182 driver.
+	  Utralow-Power NTSC/PAL Video Decoder
+	  with Analog devices Inc.
+#----------------------------------------------------------------
+# Miscellaneous configuration
+#----------------------------------------------------------------
+
+comment "Miscellaneous config"
+
+config TCC_V4L2_DEV_VIDEO0_SCALER
+	bool "Plug-in Scaler for v4l2 video0 (/dev/video0)"
+	depends on TCC_V4L2_DEV_VIDEO0
+	help
+	  If you say Y here, 
+	  You can use scaler (on-the-fly) for v4l2 video0 interface (/dev/video0).
+	  Scaler0 (SC0) is used in the video0.
+	  [VIN]-[SC0]-[WMIX]-[WDMA]
+	  (refer to the arch/arm/mach-tccXXXX/board-tccXXXX-vin.c)
+
+config TCC_V4L2_DEV_VIDEO1_SCALER
+	bool "Plug-in Scaler for v4l2 video1 (/dev/video1)"
+	depends on TCC_V4L2_DEV_VIDEO1
+	help
+	  If you say Y here, 
+	  You can use scaler (on-the-fly) for v4l2 video1 interface (/dev/video1).
+	  Scaler2 (SC2) is used in the video1.
+	  [VIN]-[SC2]-[WMIX]-[WDMA]
+	  (refer to the arch/arm/mach-tccXXXX/board-tccXXXX-vin.c)
+
+#config SENSOR_PLUG_INOUT_DETECT
+#	bool "Detect sensor plug-in/out"
+#	help
+#	  If you say Y here, detect sensor module plug-in/out using GPIO port.
+#	  This option is used only in the rear-camera of blackbox.
+#	  refer to 'arch/arm/mach-tccXXXX/board-tccXXXX-vin.c'
+
+#
+# De-Interlace Option
+#
+config TCC_V4L2_DEV_DEINTL
+	bool "Using De-Interlacer"
+	depends on VIDEO_DECODER_TVP5150 || VIDEO_DECODER_ADV7182
+	help
+	  This is an option for De-Interlace function.
+	  De-Interlace converts an imputted image from interlace to progressive.
+
+choice
+	prompt "Select De-Interlacer"
+	depends on TCC_V4L2_DEV_DEINTL || VIDEO_DECODER_ADV7182
+	default TCC_DEINTL_VIQE
+	help
+	  Select de-interlace mode.
+
+config TCC_DEINTL_ONE_FIELD
+	bool "One-field Scaling (Not recommended)"
+	help
+	  This is not a de-interlacer. This is simply one-field (even or odd) scaling.
+	  Therefore, scaler was plugged in the VIN path.
+	  In the case /dev/video0: [VIN0]-[SC0]-[WMIX]-[WDMA] (select TCC_V4L2_DEV_VIDEO0_SCALER)
+	  In the case /dev/video1: [VIN1]-[SC2]-[WMIX]-[WDMA] (select TCC_V4L2_DEV_VIDEO1_SCALER)
+
+config TCC_DEINTL_SIMPLE
+	bool "VIOC Simple De-interlacer"
+	help
+	  Using VIOC DEINTL_S (simple de-interlacer).
+
+config TCC_DEINTL_VIQE
+	bool "VIQE De-Interlacer"
+	help
+	  Using VIQE de-interlacer (2D/3D mode).
+	  In VIQE, 3D style is used and by using the previous 4-fields image, one progressive image is made.
+	  The following DEINTLS is 2D style and the previous line and 
+	  the current line of the current field are interpolated to make a progressive image.
+
+config TCC_DEINTL_WDMA_AUTO
+	bool "WDMA Auto De-Interlace (Not recommended)"
+	depends on !ARCH_TCC892X
+	help
+	  Using WDMA automatic de-interlace.
+	  This feature should be used for test purposes only.
+	  Because it has a known-bug.
+
+config TCC_DEINTL_WDMA_MANUAL
+	bool "WDMA Manual De-Interlace (Not recommended)"
+	help
+	  Using WDMA manually de-interlace.
+	  This feature may not operate properly if the system load is high,
+
+endchoice
+
+choice
+	prompt "Select VIQE De-Interlace mode"
+	depends on TCC_DEINTL_VIQE
+	default TCC_DEINTL_VIQE_2D
+	help
+	  Select VIQE De-Interlace mode. There are 2D and 3D modes.
+	  In VIQE, 3D style is used and by using the previous 4-fields image, one progressive image is made.
+	  The following DEINTLS is 2D style and the previous line and 
+	  the current line of the current field are interpolated to make a progressive image.
+
+config TCC_DEINTL_VIQE_2D
+	bool "VIQE 2D De-Interlace"
+
+config TCC_DEINTL_VIQE_3D
+	bool "VIQE 3D De-Interlace"
+
+endchoice
+
+choice
+	prompt "Select v4l2_device"
+	depends on TCC_V4L2_DEV_DEINTL
+	default TCC_DEINTL_V4L2_VIDEO1
+	help
+	  Select v4l2_device for De-Interlace.
+	  VIOC has only one VIQE/DEINTL_S.
+
+config TCC_DEINTL_V4L2_VIDEO0
+	bool "v4l2 video0 (/dev/video0)"
+	select TCC_V4L2_DEV_VIDEO0_SCALER if TCC_DEINTL_ONE_FIELD
+
+config TCC_DEINTL_V4L2_VIDEO1
+	bool "v4l2 video1 (/dev/video1)"
+	select TCC_V4L2_DEV_VIDEO1_SCALER if TCC_DEINTL_ONE_FIELD
+
+#config TCC_DEINTL_V4L2_VIDEO2
+#	bool "v4l2 video2 (/dev/video2)"
+
+#config TCC_DEINTL_V4L2_VIDEO3
+#	bool "v4l2 video3 (/dev/video3)"
+
+#config TCC_DEINTL_V4L2_VIDEO4
+#	bool "v4l2 video4 (/dev/video4)"
+
+endchoice
+
+config TCC_DEINTL_FRAMESKIP
+	bool "1 Frame Skip"
+	depends on TCC_V4L2_DEV_DEINTL
+	depends on TCC_DEINTL_SIMPLE || TCC_DEINTL_VIQE
+	default y
+	help
+	  If using deinterlace, framerate can be bigger than 30fps.
+	  In this case, you can reduce the frame rate using '1 Frame Skip'.
+
+#
+# Debuggind Option
+#
+config TCC_VIN_DEBUG
+	bool "Telechips VIN debugging"
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables tcc_vin core and driver debugging.
+
+config TCC_SENSOR_DEBUG
+	bool "Sensor module debugging"
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables sensor module driver debugging.

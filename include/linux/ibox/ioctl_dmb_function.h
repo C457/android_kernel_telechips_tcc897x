@@ -1,0 +1,24 @@
+#ifndef __LINUX_IBOX_API_DMB_FUNCTION_H__
+#define __LINUX_IBOX_API_DMB_FUNCTION_H__
+
+#define IBOX_DMB_IOC_MAGIC_V1	'D'
+#define __IBOX_DMB_IOC_CUSTOM_NR (20)
+
+#define IBOX_DMBIOC_G_RX_BURST_SIZE \
+		_IOR(IBOX_DMB_IOC_MAGIC_V1, 0, unsigned int)
+#define IBOX_DMBIOC_G_TX_BURST_SIZE \
+		_IOR(IBOX_DMB_IOC_MAGIC_V1, 1, unsigned int)
+
+#define IBOX_DMBIOC_S_RX_BURST_SIZE \
+		_IOW(IBOX_DMB_IOC_MAGIC_V1, 2, unsigned int)
+#define IBOX_DMBIOC_S_TX_BURST_SIZE \
+		_IOW(IBOX_DMB_IOC_MAGIC_V1, 3, unsigned int)
+
+#define IBOX_DMBIOC_S_MODE_UPGRADE \
+		_IO(IBOX_DMB_IOC_MAGIC_V1, 4)
+#define IBOX_DMBIOC_S_MODE_NORMAL \
+		_IO(IBOX_DMB_IOC_MAGIC_V1, 5)
+
+/* TBD for non-burst Tx/Rx */
+
+#endif /* __LINUX_IBOX_API_DMB_FUNCTION_H__ */

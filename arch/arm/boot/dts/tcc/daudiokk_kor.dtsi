@@ -1,0 +1,25 @@
+
+    /* TDMB */
+    gpsb1@76910000{
+    		status = "okay";
+		gpsb-port = <12>;
+		gpsb-id = <1>;
+		port-mux = <12>;
+		pinctrl-names = "default","active","idle";
+		pinctrl-0 = <&gpsb12_bus>;
+		pinctrl-1 = <&gpsb12_bus>;
+		pinctrl-2 = <&gpsb12_idle>;
+   };
+
+    /* SATURN(TPEG/DAB) */
+    gpsb2@76920000 {
+		status = "okay";
+		gpsb-port = <8>;
+                gpsb-id = <2>;
+		port-mux = <8>;
+		pinctrl-names = "default", "active", "idle";
+		pinctrl-0 = <&gpsb8_bus>;
+		pinctrl-1 = <&gpsb8_bus>;
+		pinctrl-2 = <&gpsb8_idle>;
+	
+    };  

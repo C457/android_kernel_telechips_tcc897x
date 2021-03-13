@@ -1,0 +1,22 @@
+menuconfig GC_GPU
+	tristate "Vivante-GC support"
+	default y
+	depends on ((ARCH_TCC897X || ARCH_TCC898X) && !ANDROID)
+	---help---
+	  Device driver for the VIVANTE GC GPU
+
+if GC_GPU
+config SUPPORT_2D_COMPRESSION
+    default y
+	depends on (ARCH_TCC898X)
+	bool "Support 2D Compression"
+	help
+		2D FBC for DEC100
+
+config ADDITIONAL_TS_BUFFER_LINES
+    int "Additional lines in framebuffer (4096x2160 => 16, 3840x2160 => 12)"
+	    depends on (SUPPORT_2D_COMPRESSION)
+	    default 16
+	    help
+	       Select additional lines for ts-buffer in framebuffer.
+endif

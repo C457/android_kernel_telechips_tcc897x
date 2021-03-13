@@ -1,0 +1,79 @@
+config DRM_TCC
+	tristate "DRM Support for Telechips SoC Series"
+	depends on DRM && ARCH_TCC
+	select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select VT_HW_CONSOLE_BINDING if FRAMEBUFFER_CONSOLE
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you have a Telechips SoC TCC chipset.
+	  If M is selected the module will be called tccdrm.
+
+config DRM_TCC_IOMMU
+	bool "TCC DRM IOMMU Support"
+	depends on DRM_TCC && TCC_IOMMU && ARM_DMA_USE_IOMMU
+	help
+	  Telechips SoCs are not support IOMMU.
+	  Choose this option if you want to use IOMMU feature for DRM.
+
+config DRM_TCC_DMABUF
+	bool "TCC DRM DMABUF"
+	depends on DRM_TCC
+	help
+	  Choose this option if you want to use DMABUF feature for DRM.
+
+config DRM_TCC_LCD
+	bool "TCC DRM LCD"
+	depends on OF && DRM_TCC
+	#depends on !FB_TCC
+	select FB_MODE_HELPERS
+	help
+	  Choose this option if you want to use LCD for DRM.
+
+#
+# Debugging messages
+#
+menuconfig DRM_DRV_DEBUG
+	bool "DRM Debugging messages (DEVELOPMENT)"
+	depends on DRM_TCC
+	help
+	  Choose this option if you want to use debugging messages (DEVELOPMENT).
+	  You can choice various debugging messages.
+	  Kernel debugging level is 'KERN_DEBUG <7>'. (use "dmesg -n 8")
+
+if DRM_DRV_DEBUG
+
+config DRM_UT_CORE
+	bool "DRM core messages"
+	help
+	  Choose this option if you want to enable DRM core debugging messages.
+	  Kernel debugging level is 'KERN_DEBUG <7>'. (use "dmesg -n 8")
+
+config DRM_UT_DRIVER
+	bool "DRM driver messages"
+	help
+	  Choose this option if you want to enable DRM driver debugging messages.
+	  Kernel debugging level is 'KERN_DEBUG <7>'. (use "dmesg -n 8")
+
+config DRM_UT_KMS
+	bool "DRM KMS messages"
+	help
+	  Choose this option if you want to enable DRM KMS debugging messages.
+	  Kernel debugging level is 'KERN_DEBUG <7>'. (use "dmesg -n 8")
+
+config DRM_UT_PRIME
+	bool "DRM PRIME messages"
+	help
+	  Choose this option if you want to enable DRM PRIME debugging messages.
+	  Kernel debugging level is 'KERN_DEBUG <7>'. (use "dmesg -n 8")
+
+config DRM_TCC_DEBUG
+	bool "DRM TCC messages"
+	help
+	  Choose this option if you want to enable specific TCC debugging messages.
+	  Kernel debugging level is 'KERN_DEBUG <7>'. (use "dmesg -n 8")
+
+endif

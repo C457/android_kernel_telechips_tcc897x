@@ -1,0 +1,14 @@
+#
+# Touchscreen driver configuration for TOUCHSCREEN_ATMEL_MXT_336S_AT
+#
+
+if INPUT_TOUCHSCREEN
+
+config TOUCHSCREEN_ATMEL_MXT_336S_AT
+	tristate "Atmel mXT I2C Touchscreen (MXT_336S_AT)"
+	depends on I2C
+	help
+	  Say Y here if you have Atmel mXT MXT_336S_AT I2C touchscreen
+		connected to your system.
+
+endif

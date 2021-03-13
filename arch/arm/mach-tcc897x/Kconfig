@@ -1,0 +1,59 @@
+if ARCH_TCC897X
+
+comment "Machine Features"
+
+config ARCH_TCC_MAP_CONVERTER
+	bool "TCC VIDEO MAP DECOMPRESSOR"
+	default n
+
+config TCC_STB_PMAP_SUPPORT
+	bool "Support PMAP Table for STB solution"
+	default n
+	help
+	  Use PMAP Table for STB solution (pmap_stb.c) instead of normal PMAP Table (pmap.c)
+
+choice
+	prompt "Select PMAP Table"
+	depends on TCC_STB_PMAP_SUPPORT
+	default PMAP_TCC8970_STB
+
+config PMAP_TCC8970_STB
+  bool "TCC8970 STB"
+config PMAP_TCC8975_STICK
+	bool "TCC8975 STICK"
+endchoice
+
+config SUPPORT_TCC_NSK
+    bool "Support PMAP Reserved Memory for NSK Solution"
+    default n
+    help 
+        used for NSK Solution for dedicated memory region
+
+endif
+
+config DAUDIO
+	bool "D-Audio Board"
+	depends on ARCH_TCC897X
+	help
+	  Support for the TCC897X D-Audio board. Say Y here if you
+	  have such a device.
+
+config DAUDIO_KK
+	bool "D-Audio1.1 (KitKat) Board"
+	depends on DAUDIO
+	help
+		Support for D-Audio1.1 board. Say Y here if you have such a device.
+config IF_VIOC
+	bool "D-Audio if voic"
+
+config DAUDIO_BSP_VERSION
+    int "D-Audio BSP version"
+    range 20160512 20170512
+    depends on DAUDIO
+    default 20160512
+
+config DAUDIO_BSP_CLEINSOFT_VERSION
+    int "D-Audio BSP Cleinsoft version"
+    range 2016051201 2017051299
+    depends on DAUDIO
+    default 2016101001

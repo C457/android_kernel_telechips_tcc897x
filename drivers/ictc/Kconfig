@@ -1,0 +1,8 @@
+#
+# ICTC block configuration
+#
+
+config ICTC
+	bool "ICTC driver"
+	default n
+
