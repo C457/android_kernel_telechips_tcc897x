@@ -423,7 +423,7 @@ static struct i2c_driver cam_i2c_driver = {
 
 #endif /* USING_HW_I2C */
 
-#if defined(CONFIG_LVDS_CAMERA)||defined(INCLUDE_LVDS_CAMERA)
+#ifdef CONFIG_LVDS_CAMERA
 void getChipAddress(void)
 {
 	if(cam_i2c_client !=NULL)

@@ -564,7 +564,7 @@ static void hw_reset_gpio(struct mxt_data* mxt)
 #else
 
 
-#if defined(INCLUDE_CURVED_TI_SERDES)
+#ifdef CONFIG_CURVED_TI_SERDES
 	unsigned short addr = mxt->client->addr;
 	printk(KERN_ERR "[%s:%d] TI Serdes Device(0x58), Register(0x20), Value(0x91, 0x99)!!!\r\n", __func__, __LINE__);
 	mxt->client->addr = 0x58;
@@ -1505,7 +1505,7 @@ static void process_T9_message(u8 *message, struct mxt_data *mxt)
 	xpos = message[2];
 	xpos = xpos << 4;
 	xpos = xpos | (message[4] >> 4);
-#ifndef INCLUDE_LCD_RESOLUTION_1280_720
+#ifndef CONFIG_LCD_RESOLUTION_1280_720
 	xpos >>= 2;
 #endif
 
@@ -1937,8 +1937,7 @@ static void process_T100_message(u8 *message, struct mxt_data *mxt)
 	return;
 }
 
-#if defined(INCLUDE_LCD_TOUCHKEY)
-
+#ifdef CONFIG_LCD_TOUCHKEY
 static const struct mxt_tsp_key tsp_keys[] = {
 	{ TOUCH_9KEY_VOLUMEDOWN, KEY9_VOLUMEDOWN},
 	{ TOUCH_9KEY_VOLUMEUP, KEY9_VOLUMEUP },
@@ -2470,7 +2469,7 @@ int process_message(u8 *message, u8 object, struct mxt_data *mxt)
 			dev_info(&client->dev,
 					 "[TSP] maXTouch: Unknown message! %d\n", object);
 
-#if defined(HDMI_1920_720_12_3)
+#ifdef CONFIG_HDMI_1920_720_12_3
 			UNKNOWN_MES++;
 
 			if(UNKNOWN_MES == 5) {
@@ -4218,7 +4217,7 @@ static void mxt_check_touch_ic_timer_dwork(struct work_struct *work)
 			mxt_prerun_reset(mxt, true);
 			hw_reset_chip(mxt);
 			mxt_postrun_reset(mxt, true);
-#if defined(HDMI_1920_720_12_3)
+#ifdef CONFIG_HDMI_1920_720_12_3
 			LCD_DES_RESET_NEED = 1;
 #endif
 			// Touch Error Logging
@@ -4241,7 +4240,7 @@ static void mxt_check_touch_ic_timer_dwork(struct work_struct *work)
 
 					mxt_prerun_reset(mxt, true);
 					hw_reset_chip(mxt);
-#if defined(HDMI_1920_720_12_3)
+#ifdef CONFIG_HDMI_1920_720_12_3
 					LCD_DES_RESET_NEED = 1;
 #endif
 					mxt_postrun_reset(mxt, true);
@@ -4254,7 +4253,7 @@ static void mxt_check_touch_ic_timer_dwork(struct work_struct *work)
 				dev_err(&mxt->client->dev, "[TSP:%d] %s() hw-reset by (%d), count (%d)\n", __LINE__, __func__, error, gtouch_ic_reset_cnt);
 				mxt_prerun_reset(mxt, true);
 				hw_reset_chip(mxt);
-#if defined(HDMI_1920_720_12_3)
+#ifdef CONFIG_HDMI_1920_720_12_3
 				LCD_DES_RESET_NEED = 1;
 #endif
 				mxt_postrun_reset(mxt, true);
@@ -5044,7 +5043,7 @@ static int mxt336s_initialize(struct i2c_client *client, struct mxt_data *mxt)
 	}
 
 mxt_init_out:
-#if defined(INCLUDE_TOUCH_MXT_1189T)
+#ifdef CONFIG_TOUCH_MXT_1189T
 	if (error < 0) {
 		printk("[buffalo]Touch driver is reloading...... \n");
 		return MXT_INIT_FIRM_ERR;
@@ -5885,11 +5884,10 @@ static struct mxt_platform_data *mxt336s_parse_dt(struct i2c_client *client) {
 	pdata->irq_jig_gpio = gpio;
 	pdata->irq_jig_num	= gpio_to_irq(pdata->irq_jig_gpio);
 
-#if defined(HDMI_1920_720_12_3)
+#if defined(CONFIG_HDMI_1920_720_12_3)
         pdata->max_x = 1919;
         pdata->max_y = 719;
-#else
-#if defined(INCLUDE_LCD_RESOLUTION_1280_720)
+#elif defined(CONFIG_LCD_RESOLUTION_1280_720)
         pdata->max_x = 1279;
         pdata->max_y = 719;
 #else
@@ -5981,7 +5979,7 @@ static int mxt336s_probe(struct i2c_client *client,
 		error = -ENOMEM;
 		goto err_after_kmalloc;
 	}
-#if defined(INCLUDE_LCD_TOUCHKEY)
+#ifdef CONFIG_LCD_TOUCHKEY
 	mxt->input_key = input_allocate_device();
 	if (!mxt->input_key) {
 		dev_err(&client->dev, "[TSP] insufficient memory\n");
@@ -6018,7 +6016,7 @@ static int mxt336s_probe(struct i2c_client *client,
 	}
 #endif
 
-#if !defined(INCLUDE_TOUCH_MXT_1189T) && defined(CONFIG_DISASSEMBLED_MONITOR)
+#if !defined(CONFIG_TOUCH_MXT_1189T) && defined(CONFIG_DISASSEMBLED_MONITOR)
 	{
 		unsigned short addr = mxt->client->addr;
 
@@ -6047,7 +6045,7 @@ static int mxt336s_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
 
-#if defined(INCLUDE_LCD_TOUCHKEY)
+#ifdef CONFIG_LCD_TOUCHKEY
 	snprintf(mxt->phys_name_key,
 			 sizeof(mxt->phys_name_key),
 			 "%s/input0",
@@ -6069,7 +6067,7 @@ static int mxt336s_probe(struct i2c_client *client,
 
 	input->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_ABS);
 	input->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
-#if defined(INCLUDE_LCD_TOUCHKEY)
+#ifdef CONFIG_LCD_TOUCHKEY
 	mxt->input_key->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY);
 	for (i = 0; tsp_keys[i].id != TOUCH_KEY_NULL; i++) {
 		set_bit(tsp_keys[i].keycode, mxt->input_key->keybit);
@@ -6089,7 +6087,7 @@ static int mxt336s_probe(struct i2c_client *client,
 				"[TSP] Failed to register input device\n");
 		goto err_after_get_regulator;
 	}
-#if defined(INCLUDE_LCD_TOUCHKEY)
+#ifdef CONFIG_LCD_TOUCHKEY
 	error = input_register_device(mxt->input_key);
 	if (error < 0) {
 		dev_err(&client->dev,
@@ -6256,7 +6254,7 @@ err_after_misc_register:
 	misc_deregister(&mxt336S_misc);
 
 err_after_input_register:
-#if defined(INCLUDE_LCD_TOUCHKEY)
+#ifdef CONFIG_LCD_TOUCHKEY
 	if (mxt->input_key) {
 		input_free_device(mxt->input_key);
 	}
@@ -6307,7 +6305,7 @@ static int mxt336s_remove(struct i2c_client *client)
 
 	/* deregister misc device */
 	misc_deregister(&mxt336S_misc);
-#if defined(INCLUDE_LCD_TOUCHKEY)
+#ifdef CONFIG_LCD_TOUCHKEY
 	input_unregister_device(mxt->input_key);
 #endif
 
@@ -6475,7 +6473,7 @@ static int __init mxt336s_init(void)
 		case 2:
 		case 5:
 		case 6:
-	#ifdef INCLUDE_LCD_RESOLUTION_1280_720
+	#ifdef CONFIG_LCD_RESOLUTION_1280_720
 		case 10:
 	#endif
 			err = i2c_add_driver(&mxt336s_driver);

@@ -16,7 +16,7 @@
 #include "../tcc_cam_i2c.h"
 #include "../tcc_cam.h"
 
-#if defined(INCLUDE_BOARD3HW_GPIO)
+#ifdef CONFIG_BOARD3HW_GPIO
 #include "tw9990.h"
 #include "daudio_lvds.h"
 #include "daudio_atv.h"
@@ -462,7 +462,7 @@ int datv_init(struct tcc_camera_device * vdev)
 
 	VPRINTK("%s\n", __func__);
 
-#if defined(INCLUDE_BOARD3HW_GPIO)
+#ifdef CONFIG_BOARD3HW_GPIO
 	tw9990_sensor_init_fnc(&sf_daudio[SENSOR_TW9990]);
 
 	if (strcmp(vdev->camera_np->name, "lvds_camera") == 0)
@@ -487,7 +487,7 @@ int datv_init(struct tcc_camera_device * vdev)
 		what = SENSOR_TW9990;
 */
 
-#if defined(CONFIG_LVDS_CAMERA)||defined(INCLUDE_LVDS_CAMERA)
+#ifdef CONFIG_LVDS_CAMERA
 	setup_timer( &testtimer, lvds_timer_fun, 0 );
 	mod_timer( &testtimer, jiffies + msecs_to_jiffies(1000) );
 #endif
@@ -645,7 +645,7 @@ void sensor_init_fnc(SENSOR_FUNC_TYPE *sensor_func)
 	sensor_func->Check_Luma				= NULL;
 }
 
-#if defined(CONFIG_LVDS_CAMERA)||defined(INCLUDE_LVDS_CAMERA)
+#ifdef CONFIG_LVDS_CAMERA
 struct timer_list testtimer;
 
 void lvds_timer_fun(struct tcc_camera_device * vdev)

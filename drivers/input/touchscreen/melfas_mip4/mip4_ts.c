@@ -2464,7 +2464,7 @@ static int __init mip4_init(void){
 		case 0:
 		case 3:
 		case 4:
-#ifndef INCLUDE_LCD_RESOLUTION_1280_720
+#ifndef CONFIG_LCD_RESOLUTION_1280_720
 		case 10:
 #endif
 			err = i2c_add_driver(&mip4_ts_driver);

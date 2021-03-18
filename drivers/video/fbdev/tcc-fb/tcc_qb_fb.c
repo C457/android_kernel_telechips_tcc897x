@@ -176,7 +176,7 @@ int fb_quickboot_progress_bar(int percent)
 		img_width = fb_width(info);
 		img_height = fb_height(info);
 
-#ifdef INCLUDE_LCD_RESOLUTION_1280_720
+#ifdef CONFIG_LCD_RESOLUTION_1280_720
 
 		bar.sx = 320;
 		bar.sy = 525;

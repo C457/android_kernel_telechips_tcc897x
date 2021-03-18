@@ -1056,7 +1056,7 @@ int mxt_config_write_1189T(struct mxt_data *mxt, u8 *mem, int which, unsigned in
 		}
 	}
 
-#if defined(INCLUDE_LCD_TOUCHKEY)
+#ifdef CONFIG_LCD_TOUCHKEY
     obj_addr = MXT_BASE_ADDR(MXT_TOUCH_KEYARRAY_T15);
     obj_size = MXT_GET_SIZE(MXT_TOUCH_KEYARRAY_T15);
     if(which == TOMEM)
@@ -1120,7 +1120,7 @@ int mxt_config_write_1189T(struct mxt_data *mxt, u8 *mem, int which, unsigned in
 			return -EIO;
 		}
 	}
-#if defined(INCLUDE_LCD_TOUCHKEY)
+#ifdef CONFIG_LCD_TOUCHKEY
 	obj_addr = MXT_BASE_ADDR(MXT_SPT_TIMER_T61);
         obj_size = MXT_GET_SIZE(MXT_SPT_TIMER_T61);
         if(which == TOMEM)
@@ -1154,7 +1154,7 @@ int mxt_config_write_1189T(struct mxt_data *mxt, u8 *mem, int which, unsigned in
 		}
 	}
 
-#if defined(INCLUDE_LCD_TOUCHKEY) 
+#ifdef CONFIG_LCD_TOUCHKEY
 	obj_addr = MXT_BASE_ADDR(MXT_SPT_DYNAMICCONFIGURATIONCONTROLLER_T70);
         obj_size = MXT_GET_SIZE(MXT_SPT_DYNAMICCONFIGURATIONCONTROLLER_T70);
 	if(which == TOMEM)

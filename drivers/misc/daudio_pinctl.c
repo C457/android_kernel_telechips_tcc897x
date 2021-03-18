@@ -34,7 +34,7 @@ static DEFINE_MUTEX(enable_interrupt_mutex);
 
 static int debug_pinctl = DEBUG_DAUDIO_PINCTL;
 static int gpio_list_size = 0;
-#if defined(INCLUDE_TDMB)
+#ifdef CONFIG_TDMB
 static int ext_irq_noti_1 = 0;  //spidev1.0
 #endif
 static int ext_irq_noti = 0;  //spidev2.0
@@ -109,7 +109,7 @@ static D_AUDIO_GPIO_LIST gpio_list[] =
     {CTL_TW9990_RESET,          TCC_GPG(16),    "CTL_TW9990_RESET"}, 
     
     {CTL_GPS_BOOT_MODE,		TCC_GPA(0),	"CTL_GPS_BOOT_MODE - RESERVED"},
-#if defined(INCLUDE_TDMB)
+#ifdef CONFIG_TDMB
     {DET_GPS_ANT_SHORT,		TCC_GPA(0),	"DET_GPS(+DMB)_ANT_SHORT - ADC Check"},
     {DET_GPS_ANT_OPEN,		TCC_GPA(0),	"DET_GPS(+DMB)_ANT_OPEN - ADC Check"},
 #else
@@ -251,7 +251,7 @@ int get_gpio_number(unsigned gpio)
 EXPORT_SYMBOL(get_gpio_number);
 #endif
 
-#if defined(INCLUDE_XM)
+#ifdef CONFIG_XM
 #define GPIO_UART4_TX TCC_GPF(13)
 #define GPIO_UART4_RX TCC_GPF(14)
 #define GPIO_I2C_SDA	TCC_GPG(6)
@@ -357,7 +357,7 @@ static ssize_t store_ext_spi_int(struct device *dev, struct device_attribute *at
 
     return count;
 }
-#if defined(INCLUDE_TDMB)
+#ifdef CONFIG_TDMB
 static irqreturn_t ext_irq_handler_1(int irq, void *dev_id)
 {
 	unsigned long flag;
@@ -412,7 +412,7 @@ void clear_irq_variables(void)
 
 	spin_lock_irqsave(&ext_irq_lock, flag);
 	ext_irq_noti = 0;
-#if defined(INCLUDE_TDMB)
+#ifdef CONFIG_TDMB
 	ext_irq_noti_1=0;
 #endif
 	spin_unlock_irqrestore(&ext_irq_lock, flag);
@@ -435,13 +435,13 @@ static int daudio_pinctl_set_gpio(int gpio, int value)
 		}
 		if (get_gpio_output_enable(gpio))
 		{
-#if defined(INCLUDE_XM)
+#if defined(CONFIG_XM)
 		if ((gpio == TCC_GPA(3)) && ((value == 0) || (value == 1)))
 			sabre_i2c_pinctl(value);
 
                 if ((gpio == TCC_GPB(10)) && (value == 0))
              	        daudio_uart_pinctl(0);
-#elif defined(INCLUDE_DAB)
+#elif defined(CONFIG_DAB)
 #if 0
             if ((gpio == TCC_GPC(22)) && (value == 1))
             {
@@ -460,7 +460,7 @@ static int daudio_pinctl_set_gpio(int gpio, int value)
 #endif
 #endif
 			gpio_set_value(gpio, value);
-#if defined(INCLUDE_XM)
+#ifdef CONFIG_XM
 			if ((gpio == TCC_GPB(10)) && (value == 1))
 				daudio_uart_pinctl(1);
 #endif
@@ -737,7 +737,7 @@ static int daudio_pinctl_enable_interrupt(unsigned int gpio, unsigned int extint
 	tcc_gpio_config_ext_intr(extint, int_info.source);
 
 	clear_irq_variables();
-#if defined(INCLUDE_TDMB)
+#ifdef CONFIG_TDMB
 	if (gpio == TCC_GPC(15)){
 		ret = request_irq(extint, ext_irq_handler_1, int_info.flags, int_info.label, NULL);
 		if(ret < 0)
@@ -913,7 +913,7 @@ static long daudio_pinctl_ioctl(struct file *file, unsigned int cmd, unsigned lo
 				printk(KERN_INFO "%s DAUDIO_PINCTL_CTL pin:%d value:%d\n",
 						 __func__, gpio_number, data->pin_value);
 #endif
-#if defined(INCLUDE_DAB) || defined(INCLUDE_TDMB)                            
+#if defined(CONFIG_DAB) || defined(CONFIG_TDMB)                            
 				if((daudio_pinctl_get_gpio(TCC_GPC(25)) == 1) && (data->pin_name == 233))
 					clear_irq_variables();
 				else
@@ -938,7 +938,7 @@ static long daudio_pinctl_ioctl(struct file *file, unsigned int cmd, unsigned lo
 					data->pin_value = get_serdes_conn();
 				else
 #endif
-#if defined(INCLUDE_DAB) || defined(INCLUDE_TDMB)
+#if defined(CONFIG_DAB) || defined(CONFIG_TDMB)
 				{
 					if((daudio_pinctl_get_gpio(TCC_GPC(25)) == 1) && (data->pin_name == 233))
 					{
@@ -1084,7 +1084,7 @@ static int __init daudio_pinctl_init(void)
 		// CMMB Update application checks "ext_spi_int" device every 500ms
 		// value 1 represents "receive an interrupt signal from CMMB module"
 		device_create_file(dev, &dev_attr_ext_spi_int);
-#if defined(INCLUDE_TDMB)
+#ifdef CONFIG_TDMB
 		device_create_file(dev, &dev_attr_ext_spi_int_1);
 #endif
 		printk("[pigfish] %s, dev_path: LATER\n", __func__);

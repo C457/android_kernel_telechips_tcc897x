@@ -65,7 +65,7 @@
 #define	TOUCH_4KEY_SEARCH	0x04
 
 /* 7 Touch key array */
-#if defined(INCLUDE_LCD_TOUCHKEY )
+#ifdef CONFIG_LCD_TOUCHKEY
 #define KEY_INVALID					KEY_CNT
 #define	TOUCH_9KEY_VOLUMEDOWN		0x80
 #define	TOUCH_9KEY_VOLUMEUP			0x40
@@ -960,12 +960,12 @@ struct mxt_check_touch_ic {
 struct mxt_data {
 	struct i2c_client *client;
 	struct input_dev  *input;
-#if defined(INCLUDE_LCD_TOUCHKEY )
+#ifdef CONFIG_LCD_TOUCHKEY
 	struct input_dev  *input_key; 
 #endif	
 	struct mxt_platform_data *pdata;
 	char              phys_name[32];
-#if defined(INCLUDE_LCD_TOUCHKEY )
+#ifdef CONFIG_LCD_TOUCHKEY
 	char              phys_name_key[32];
 #endif	
 	int               irq;
@@ -1058,7 +1058,7 @@ struct mxt_data {
 
 };
 
-#if defined(INCLUDE_LCD_TOUCHKEY )
+#ifdef CONFIG_LCD_TOUCHKEY
 struct mxt_tsp_key {
 	u16 id;
 	unsigned int keycode;

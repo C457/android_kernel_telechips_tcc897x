@@ -116,8 +116,7 @@ int sensor_if_change_mode(struct tcc_camera_device * vdev, unsigned char capture
 
 int sensor_if_change_mode_ex(int camera_type, int camera_encode, struct tcc_camera_device * vdev) {
 	printk("%s() - camera_type = 0x%x, camera_encode = 0x%x\n", __func__, camera_type, camera_encode);
-#if defined(CONFIG_LVDS_CAMERA)||defined(INCLUDE_LVDS_CAMERA)
-#else
+#ifndef CONFIG_LVDS_CAMERA
 	vdev->sensor_func.Set_CameraMode(camera_type, camera_encode, vdev);
 #endif
 

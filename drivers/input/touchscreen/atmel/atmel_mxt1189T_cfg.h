@@ -1,7 +1,7 @@
 #ifndef __ATMEL_MXT1189T_CFG_H
 #define __ATMEL_MXT1189T_CFG_H
 
-#if defined(INCLUDE_LCD_TOUCHKEY) //touchkey
+#ifdef CONFIG_LCD_TOUCHKEY //touchkey
 
 //[SPT_USERDATA_T38 INSTANCE 0]
 unsigned char cfg_1189T_T38[64] = {'1', '8', '0', '4', '1', '0', '1', '0', 0, 0, };
