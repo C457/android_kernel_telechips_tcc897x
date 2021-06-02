@@ -52,6 +52,7 @@ pen:	ldr	r7, [r6]
 	 * we've been released from the holding pen: secondary_stack
 	 * should now contain the SVC stack for this core
 	 */
+	bl      v7_invalidate_l1
 	b	secondary_startup
 
 	.align

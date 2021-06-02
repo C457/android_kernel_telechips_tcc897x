@@ -1,9 +1,9 @@
 /*
  * Linux DHD Bus Module for PCIE
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_pcie_linux.c 650724 2016-07-22 08:41:52Z $
+ * $Id: dhd_pcie_linux.c 708697 2018-11-19 10:19:53Z $
  */
 
 
@@ -911,6 +911,13 @@ int dhdpcie_init(struct pci_dev *pdev)
 			break;
 		}
 
+#ifdef WL_VIF_SUPPORT
+		/* Attach to the virtual interface */
+		DHD_TRACE(("%s(): Calling dhd_register_if() \n", __FUNCTION__));
+		if (dhd_register_vif(bus->dhd) != 0) {
+			DHD_ERROR(("%s(): ERROR.. dhd_register_vif() failed\n", __FUNCTION__));
+		}
+#endif
 		dhdpcie_init_succeeded = TRUE;
 
 		DHD_TRACE(("%s:Exit - SUCCESS \n", __FUNCTION__));

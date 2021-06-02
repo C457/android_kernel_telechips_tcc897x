@@ -1,9 +1,9 @@
 /*
  * Driver O/S-independent utility routines
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmutils.c 665091 2017-05-19 06:11:53Z $
+ * $Id: bcmutils.c 689430 2018-05-02 06:46:20Z $
  */
 
 #include <bcm_cfg.h>
@@ -832,11 +832,11 @@ pktsetprio(void *pkt, bool update_vtag)
 			evh->vlan_tag = hton16(vlan_tag);
 			rc |= PKTPRIO_UPD;
 		}
-#ifdef DHD_LOSSLESS_ROAMING
+#if defined(DHD_LOSSLESS_ROAMING) && defined(PCIE_FULL_DONGLE)
 	} else if (eh->ether_type == hton16(ETHER_TYPE_802_1X)) {
 		priority = PRIO_8021D_NC;
 		rc = PKTPRIO_DSCP;
-#endif /* DHD_LOSSLESS_ROAMING */
+#endif /* DHD_LOSSLESS_ROAMING  && PCIE_FULL_DONGLE */
 	} else if ((eh->ether_type == hton16(ETHER_TYPE_IP)) ||
 		(eh->ether_type == hton16(ETHER_TYPE_IPV6))) {
 		uint8 *ip_body = pktdata + sizeof(struct ether_header);

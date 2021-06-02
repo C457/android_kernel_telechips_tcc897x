@@ -120,7 +120,11 @@ EXPORT_SYMBOL_GPL(ehci_cf_port_reset_rwsem);
 #endif
 
 #undef MAX_TOPO_LEVEL
-#define MAX_TOPO_LEVEL	1	/* # of hub topology: 0 is rh, 1 is external hub */
+#if defined(INCLUDE_EXHUB)
+	#define MAX_TOPO_LEVEL	2	/* # of hub topology: 0 is rh, 1 is external hub */
+#else
+	#define MAX_TOPO_LEVEL	1	/* # of hub topology: 0 is rh, 1 is external hub */
+#endif
 
 /*
  * Test Mode Selectors
@@ -2019,6 +2023,10 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 #endif
 
+#if defined(INCLUDE_EXHUB)
+	printk("%s::HUB_LEVEL:%d\n", __func__, MAX_TOPO_LEVEL);
+#endif
+
 	if (hdev->level == MAX_TOPO_LEVEL) {
 /* TCC Embedded Host Electrical Test */
 #ifdef CONFIG_TCC_EH_ELECT_TST
@@ -2394,6 +2402,7 @@ void usb_disconnect(struct usb_device **pdev)
 	struct usb_device *udev = *pdev;
 	struct usb_hub *hub = NULL;
 	int port1 = 1;
+	struct kobject *tmp_kobj;
 
 	/* mark the device as inactive, so any further urb submissions for
 	 * this device (and any of its children) will fail immediately.
@@ -2449,6 +2458,16 @@ void usb_disconnect(struct usb_device **pdev)
 	 * for de-configuring the device and invoking the remove-device
 	 * notifier chain (used by usbfs and possibly others).
 	 */
+
+	 //2018.08.13 patch for kernel panic while usb is disconnected. 
+	if(likely((unsigned long)(kobject_name(&udev->dev.kobj)) < PAGE_OFFSET))
+	{
+		printk("%s:%d ######### wrong addr(0x%x) (#########\n", __func__, __LINE__, (unsigned int)kobject_name(&udev->dev.kobj));
+		tmp_kobj = &udev->dev.kobj;
+		tmp_kobj->name = NULL;		
+		kobject_set_name(&udev->dev.kobj, "%s", "1-1");
+	}
+
 	device_del(&udev->dev);
 
 	/* Free the device number and delete the parent's children[]
@@ -2464,6 +2483,13 @@ void usb_disconnect(struct usb_device **pdev)
 	if (port_dev && test_and_clear_bit(port1, hub->child_usage_bits))
 		pm_runtime_put(&port_dev->dev);
 
+#if defined (CONFIG_DYNAMIC_DC_LEVEL_ADJUSTMENT)                                                 
+       {                                                                                         
+               struct usb_hcd *hcd = bus_to_hcd(udev->bus);                                      
+               printk("\x1b[1;39m[%s:%d](1)HCD pointer = %p\x1b[0m\n", __func__, __LINE__,hcd);  
+               set_port_dc_level(hcd, CONFIG_USB_HS_DC_VOLTAGE_LEVEL);                           
+       }                                                                                         
+#endif  
 	hub_free_dev(udev);
 
 	put_device(&udev->dev);
@@ -2471,7 +2497,8 @@ void usb_disconnect(struct usb_device **pdev)
 #if defined (CONFIG_DYNAMIC_DC_LEVEL_ADJUSTMENT)
 	{
 		struct usb_hcd *hcd = bus_to_hcd(udev->bus);
-		set_port_dc_level(hcd, CONFIG_USB_HS_DC_VOLTAGE_LEVEL);
+		printk("\x1b[1;39m[%s:%d](2)HCD pointer = %p\x1b[0m\n", __func__, __LINE__,hcd);  
+		//set_port_dc_level(hcd, CONFIG_USB_HS_DC_VOLTAGE_LEVEL);
 	}
 #endif
 }

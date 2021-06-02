@@ -49,7 +49,7 @@ void cam_clock_clkrate(struct tcc_camera_device * vdev)
 	
 #else
 
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS)
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK)
 		module_np = of_find_node_by_name(cam_np,LVDS_MODULE_NODE);
 	else
 		module_np = of_find_node_by_name(cam_np,MODULE_NODE);
@@ -85,6 +85,9 @@ void cam_clock_enable(struct tcc_camera_device * vdev, int clk_index)
 			
 		case VIOC_CLOCK :
 			clk_prepare_enable(vdev->clk_data.vioc_clk);
+			printk("VIOC clock status(enable cnt: %d, prepare cnt: %d)\n", \
+					__clk_get_enable_count(vdev->clk_data.vioc_clk), \
+					__clk_get_prepare_count(vdev->clk_data.vioc_clk));
 			break;
 	};
 }
@@ -98,6 +101,9 @@ void cam_clock_disable(struct tcc_camera_device * vdev, int clk_index)
 			
 		case VIOC_CLOCK :
 			clk_disable_unprepare(vdev->clk_data.vioc_clk);
+			printk("VIOC clock status(enable cnt: %d, prepare cnt: %d)\n", \
+					__clk_get_enable_count(vdev->clk_data.vioc_clk), \
+					__clk_get_prepare_count(vdev->clk_data.vioc_clk));
 			break;
 	};
 }

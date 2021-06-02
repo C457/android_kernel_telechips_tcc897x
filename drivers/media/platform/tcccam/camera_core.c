@@ -62,14 +62,15 @@ static int debug	= 0;
 #define FUNCTION_IN	log("In\n");
 #define FUNCTION_OUT	log("Out\n");
 
-static int camera_type = 0;
 static const int LVDS_SVM = 4;
+static const int ADAS_PRK = 7;
 
-extern unsigned int do_hibernation;
-extern unsigned int do_hibernate_boot;
+//extern unsigned int do_hibernation;
+//extern unsigned int do_hibernate_boot;
 
 extern int tcc_ctrl_ext_frame(char enable);
 extern void tcc_ext_mutex(char lock, char bCamera);
+extern int get_camera_type(void);
 
 int tcc_videobuf_inputenum(struct v4l2_input *input)
 {
@@ -105,11 +106,34 @@ int tcc_videobuf_s_input(unsigned int *input)
 
 int tcc_videobuf_s_caminfo(unsigned int *input, struct tcc_camera_device * vdev)
 {
+	int camera_type = 0;
 
 	if (*input < 0)
 		return -EINVAL;
 
-	vdev->data.cam_info = *input;
+	vdev->CameraID = *input;
+
+	if(vdev->CameraID == DAUDIO_CAMERA_REAR)
+	{
+		camera_type = get_camera_type();
+
+		if(camera_type == LVDS_SVM || camera_type == 6)
+			vdev->data.cam_info = DAUDIO_CAMERA_LVDS;
+		else if (camera_type == ADAS_PRK)
+			vdev->data.cam_info = DAUDIO_ADAS_PRK;
+		else
+			vdev->data.cam_info = DAUDIO_CAMERA_REAR;
+	}
+	else if(vdev->CameraID == DAUDIO_CAMERA_LVDS)
+		vdev->data.cam_info = DAUDIO_CAMERA_LVDS;
+		
+	printk("cam_info : %d \n", vdev->data.cam_info);
+
+	cam_clock_clkrate(vdev);
+
+#if defined(CONFIG_VIDEO_ATV_SENSOR_DAUDIO)
+	datv_init(vdev);                //  temp 20170215 mhjung
+#endif
 
 	/* Init the camera IF */
 	tcc_get_sensor_info(vdev, vdev->data.cam_info);
@@ -396,9 +420,21 @@ int tcc_videobuf_user_jpeg_capture(int * Jpeg_quality, struct tcc_camera_device 
 	}
 
 	vdev->data.done_list.next = &(vdev->data.done_list);
+	vdev->data.cif_cfg.cap_status = CAPTURE_NONE;
 	vdev->data.cif_cfg.now_frame_num = 0;
 	vdev->data.cif_cfg.retry_cnt 	= 0;
 
+	if(!vdev->cam_irq) {
+		if((tccxxx_cif_irq_request(vdev)) < 0) {
+			printk("FAILED to aquire camera-irq.\n");
+		}
+		else {
+			vdev->cam_irq = ENABLE;
+			log("[%s %d] cif_irq_request success ! \n", __FUNCTION__, __LINE__);
+		}
+	}
+
+	vdev->data.wakeup_int = 0;
 	ret_val = tccxxx_cif_capture(*Jpeg_quality, vdev);
 
 	return ret_val;	
@@ -407,6 +443,14 @@ int tcc_videobuf_user_jpeg_capture(int * Jpeg_quality, struct tcc_camera_device 
 int tcc_videobuf_user_get_capture_info(TCCXXX_JPEG_ENC_DATA * Jpeg_data, struct tcc_camera_device * vdev)
 {	
 	unsigned char *pVirt_BaseAddr;
+
+	if(vdev->cam_irq) {
+		tccxxx_cif_irq_free(vdev);
+		vdev->cam_irq = DISABLE;
+	}
+
+	// Clear the memory for the JPEG encoding.
+	memset(Jpeg_data, 0x00, sizeof(TCCXXX_JPEG_ENC_DATA));
 
 	Jpeg_data->width 			= vdev->data.cif_cfg.main_set.target_x;
 	Jpeg_data->height 			= vdev->data.cif_cfg.main_set.target_y;
@@ -455,7 +499,6 @@ int tcc_videobuf_get_zoom_support(int cameraIndex)
 static int camera_core_sensor_open(struct tcc_camera_device * vdev)
 {
 	int ret = 0;
-
 	dprintk("Sensor Device-Init \n");
 
 	if((ret = sensor_if_parse_gpio_dt_data(vdev)) < 0) 
@@ -481,14 +524,64 @@ static int camera_core_sensor_open(struct tcc_camera_device * vdev)
 	{
 		printk (KERN_ERR "%s: cannot open\n", CAM_NAME);
 		goto err;
-	} 
-	
+	}
+
 	return ret;
 
 err:
 	sensor_if_cleanup(vdev);
 	return ret;	
 }
+
+int tcc_videobuf_get_vin_crop(struct v4l2_crop * arg, struct tcc_camera_device * vdev) {
+	int ret = 0;
+
+	arg->c.left = vdev->data.cif_cfg.main_set.vin_crop.left;
+	arg->c.top = vdev->data.cif_cfg.main_set.vin_crop.top;
+
+	arg->c.width = vdev->data.cif_cfg.main_set.vin_crop.width;
+	arg->c.height= vdev->data.cif_cfg.main_set.vin_crop.height;
+
+	return ret;
+}
+
+int tcc_videobuf_set_vin_crop(struct v4l2_crop * arg, struct tcc_camera_device * vdev) {
+	int ret = 0;
+	struct v4l2_rect c_rect = arg->c;
+	TCC_SENSOR_INFO_TYPE * i_info = &(vdev->tcc_sensor_info);
+
+	if((c_rect.left < 0 || \
+		c_rect.top < 0) || \
+		i_info->preview_w < c_rect.width || \
+		i_info->preview_h < c_rect.height) {
+
+		pr_err("%s invalid arguments(left: %d top: %d, width: %d height: %d \n", \
+			__func__, c_rect.left, c_rect.top, c_rect.width, c_rect.height);
+
+		ret = -EINVAL;
+		goto error;
+	}
+
+	if(i_info->preview_w < c_rect.width + c_rect.left || \
+		i_info->preview_h < c_rect.height + c_rect.top) {
+
+		pr_err("%s invalid arguments(left: %d top: %d, width: %d height: %d \n", \
+			__func__, c_rect.left, c_rect.top, c_rect.width, c_rect.height);
+
+		ret = -EINVAL;
+		goto error;
+	}
+
+	vdev->data.cif_cfg.main_set.vin_crop.left = c_rect.left;
+	vdev->data.cif_cfg.main_set.vin_crop.top = c_rect.top;
+
+	vdev->data.cif_cfg.main_set.vin_crop.width = c_rect.width;
+	vdev->data.cif_cfg.main_set.vin_crop.height = c_rect.height;
+
+error:
+	return ret;
+}
+
 
 static long camera_core_do_ioctl(struct file * file, unsigned int cmd, void * arg) {
 	struct tcc_camera_device * vdev = video_drvdata(file);
@@ -560,7 +653,13 @@ static long camera_core_do_ioctl(struct file * file, unsigned int cmd, void * ar
 		
 		case VIDIOC_STREAMOFF:
 			return tcc_videobuf_streamoff((enum v4l2_buf_type *)arg, vdev);
-		
+
+		case VIDIOC_G_CROP:
+			return tcc_videobuf_get_vin_crop((struct v4l2_crop *) arg, vdev);
+
+		case VIDIOC_S_CROP:
+			return tcc_videobuf_set_vin_crop((struct v4l2_crop *) arg, vdev);
+
 		case VIDIOC_USER_JPEG_CAPTURE:
 			return tcc_videobuf_user_jpeg_capture((int *)arg, vdev);
 
@@ -588,6 +687,12 @@ static long camera_core_do_ioctl(struct file * file, unsigned int cmd, void * ar
 
 		case VIDIOC_USER_INT_CHECK: // 20131018 swhwang, for check video frame interrupt
 			return tcc_interrupt_check((int)arg, vdev);
+
+		case VIDEOC_USER_SET_ZOOM_RECT:
+			return tccxxx_cif_set_zoom_rect(arg, vdev);
+
+		case VIDEOC_USER_GET_ZOOM_RECT:
+			return tccxxx_cif_get_zoom_rect(arg, vdev);
 			
 		case VIDIOC_OVERLAY:
 		case VIDIOC_ENUMSTD:
@@ -620,16 +725,6 @@ static long camera_core_do_ioctl(struct file * file, unsigned int cmd, void * ar
 		case DIRECT_DISPLAY_IF_INITIALIZE:
 			tcc_ext_mutex(1, 1);
 
-			tcc_get_sensor_info(vdev, 0);
-
-			if(!vdev->camera_np) {
-				printk(KERN_ERR "%s: vdev->camera_np is NULL\n", CAM_NAME);
-				return -1;
-			}
-			if(sensor_if_parse_gpio_dt_data(vdev) < 0) {
-				printk(KERN_ERR "%s: cannot initialize sensor\n", CAM_NAME);
-				return -EINVAL;
-			}
 			retval = direct_display_if_initialize(vdev);
 
 			tcc_ext_mutex(0, 1);
@@ -637,6 +732,31 @@ static long camera_core_do_ioctl(struct file * file, unsigned int cmd, void * ar
 
 		case DIRECT_DISPLAY_IF_START:
 			tcc_ext_mutex(1, 1);
+
+            		switch(get_camera_type())
+			{
+				case 0:	//CVBS - rearcam
+					vdev->rcam_misc.preview_crop_y = 7;
+					vdev->rcam_misc.preview_additional_height = 7;
+					break;
+				case 1:	//SVIDEO - SVM
+					vdev->rcam_misc.preview_crop_y = 13;
+					vdev->rcam_misc.preview_additional_height = 7;
+					break;
+				case 4:	//LVDS 97.5MHz
+				//hklee 2019.08.23 - get preview size from application. (0,0) will be set as (1920*720)
+				/*case 6:	//LVDS 111.8MHz - SVM,DVRS,SVM Camera
+					((DIRECT_DISPLAY_IF_PARAMETERS *)arg)->preview_width = 1920;
+					((DIRECT_DISPLAY_IF_PARAMETERS *)arg)->preview_height = 720;
+					break;
+				case 7: //ADAS_PRK
+					((DIRECT_DISPLAY_IF_PARAMETERS *)arg)->preview_width = 1280;
+					((DIRECT_DISPLAY_IF_PARAMETERS *)arg)->preview_height = 720;*/
+				default:
+					vdev->rcam_misc.preview_crop_y = 0;
+					vdev->rcam_misc.preview_additional_height = 0;
+					break;
+			}
 			retval = direct_display_if_start(*(DIRECT_DISPLAY_IF_PARAMETERS *)arg, vdev);
 
 			tcc_ext_mutex(0, 1);
@@ -746,13 +866,6 @@ static int camera_core_open(struct file * file) {
 	if(!vdev->vfd || (vdev->vfd->minor != minor))
 		return -ENODEV;
 
-	if((vdev->data.cam_info == DAUDIO_CAMERA_REAR) && (camera_type == LVDS_SVM || camera_type == 6))
-		vdev->data.cam_info = DAUDIO_CAMERA_LVDS;
-
-	dprintk("cam_info : %d \n", vdev->data.cam_info);
-
-	cam_clock_clkrate(vdev);
-
 	// VIOC Block enable.
 	cam_clock_enable(vdev, VIOC_CLOCK);
 
@@ -793,7 +906,6 @@ struct tcc_camera_device * g_vdev_for_snapshot;
 
 static int camera_core_probe(struct platform_device * pdev) {
 	struct tcc_camera_device * vdev;
-	int mode0, mode1, mode2;
 
 	vdev = kzalloc(sizeof(struct tcc_camera_device), GFP_KERNEL);
 	if(vdev == NULL)
@@ -801,24 +913,9 @@ static int camera_core_probe(struct platform_device * pdev) {
 	// clear vdev
 	memset((void *)vdev, 0, sizeof(struct tcc_camera_device));
 
-	mode0 = gpio_get_value(TCC_GPB(22));
-	mode1 = gpio_get_value(TCC_GPB(19));
-	mode2 = gpio_get_value(TCC_GPB(23));
-	camera_type = (mode0<<2)|(mode1<<1)|mode2;
-
 	if(pdev->dev.of_node) {
-		if(camera_type == LVDS_SVM || camera_type == 6) {
-			if(!(vdev->camera_np = of_find_node_by_name(pdev->dev.of_node, "lvds_camera"))) {
-				dprintk("could not find lvds_camera node!! \n");
-				return -ENODEV;	
-			}
-			dprintk("change device node to lvds_camera \n");
-		}
-		else {
-			vdev->camera_np = pdev->dev.of_node;
-			dprintk("link device node to camera \n");
-		}
-
+		vdev->camera_np = pdev->dev.of_node;
+		dprintk("link device node to camera \n");
 		cam_clock_get(vdev);
 	} else {
 		printk("could not find camera node!! \n");
@@ -856,6 +953,8 @@ static int camera_core_probe(struct platform_device * pdev) {
 	spin_lock_init(&vdev->data.dev_lock);
  	mutex_init(&vdev->data.lock);
 
+    tccxxx_cif_vin_lut_spinlock_init();
+
 	printk(KERN_INFO "%s: registered device video%d [v4l2]\n", CAM_NAME, vdev->vfd->minor);
 
 	g_vdev_for_snapshot = vdev;
@@ -868,10 +967,6 @@ static int camera_core_probe(struct platform_device * pdev) {
 		tcc_cam_switchmanager_probe(vdev);
 	}
 #endif//defined(CONFIG_TCC_REAR_CAMERA_DRV)
-
-#if defined(CONFIG_VIDEO_ATV_SENSOR_DAUDIO)
-	datv_init(vdev);                //  temp 20170215 mhjung
-#endif
 	FUNCTION_OUT
 
 	return 0;
@@ -916,7 +1011,8 @@ int camera_core_resume(struct platform_device * pdev) {
 		
 		// During snapshot booting, the context before making snapshot will be restored although whatever you do here.
 		// So, just stop EarlyCamera only if it's working.
-		if((do_hibernation == 1) && (do_hibernate_boot == 1)) {
+#if 0
+        if((do_hibernation == 1) && (do_hibernate_boot == 1)) {
 			// stop switching thread
 			tcc_cam_switchmanager_stop_monitor(vdev);
 
@@ -926,10 +1022,10 @@ int camera_core_resume(struct platform_device * pdev) {
 			// start switching thread again
 			tcc_cam_swtichmanager_start_monitor(vdev);
 		}
+#endif         
 	}
 	FUNCTION_OUT
 #endif//defined(CONFIG_TCC_REAR_CAMERA_DRV)
-	int mode0, mode1, mode2;
 	struct tcc_camera_device * vdev = platform_get_drvdata(pdev);
 
 	FUNCTION_IN
@@ -940,39 +1036,21 @@ int camera_core_resume(struct platform_device * pdev) {
 	
 	// During snapshot booting, the context before making snapshot will be restored although whatever you do here.
 	// So, just stop EarlyCamera only if it's working.
+#if 0    
 	if((do_hibernation == 1) && (do_hibernate_boot == 1)) {
 
 		dprintk("vdev = 0x%x \n", vdev);
 
 		if(pdev->dev.of_node) {
-			mode0 = gpio_get_value(TCC_GPB(22));
-			mode1 = gpio_get_value(TCC_GPB(19));
-			mode2 = gpio_get_value(TCC_GPB(23));
-			camera_type = (mode0<<2)|(mode1<<1)|mode2;
-
-			dprintk("mode0(0x%x), mode1(0x%x), mode2(0x%x), camera_type(0x%x) \n", \
-					mode0, mode1, mode2, camera_type);
-
-			if(camera_type == LVDS_SVM || camera_type == 6) {
-				if(!(vdev->camera_np = of_find_node_by_name(pdev->dev.of_node, "lvds_camera"))) {
-					dprintk("could not find lvds_camera node!! \n");
-					return -ENODEV;	
-				}
-				dprintk("link device node to lvds_camera \n");
-			}
-			else {
-				vdev->camera_np = pdev->dev.of_node;
-				dprintk("link device node to camera \n");
-			}
+			vdev->camera_np = pdev->dev.of_node;
+			dprintk("link device node to camera \n");
 			cam_clock_get(vdev);
-#if defined(CONFIG_VIDEO_ATV_SENSOR_DAUDIO)
-			datv_init(vdev);                //  temp 20170215 mhjung
-#endif
 		} else {
 			printk("could not find camera node!! \n");
 			return -ENODEV;	
 		}
 	}
+#endif 
 
 	FUNCTION_OUT
 
@@ -998,17 +1076,9 @@ static struct platform_driver camera_core_driver = {
 
 static char banner[] __initdata = KERN_INFO "TCCXXX Camera driver initializing\n";
 int __init camera_core_init(void) {
-	int mode0, mode1, mode2;
 	FUNCTION_IN
 
 	printk(banner);
-
-	if(camera_type == LVDS_SVM || camera_type == 6) {
-		dprintk("camera_type : LVDS(%d) \n", camera_type);
-	}
-	else {
-		dprintk("camera_type : CVBS(%d) \n", camera_type);
-	}
 }
 
 void __exit camera_core_cleanup(void) {

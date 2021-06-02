@@ -50,3 +50,6 @@ void tcc_mmc_set_kpanic_card(struct mmc_card * kpanic_card);
 struct mmc_card* tcc_mmc_get_kpanic_card(void);
 int tcc_mmc_kpanic_wakeup(void);
 int init_tcc_mmc_kpanic(void);
+
+int get_reboot_reason(void);
+

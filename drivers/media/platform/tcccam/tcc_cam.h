@@ -24,6 +24,7 @@ Suite 330, Boston, MA 02111-1307 USA
 #include <video/tcc/vioc_intr.h>
 #else
 #include <mach/tcc_jpeg_ioctl.h>
+#include <mach/tcc_cam_ioctrl.h>
 #include <mach/vioc_intr.h>
 #endif
 #include <linux/of.h>
@@ -47,6 +48,7 @@ Suite 330, Boston, MA 02111-1307 USA
 #define DAUDIO_CAMERA_CMMB		1
 #define DAUDIO_CAMERA_AUX		2
 #define DAUDIO_CAMERA_LVDS		3
+#define DAUDIO_ADAS_PRK  4
 
 #define DAUDIO_CMMB_CROP_X             20
 #define DAUDIO_CMMB_CROP_Y             20
@@ -129,13 +131,11 @@ typedef struct {
 }img_buf_t;
 
 typedef struct {
-    unsigned short            source_x; 		/* CIF Input-Selection width/height */
-    unsigned short            source_y;
-    unsigned short            win_hor_ofst;	/* CIF Input-Selection Hori/Vert Offset (ex. For Zoom)*/
-    unsigned short            win_ver_ofst;		
+    /* VIN Crop value */
+    struct v4l2_rect          vin_crop;
 
-    unsigned short            scaler_x;		/* CIF Scaler out */
-    unsigned short            scaler_y;
+    /* Scaler setting value */
+	pinch_info          sc_info;
     unsigned short            target_x;		/* CIF Crop out :: real out */
     unsigned short            target_y;
 }cif_main_set;
@@ -300,7 +300,8 @@ struct TCC_VIOC {
 };
 
 struct TCCxxxCIF{
-	struct vioc_intr_type		vioc_intr;
+	struct vioc_intr_type		vioc_intr;      // WDMA interrupt
+	struct vioc_intr_type		vioc_vin_intr;      // VIN interrupt
 	enum cif_caminfo_tobeopen	cam_info;
 	enum tcc_stream_state 		stream_state;	
 	struct mutex				lock;	
@@ -318,6 +319,11 @@ struct TCCxxxCIF{
 };
 
 struct tcc_camera_device;
+extern int tccxxx_cif_set_zoom_rect(void *user, struct tcc_camera_device * vdev);
+extern int tccxxx_cif_get_zoom_rect(void *user, struct tcc_camera_device * vdev);
+extern void tccxxx_cif_vin_lut_spinlock_init(void);
+extern void tccxxx_cif_vin_lut_update(struct tcc_camera_device * vdev);
+extern void tccxxx_cif_vin_lut_buffer_update(int videoin_num, int * pTable);
 extern int 	tccxxx_cif_buffer_set(struct tcc_camera_device * vdev, struct v4l2_requestbuffers *req);
 extern int 	tccxxx_cif_start_stream(struct tcc_camera_device * vdev);
 extern int  tccxxx_cif_stop_stream(struct tcc_camera_device * vdev);
@@ -332,5 +338,7 @@ extern void tccxxx_set_camera_addr(struct tcc_camera_device * vdev, int index, u
 extern void tccxxx_parse_vioc_dt_data(struct tcc_camera_device * vdev);
 extern int tccxxx_cif_irq_request(struct tcc_camera_device * vdev);
 extern void tccxxx_cif_irq_free(struct tcc_camera_device * vdev);
+extern int tccxxx_cif_vin_irq_request(struct tcc_camera_device * vdev);
+extern void tccxxx_cif_vin_irq_free(struct tcc_camera_device * vdev);
 
 #endif /* TCCXX_CIF_H */

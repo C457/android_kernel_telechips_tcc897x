@@ -87,6 +87,11 @@ static IE_mode_name mode_name_list[] =
     {SET_TCC_ISDB_GAMMA            , "SET_TCC_ISDB_GAMMA"},
     {SET_TCC_ISDB_SATURATION        , "SET_TCC_ISDB_SATURATION"},
 
+    {SET_DVRS_BRIGHTNESS         , "SET_TCC_DVRS_BRIGHTNESS"},
+    {SET_DVRS_CONTRAST            , "SET_TCC_DVRS_CONTRAST"},    
+    {SET_DVRS_GAMMA                , "SET_TCC_DVRS_GAMMA"},
+    {SET_DVRS_SATURATION         , "SET_TCC_DVRS_SATURATION"},
+    
     {GET_BRIGHTNESS                , "GET_BRIGHTNESS"},
     {GET_CONTRAST                , "GET_CONTRAST"},
     {GET_HUE                    , "GET_HUE"},
@@ -137,6 +142,11 @@ static IE_mode_name mode_name_list[] =
     {GET_TCC_ISDB_CONTRAST        , "GET_TCC_ISDB_CONTRAST"},
     {GET_TCC_ISDB_GAMMA            , "GET_TCC_ISDB_GAMMA"},
     {GET_TCC_ISDB_SATURATION     , "GET_TCC_ISDB_SATURATION"},
+
+    {GET_DVRS_BRIGHTNESS         , "GET_TCC_DVRS_BRIGHTNESS"},
+    {GET_DVRS_CONTRAST            , "GET_TCC_DVRS_CONTRAST"},    
+    {GET_DVRS_GAMMA                , "GET_TCC_DVRS_GAMMA"},
+    {GET_DVRS_SATURATION         , "GET_TCC_DVRS_SATURATION"},
 };
 
 static ie_setting_info ie_info;
@@ -295,7 +305,8 @@ static int daudio_set_ie_level(int mode, unsigned char level)
     int ret = FAIL;
 
     //if (mode >= SET_BRIGHTNESS && mode <= SET_CAM_SATURATION) // GT system
-    if (mode >= SET_BRIGHTNESS && mode <= SET_AUX_SATURATION) 
+    if ((mode >= SET_BRIGHTNESS && mode <= SET_AUX_SATURATION) 
+		||(mode >= SET_DVRS_BRIGHTNESS && mode <= SET_DVRS_SATURATION) ) //   GT system
     {
         if (is_twxxxx_ie_invalid_arg(mode, level))
             return FAIL_OVERFLOW_LIMIT_ARG;
@@ -337,18 +348,10 @@ static int daudio_get_ie_level(int mode, unsigned char *level)
     if (ret == SUCCESS)
     {
         //if (mode >= GET_BRIGHTNESS && mode <= GET_CAM_SATURATION)
-        if (mode >= GET_BRIGHTNESS && mode <= GET_AUX_SATURATION ) //   GT system
+        if ((mode >= GET_BRIGHTNESS && mode <= GET_AUX_SATURATION)
+		||(mode >= GET_DVRS_BRIGHTNESS && mode <= GET_DVRS_SATURATION) ) //   GT system
             ret = twxxxx_get_ie(mode, level);
 
-#if defined(CONFIG_TW8836) 
-        if (mode == GET_HUE && ret >= 0)
-        {
-            char temp = *level;
-            *level = parse_tw8836_hue_to_value(*level);
-            CLOG(CLL_INFO, "%s get hue tw8836: %d, setting.hue: %d, parse: %d\n", __func__,
-                    temp, ie_info.tw8836_hue, *level);
-        }
-#endif        
         CLOG(CLL_INFO, "%s, plevel =%d--------------------->>  \n", __func__, *plevel );
 
         /*if( mode >= GET_TCC_VIDEO_BRIGHTNESS && mode <= GET_TCC_VIDEO_SATURATION )
@@ -461,14 +464,6 @@ int daudio_set_ie(int mode, unsigned char level)
     int ret = 0;
     unsigned char hlevel = level;
     
-#if defined(CONFIG_TW8836) 
-
-    if (mode == SET_HUE && level != 0)
-    {
-        hlevel = parse_value_to_tw8836_hue(level);
-    }
-#endif
-
     ret = daudio_set_ie_level(mode, hlevel);
     if (ret == SUCCESS_I2C || ret == SUCCESS)
     {
@@ -495,7 +490,7 @@ static long daudio_ie_ioctl(struct file *file, unsigned int cmd, unsigned long a
 
     copy_from_user(&t_ie_info, (ie_setting_info*)arg, sizeof(ie_setting_info));
 
-    if (cmd < SET_BRIGHTNESS || cmd > GET_TW9990_STRAGE)
+    if (cmd < SET_BRIGHTNESS || cmd > GET_DVRS_SATURATION)
     {
         return FAIL_NO_COMMNAD;
     }
@@ -513,7 +508,7 @@ static long daudio_ie_ioctl(struct file *file, unsigned int cmd, unsigned long a
         ret = daudio_set_ie(cmd, level);
     }
     //get
-    else if(cmd >= GET_BRIGHTNESS && cmd < SET_TW9990_STRAGE )
+    else if(cmd >= GET_BRIGHTNESS && cmd <= GET_DVRS_SATURATION )
     {
         int count = cmd - GET_BRIGHTNESS;
         int size_id =  sizeof(t_ie_info.id) / sizeof(int) ;
@@ -535,26 +530,6 @@ static long daudio_ie_ioctl(struct file *file, unsigned int cmd, unsigned long a
         {
             plevel[size_id + size_version + count] = (int)level;
         }
-    }
-    else if(cmd == SET_TW9990_STRAGE)
-    {
-	CLOG(CLL_ERROR,"TW9990_IOC_STORAGE SETTING_SET - empty\n");
-
-    }
-    else if(cmd == GET_TW9990_STRAGE)
-    {
-	CLOG(CLL_ERROR,"TW9990_IOC_STORAGE  SETTING_GET\n");
-
-	mutex_lock(&daudio_tw9990_setting_lock);
-	ret = read_ie_setting(&t_ie_info);
-
-	 if (!ret) {
-		ret = -EINVAL;
-		printk(KERN_ERR "[GT system] %s , read_ie_setting FAIL~~!!\n", __func__ );
-	}
-	copy_to_user((ie_setting_info*)arg, &t_ie_info, sizeof(ie_setting_info));
-
-	mutex_unlock(&daudio_tw9990_setting_lock);
     }
     else
     {
@@ -624,7 +599,7 @@ static void print_setting_value(void)
     CLOG(CLL_INFO, "%s\n", __func__);
 
     i = GET_BRIGHTNESS;
-    max = GET_TCC_USB_SATURATION+1 ; //GET_TCC_VIDEO_SATURATION2 + 1; // GT system
+    max = GET_DVRS_SATURATION+1 ; //GET_TCC_VIDEO_SATURATION2 + 1; // GT system
 
     CLOG(CLL_CRITICAL,"======== D-Audio Image Enhancement =======\n");
     for (; i < max; i++)

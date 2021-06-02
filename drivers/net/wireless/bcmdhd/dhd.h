@@ -4,9 +4,9 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -29,7 +29,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd.h 665091 2017-05-19 06:11:53Z $
+ * $Id: dhd.h 711056 2019-02-28 14:17:38Z $
  */
 
 /****************
@@ -74,11 +74,6 @@ int get_scheduler_policy(struct task_struct *p);
 #ifdef DEBUG_DPC_THREAD_WATCHDOG
 #define MAX_RESCHED_CNT 600
 #endif /* DEBUG_DPC_THREAD_WATCHDOG */
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0) && LINUX_VERSION_CODE < \
-	KERNEL_VERSION(3, 18, 0) || defined(CONFIG_BCMDHD_VENDOR_EXT))
-#define WL_VENDOR_EXT_SUPPORT
-#endif /* 3.13.0 <= LINUX_KERNEL_VERSION < 3.18.0 || CONFIG_BCMDHD_VENDOR_EXT */
 
 
 #if defined(KEEP_ALIVE)
@@ -673,6 +668,7 @@ typedef struct dhd_pub {
 #ifdef OOB_PARAM
 	uint	oob_disable;
 #endif /* OOB_PARAM */
+	bool	aifsn_reverse;
 } dhd_pub_t;
 
 #ifdef WL_CFG80211
@@ -1006,8 +1002,11 @@ extern int dhd_attach_p2p(dhd_pub_t *);
 extern int dhd_detach_p2p(dhd_pub_t *);
 #endif /* WLP2P && WL_CFG80211 */
 extern int dhd_register_if(dhd_pub_t *dhdp, int idx, bool need_rtnl_lock);
+#ifdef WL_VIF_SUPPORT
+extern int dhd_register_vif(dhd_pub_t *dhdp);
+#endif /* WL_VIF_SUPPORT */
 
-/* Indication from bus module regarding removal/absence of dongle */
+/* Indication from bus modune regarding removal/absence of dongle */
 extern void dhd_detach(dhd_pub_t *dhdp);
 extern void dhd_free(dhd_pub_t *dhdp);
 extern void dhd_clear(dhd_pub_t *dhdp);
@@ -1083,6 +1082,10 @@ extern void dhd_os_wd_timer(void *bus, uint wdtick);
 #ifdef DHD_PCIE_RUNTIMEPM
 extern void dhd_os_runtimepm_timer(void *bus, uint tick);
 #endif /* DHD_PCIE_RUNTIMEPM */
+#ifdef PCIE_FULL_DONGLE
+extern uint32 dhd_os_sdlock_cnt(dhd_pub_t *pub);
+extern void dhd_os_readshared_sleep(dhd_pub_t *pub);
+#endif /* PCIE_FULL_DONGLE */
 extern void dhd_os_sdlock(dhd_pub_t * pub);
 extern void dhd_os_sdunlock(dhd_pub_t * pub);
 extern void dhd_os_sdlock_txq(dhd_pub_t * pub);
@@ -1752,6 +1755,10 @@ extern void dhd_memdump_work_schedule(dhd_pub_t *dhdp, unsigned long msecs);
 
 extern bool dhd_query_bus_erros(dhd_pub_t *dhdp);
 
+extern int dhd_os_get_version(struct net_device *dev, bool dhd_ver, char **buf, uint32 size);
+extern int dhd_os_dbg_get_feature(dhd_pub_t *dhdp, int32 *features);
+
+
 /*
  * Enable this macro if you want to track the calls to wake lock
  * This records can be printed using the following command
@@ -1784,5 +1791,7 @@ void dhd_android_ap_isolate_setval(struct net_device *dev, int val);
 #ifdef OOB_PARAM
 extern uint dhd_get_oob_disable(struct dhd_bus* bus);
 #endif /* OOB_PARAM */
-
+#if defined(BCMSDIO)
+void dhd_set_role(dhd_pub_t *dhd, int role, int idx);
+#endif
 #endif /* _dhd_h_ */

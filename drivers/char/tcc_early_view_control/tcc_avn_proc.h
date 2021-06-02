@@ -23,6 +23,7 @@ extern int pinActive;
 
 extern int CM_AVN_Proc(unsigned long arg);
 extern int tcc_cm_ctrl_get_gear_status(void);
+extern int tcc_cm_ctrl_camera_type_check(void);
 extern int tcc_cm_ctrl_stop_earlycamera(void);
 extern int tcc_cm_ctrl_exit_earlycamera(void);
 extern int tcc_cm_ctrl_disable_recovery(void);

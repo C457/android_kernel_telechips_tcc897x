@@ -33,4 +33,5 @@ enum LVDS_MODE {
 #define LVDS_VAL_DESLOCK	0x80
 
 extern void lvds_sensor_info_init(TCC_SENSOR_INFO_TYPE * sensor_info);
+extern void adas_sensor_info_init(TCC_SENSOR_INFO_TYPE * sensor_info);
 #endif

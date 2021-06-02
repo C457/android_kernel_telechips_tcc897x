@@ -946,7 +946,7 @@ static int tcc_i2s_tx_enable(struct snd_pcm_substream *substream, int En)
 
 		BITCLR(pADMA->TransCtrl, Hw16); /* ADMA Repeate mode off */
 
-		timeout = 0;
+		//timeout = 0;
 		/* REMOVE Gabage PCM data of ADMA */
 		while(1) {
 			/* Get remained garbage PCM */
@@ -1034,7 +1034,7 @@ static int tcc_i2s_rx_enable(struct snd_pcm_substream *substream, int En)
 
 		BITCLR(pADMA->TransCtrl, Hw18); /* ADMA Repeate mode off */
 
-		timeout = 0;
+		//timeout = 0;
 		while(1) {
 			/* Get remained garbage PCM */
 			htemp_a = (pADMA->RxDaTCnt & 0xFFFF0000) >> 16;
@@ -1058,6 +1058,7 @@ static int tcc_i2s_rx_enable(struct snd_pcm_substream *substream, int En)
 							   __func__, pADMA->RxDaTCnt, pADMA->ChCtrl);
 						BITCLR(pADMA->ChCtrl, Hw30); /* STOP ADMA */
 						spin_unlock_irqrestore(&(tcc_alsa_info.slock), flags);
+                        ret = 1;
 						break;
 					}
 				}
@@ -1470,7 +1471,6 @@ static int tcc_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 		mono_dma_play.private_data = NULL;
 
 		size = tcc_pcm_hardware_play.buffer_bytes_max;
-		if(tcc_pcm_hardware_play.channels_min == 1) {
 			mono_dma_play.area = dma_alloc_writecombine(mono_dma_play.dev.dev, size, &mono_dma_play.addr, GFP_KERNEL);
 			if (!mono_dma_play.area || !mono_dma_play.addr) {
 				alsa_dbg("%s ERROR mono_dma_play dma_alloc_writecombine [%d]\n", __func__, size);
@@ -1478,12 +1478,10 @@ static int tcc_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 			}
 			mono_dma_play.bytes = size;
 			alsa_dbg("mono_dma_play size [%d]\n", size);
-		}
 
 	}
 	else {
 		size = tcc_pcm_hardware_capture.buffer_bytes_max;
-		if(tcc_pcm_hardware_capture.channels_min == 1) {
 			mono_dma_capture.dev.type =  SNDRV_DMA_TYPE_DEV;
 			mono_dma_capture.dev.dev = 0;// pcm->card->dev;
 			mono_dma_capture.private_data =  NULL;
@@ -1496,7 +1494,6 @@ static int tcc_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 			mono_dma_capture.bytes = size;
 			alsa_dbg("mono_dma_capture size [%d]\n", size);
 		}
-	}
 
 	buf->area = dma_alloc_writecombine(pcm->card->dev, size, &buf->addr, GFP_KERNEL);
 	if (!buf->area || !buf->addr ) {

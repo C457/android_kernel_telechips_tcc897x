@@ -100,41 +100,41 @@ config HIBERNATION
 	  For more information take a look at <file:Documentation/power/swsusp.txt>.
 
 # //+[TCCQB] QuickBoot Option
-config SNAPSHOT_BOOT
-	bool "Snapshot Boot (aka 'suspend to disk')"
-	depends on PM && SWAP && ARCH_HIBERNATION_POSSIBLE
-	select SUSPEND_NVS if HAS_IOMEM
-	---help---
-	  For more information take a look at <file:Documentation/power/swsusp.txt>.
-
-config SWAP_PREDICTION
-	bool "Use SWAP size prediction for Snapshot"
-	depends on SNAPSHOT_BOOT
-	default y
-	---help---
-		Predict whether the swap partition size is enough to make Snapshot image or not.
-
-config QUICKBOOT_WATCHDOG
-	bool "Use WatchDog for Snapshot"
-	depends on SNAPSHOT_BOOT
-	default y
-	select WATCHDOG
-	select TCC_WATCHDOG
-	---help---
-		It will enable WatchDog when Making Snapshot Image and Booting from Snapshot Image.
-
-config TSHQB_ENABLE
-	bool "enable Secure QuickBoot"
-	depends on SNAPSHOT_BOOT
-	default n
-	---help---
-		It will enable SecureQuickBoot when Making Snapshot Image and Booting from Snapshot Image.
-
-config NOCOMPRESS_SNAPSHOT
-	bool "No compressed snapshot image"
-	depends on SNAPSHOT_BOOT
-	---help---
-      booting with no compressed snapshot image on bootloadeer level.
+#config SNAPSHOT_BOOT
+#	bool "Snapshot Boot (aka 'suspend to disk')"
+#	depends on PM && SWAP && ARCH_HIBERNATION_POSSIBLE
+#	select SUSPEND_NVS if HAS_IOMEM
+#	---help---
+#	  For more information take a look at <file:Documentation/power/swsusp.txt>.
+#
+#config SWAP_PREDICTION
+#	bool "Use SWAP size prediction for Snapshot"
+#	depends on SNAPSHOT_BOOT
+#	default y
+#	---help---
+#		Predict whether the swap partition size is enough to make Snapshot image or not.
+#
+#config QUICKBOOT_WATCHDOG
+#	bool "Use WatchDog for Snapshot"
+#	depends on SNAPSHOT_BOOT
+#	default y
+#	select WATCHDOG
+#	select TCC_WATCHDOG
+#	---help---
+#		It will enable WatchDog when Making Snapshot Image and Booting from Snapshot Image.
+#
+#config TSHQB_ENABLE
+#	bool "enable Secure QuickBoot"
+#	depends on SNAPSHOT_BOOT
+#	default n
+#	---help---
+#		It will enable SecureQuickBoot when Making Snapshot Image and Booting from Snapshot Image.
+#
+#config NOCOMPRESS_SNAPSHOT
+#	bool "No compressed snapshot image"
+#	depends on SNAPSHOT_BOOT
+#	---help---
+#      booting with no compressed snapshot image on bootloadeer level.
 # //-[TCCQB]
 # //
 config ARCH_SAVE_PAGE_KEYS

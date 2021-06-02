@@ -16,7 +16,7 @@
 #include "../tcc_cam_i2c.h"
 #include "../tcc_cam.h"
 
-#ifdef CONFIG_BOARD3HW_GPIO
+#if defined(INCLUDE_BOARD3HW_GPIO)
 #include "tw9990.h"
 #include "daudio_lvds.h"
 #include "daudio_atv.h"
@@ -38,6 +38,7 @@ static int yin_sel = -1;
 static ie_setting_info t_ie_info;
 
 extern struct TCCxxxCIF hardware_data;
+extern int get_camera_type(void);
 
 struct capture_size sensor_sizes[] = {
 	{720, 480}, // NTSC
@@ -74,22 +75,15 @@ static int sensor_open(struct tcc_camera_device * vdev, bool bChangeCamera)
 
 	if( cam_info == DAUDIO_CAMERA_REAR )
 	{
-		unsigned int mode1=0,mode2=0;
-		unsigned int value=0;
-
 		what = SENSOR_TW9990;
 
-
-		mode1 = gpio_get_value(TCC_GPB(19));
-		mode2 = gpio_get_value(TCC_GPB(23));	
-		value = (mode1<<1)|mode2;
-
-		if( value == 0 )
+		if( get_camera_type() == 0 )
 			yin = TW_YIN1;	//CVBS
 		else
 			yin = TW_YIN2;	//SVIDEO
 	}
-	else if( cam_info == DAUDIO_CAMERA_LVDS )
+
+	else if( cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK) 
 	{
 		what = SENSOR_LVDS;
 	}
@@ -119,8 +113,9 @@ static int sensor_close(struct tcc_camera_device * vdev)
 
 	VPRINTK("%s\n", __func__);
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK) {
 		what = SENSOR_LVDS;
+    }
 	else if (cam_info == DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
 	else
@@ -147,7 +142,7 @@ static int sensor_change_mode(int type, int encode,struct tcc_camera_device * vd
 		return -1;
 	}
 	
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		what = SENSOR_LVDS;
 	else if (cam_info == DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
@@ -167,7 +162,7 @@ static int sensor_capture(struct tcc_camera_device * vdev)
 	
 	VPRINTK("%s\n", __func__);
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		what = SENSOR_LVDS;
 	else if (cam_info == DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
@@ -187,7 +182,7 @@ static int sensor_capturecfg(int width, int height,struct tcc_camera_device * vd
 	
 	VPRINTK("%s\n", __func__);
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		what = SENSOR_LVDS;
 	else if (cam_info== DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
@@ -277,7 +272,7 @@ static int sensor_resetVideoDecoder(struct tcc_camera_device * vdev)
 
 	VPRINTK("%s\n", __func__);
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		what = SENSOR_LVDS;
 	else if (cam_info== DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
@@ -295,7 +290,7 @@ static int sensor_setPath(int val, struct tcc_camera_device * vdev)
 	int (*pfn)(int);
 	int cam_info = vdev->data.cam_info;
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		pfn=sf_daudio[SENSOR_LVDS].Set_Path;
 	else if( cam_info == DAUDIO_CAMERA_CMMB )
 		pfn=sf_daudio[SENSOR_CMMB].Set_Path;
@@ -330,7 +325,7 @@ static int sensor_preview(struct tcc_camera_device * vdev)
 
 	VPRINTK("%s\n", __func__);
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		what = SENSOR_LVDS;
 	else if (cam_info == DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
@@ -403,6 +398,7 @@ int datv_write_ie(int cmd, unsigned char value, struct tcc_camera_device * vdev)
 
 int datv_read_ie(int cmd, unsigned char *level, struct tcc_camera_device * vdev)
 {
+	int camera_type	= 0;
 	static int what = 0;
 	static int initialized = 0;
 	VPRINTK("%s\n", __func__);
@@ -415,39 +411,36 @@ int datv_read_ie(int cmd, unsigned char *level, struct tcc_camera_device * vdev)
 	{
 		if(!initialized)
 		{
+			//(hklee)2018.10.04 - IE set with default value
 			printk("%s - initial setting from emmc\n",__func__);
 			if(read_ie_setting(&t_ie_info))
 			{
 				if(!t_ie_info.twxxxx_cam_brightness)
-					t_ie_info.twxxxx_cam_brightness = (what==SENSOR_LVDS)?127:128;
+					t_ie_info.twxxxx_cam_brightness = 0;
 				if(!t_ie_info.twxxxx_cam_contrast)
-					t_ie_info.twxxxx_cam_contrast = (what==SENSOR_LVDS)?127:100;
+					t_ie_info.twxxxx_cam_contrast = 0;
 				if(!t_ie_info.twxxxx_cam_saturation)
-					t_ie_info.twxxxx_cam_saturation = (what==SENSOR_LVDS)?127:128;
+					t_ie_info.twxxxx_cam_saturation = 0;
 				initialized = 1;
 			}
 		}
 
-		if (sf_daudio[what].sensor_read_ie != NULL){
-			switch(cmd)
-			{
-				case GET_CAM_BRIGHTNESS:
-					*level = (unsigned char)t_ie_info.twxxxx_cam_brightness;
-					break;
-				case GET_CAM_CONTRAST:
-					*level = (unsigned char)t_ie_info.twxxxx_cam_contrast;
-					break;
-				case GET_CAM_SATURATION:
-					*level = (unsigned char)t_ie_info.twxxxx_cam_saturation;
-					break;
-				default:
-					*level = 0;
-					break;
-			}
-			//return sf_daudio[what].sensor_read_ie(cmd, level, vdev);
+		switch(cmd)
+		{
+			case GET_CAM_BRIGHTNESS:
+				*level = (unsigned char)t_ie_info.twxxxx_cam_brightness;
+				break;
+			case GET_CAM_CONTRAST:
+				*level = (unsigned char)t_ie_info.twxxxx_cam_contrast;
+				break;
+			case GET_CAM_SATURATION:
+				*level = (unsigned char)t_ie_info.twxxxx_cam_saturation;
+				break;
+			default:
+				*level = 0;
+				break;
 		}
-		else
-			return FAIL;
+			//return sf_daudio[what].sensor_read_ie(cmd, level, vdev);
 	}
 	else
 		what = *level;
@@ -462,16 +455,17 @@ int datv_init(struct tcc_camera_device * vdev)
 
 	VPRINTK("%s\n", __func__);
 
-#ifdef CONFIG_BOARD3HW_GPIO
-	tw9990_sensor_init_fnc(&sf_daudio[SENSOR_TW9990]);
-
-	if (strcmp(vdev->camera_np->name, "lvds_camera") == 0)
+#if defined(INCLUDE_BOARD3HW_GPIO)
+	if (vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK)
 	{
 		lvds_sensor_init_fnc(&sf_daudio[SENSOR_LVDS]);
 		what = SENSOR_LVDS;
 	}
 	else
+	{	
+		tw9990_sensor_init_fnc(&sf_daudio[SENSOR_TW9990]);
 		what = SENSOR_TW9990;
+	}
 
 	datv_write_ie(0, what, NULL);
 	datv_read_ie(0, &what, NULL);	
@@ -487,7 +481,7 @@ int datv_init(struct tcc_camera_device * vdev)
 		what = SENSOR_TW9990;
 */
 
-#ifdef CONFIG_LVDS_CAMERA
+#if defined(CONFIG_LVDS_CAMERA)||defined(INCLUDE_LVDS_CAMERA)
 	setup_timer( &testtimer, lvds_timer_fun, 0 );
 	mod_timer( &testtimer, jiffies + msecs_to_jiffies(1000) );
 #endif
@@ -503,7 +497,7 @@ static int sensor_checkCameraModule(struct tcc_camera_device * vdev)
 	int cam_info = vdev->data.cam_info;
 	int ret = FAIL;
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		what = SENSOR_LVDS;
 	else if (cam_info == DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
@@ -527,7 +521,7 @@ int datv_display_mute(int mute,struct tcc_camera_device * vdev)
 	int what = 0;
 	int cam_info = vdev->data.cam_info;
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		what = SENSOR_LVDS;
 	else if (cam_info == DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
@@ -545,7 +539,7 @@ void datv_close_cam(struct tcc_camera_device * vdev)
 	int what = 0;
 	int cam_info = vdev->data.cam_info;
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		what = SENSOR_LVDS;
 	else if (cam_info == DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
@@ -574,7 +568,7 @@ void datv_get_preview_size(int *width, int *height, int encode,struct tcc_camera
 	int what = 0;
 	int cam_info = vdev->data.cam_info;
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		what = SENSOR_LVDS;
 	else if (cam_info == DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
@@ -597,7 +591,7 @@ void datv_get_capture_size(int *width, int *height,struct tcc_camera_device * vd
 	int what = 0;
 	int cam_info = vdev->data.cam_info;
 
-	if (cam_info == DAUDIO_CAMERA_LVDS)
+	if (cam_info == DAUDIO_CAMERA_LVDS || cam_info == DAUDIO_ADAS_PRK)
 		what = SENSOR_LVDS;
 	else if (cam_info == DAUDIO_CAMERA_CMMB)
 		what = SENSOR_CMMB;
@@ -645,7 +639,7 @@ void sensor_init_fnc(SENSOR_FUNC_TYPE *sensor_func)
 	sensor_func->Check_Luma				= NULL;
 }
 
-#ifdef CONFIG_LVDS_CAMERA
+#if defined(CONFIG_LVDS_CAMERA)||defined(INCLUDE_LVDS_CAMERA)
 struct timer_list testtimer;
 
 void lvds_timer_fun(struct tcc_camera_device * vdev)

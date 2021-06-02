@@ -166,7 +166,7 @@ void panic_repeat_debug(void)
 	sys_sync();
 }
 
-int panic_count_check(void)
+int panic_count_check(int clear)
 {
 	int fd = -1;
 	int result = 0;
@@ -195,7 +195,10 @@ int panic_count_check(void)
 	set_fs(fs);
 
 	memset(&write_count, 0, sizeof(write_count));
-	write_count = read_count + 1;
+	if (clear == false)
+		write_count = read_count + 1;
+	else
+		write_count = 1;
 
 	fs=get_fs();
 	set_fs(KERNEL_DS);
@@ -288,7 +291,7 @@ void restart_reason_misc_write_with_message(uint32_t spReason_write)
 
 void restart_reason_misc_write(uint32_t spReason_write)
 {
-	static char *spReason[]={"", "boot-bootloader", "boot-recovery", "boot-force_normal"};
+	static char *spReason[]={"", "boot-bootloader", "boot-recovery", "boot-force_normal", "boot-panic", "boot-android"};
 	int fd;
 	int loop = 0;
 	int result = 0;
@@ -367,11 +370,11 @@ static int tcc_reboot_call(struct notifier_block *this, unsigned long code, void
 //-[TCCQB]
 //
 			else
-				restart_reason = 0;
+				restart_reason = 5;
 		} else
-			restart_reason = 0;
+			restart_reason = 5;
 #ifdef CONFIG_DAUDIO_KK
-		if( (restart_reason >= 0) && (restart_reason <= 3) )
+		if( (restart_reason >= 0) && (restart_reason <= 5) )
 			restart_reason_misc_write(restart_reason);
 #endif			
 	}
@@ -388,7 +391,11 @@ static int __init tcc_poweroff_init(void)
 {
 	pm_power_off = tcc_pm_power_off;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (machine_desc->restart)
+#else
 	if (machine_desc->restart && machine_desc)
+#endif
 		arm_pm_restart = machine_desc->restart;
 
 	register_reboot_notifier(&tcc_reboot_notifier);

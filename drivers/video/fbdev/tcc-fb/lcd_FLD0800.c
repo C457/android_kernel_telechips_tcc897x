@@ -199,7 +199,7 @@ static int fld0800_set_power(struct lcd_panel *panel, int on, struct tcc_dp_devi
 	return 0;
 }
  
-#ifdef CONFIG_LCD_RESOLUTION_1280_720
+#if defined(INCLUDE_LCD_RESOLUTION_1280_720)
 
 struct lcd_panel fld0800_panel = {
 	.name		= "FLD0800",
@@ -304,7 +304,7 @@ struct lcd_panel fld0800_panel = {
 	.init		= fld0800_panel_init,
 	.set_power	= fld0800_set_power,
 };
-#endif //CONFIG_LCD_RESOLUTION_1280_720
+#endif //INCLUDE_LCD_RESOLUTION_1280_720
 
 static void fld0800_parse_dt(struct device_node *np)
 {

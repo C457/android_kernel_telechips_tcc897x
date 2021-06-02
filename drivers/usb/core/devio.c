@@ -2209,10 +2209,14 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 		ret = proc_bulk(ps, p);
 		if (ret >= 0)
 			inode->i_mtime = CURRENT_TIME;
-		else{
-			if(logprint < 10)
-				printk(KERN_ERR "[%s:%d] USBDEVFS_BULK, ret (%d) \r\n",__func__,__LINE__,ret);
-			logprint++;
+		else {
+			if (ret == -EPROTO)
+			{
+				logprint++;
+				/* In case of china bad cables */
+				usb_disable_device(dev,0);
+			}
+			printk(KERN_ERR "[%s:%d] USBDEVFS_BULK, ret (%d) count=%d\r\n",__func__,__LINE__,ret, logprint);
 		}
 		break;
 
@@ -2316,6 +2320,7 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 	case USBDEVFS_RELEASEINTERFACE:
 		snoop(&dev->dev, "%s: RELEASEINTERFACE\n", __func__);
 		ret = proc_releaseinterface(ps, p);
+		logprint = 0;
 		break;
 
 	case USBDEVFS_IOCTL:
@@ -2350,10 +2355,7 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 	usb_unlock_device(dev);
 	if (ret >= 0)
 		inode->i_atime = CURRENT_TIME;
-	
-	if(logprint > 10000)
-		logprint = 0;
-	
+
 	return ret;
 }
 

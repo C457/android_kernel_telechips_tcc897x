@@ -69,9 +69,16 @@ tcc_timer_irq_none:
 
 int tcc_timer_enable(struct tcc_timer *timer)
 {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	void __iomem *reg = NULL;
+	if (!timer_initialized || !timer)
+		return -ENODEV;
+	reg = timer_base_reg+(timer->id*0x10);
+#else
 	void __iomem *reg = timer_base_reg+(timer->id*0x10);
 	if (!timer_initialized || !timer)
 		return -ENODEV;
+#endif
 	timer->irqcnt = 0;
 	timer_writel(0x0, reg+TCC_TCNT);
 	timer_writel(timer_readl(reg+TCC_TCFG)|(1<<3)|(1<<0), reg+TCC_TCFG);	/* IEN, EN */
@@ -80,9 +87,16 @@ int tcc_timer_enable(struct tcc_timer *timer)
 
 int tcc_timer_disable(struct tcc_timer *timer)
 {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	void __iomem *reg = NULL;
+	if (!timer_initialized || !timer)
+		return -ENODEV;
+	reg = timer_base_reg+(timer->id*0x10);
+#else
 	void __iomem *reg = timer_base_reg+(timer->id*0x10);
 	if (!timer_initialized || !timer)
 		return -ENODEV;
+#endif
 	timer_writel(timer_readl(reg+TCC_TCFG) & ~((1<<3)|(1<<0)), reg+TCC_TCFG);	/* IEN, EN */
 	timer_writel(0x0, reg+TCC_TCNT);
 	timer->irqcnt = 0;
@@ -94,10 +108,18 @@ int tcc_timer_disable(struct tcc_timer *timer)
  */
 unsigned long tcc_get_timer_count(struct tcc_timer *timer)
 {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	void __iomem *reg = NULL;
+	unsigned long cnt, flags;
+	if (!timer_initialized || !timer)
+		return 0;
+	reg = timer_base_reg+(timer->id*0x10);
+#else
 	void __iomem *reg = timer_base_reg+(timer->id*0x10);
 	unsigned long cnt, flags;
 	if (!timer_initialized || !timer)
 		return 0;
+#endif
 	local_irq_save(flags);
 	if (timer->handler)
 		cnt = timer->irqcnt;
@@ -187,6 +209,16 @@ struct tcc_timer* tcc_register_timer(struct device *dev, unsigned long usec, irq
 
 void tcc_unregister_timer(struct tcc_timer *timer)
 {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	void __iomem *reg = NULL;
+
+	if (!timer_initialized || !timer)
+		return;
+
+	reg = timer_base_reg+(timer->id*0x10);
+	if (timer->id >= TCC_TIMER_MAX)
+		BUG();
+#else
 	void __iomem *reg = timer_base_reg+(timer->id*0x10);
 
 	if (!timer_initialized || !timer)
@@ -194,6 +226,7 @@ void tcc_unregister_timer(struct tcc_timer *timer)
 
 	if (timer->id < 0 || timer->id >= TCC_TIMER_MAX)
 		BUG();
+#endif
 	if (timer_res[timer->id].used == 0)
 		printk("%s: id:%d is not registered index\n", __func__, timer->id);
 

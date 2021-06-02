@@ -19,6 +19,7 @@
 #include <mach/vioc_intr.h>
 
 /* register overview */
+#define VIOC_VIN		(TCC_PA_VIOC+0x4000)
 #define VIOC_DISP		(TCC_PA_VIOC+0x0000)
 #define VIOC_RDMA		(TCC_PA_VIOC+0x0400)
 #define VIOC_MC			(TCC_PA_VIOC+0x1600)
@@ -33,6 +34,9 @@
 /* wdma */
 #define VIOC_WDMA_IRQSTS	0x0040
 #define VIOC_WDMA_IRQMASK	0x0044
+
+/* vin */
+#define VIOC_VIN_INT		0x0060
 
 /* cfgint */
 #define VIOC_RAWSTATUS		0x0000
@@ -75,6 +79,19 @@ int vioc_intr_enable(int id, unsigned mask)
 		/* enable irq */
 		reg = (void __iomem *)io_p2v(VIOC_WDMA + (0x100*sub_id) + VIOC_WDMA_IRQMASK);
 		__raw_writel(__raw_readl(reg) & ~(mask&VIOC_WDMA_INT_MASK), reg);
+		break;
+    case VIOC_INTR_VIN0:
+    case VIOC_INTR_VIN1:
+    case VIOC_INTR_VIN2:
+    case VIOC_INTR_VIN3:
+		sub_id = id - VIOC_INTR_VIN0;
+		reg = (void __iomem *)io_p2v(VIOC_VIN + (0x1000*sub_id) + VIOC_VIN_INT);
+
+		/* clera irq status */
+		__raw_writel(((__raw_readl(reg) & ((1 << VIOC_VIN_INT_INTEN) | (VIOC_VIN_INT_MASK << VIOC_VIN_INT_MASK_OFFSET))) | (mask&VIOC_VIN_INT_MASK)), reg);
+
+		/* enable irq */
+		__raw_writel((__raw_readl(reg) & (VIOC_VIN_INT_MASK << VIOC_VIN_INT_MASK_OFFSET)) | ((1 << VIOC_VIN_INT_INTEN) | ((mask&VIOC_VIN_INT_MASK) << VIOC_VIN_INT_MASK_OFFSET)), reg);
 		break;
 	}
 
@@ -120,6 +137,18 @@ int vioc_intr_disable(int id, unsigned mask)
 		if ((__raw_readl(reg)&VIOC_WDMA_INT_MASK) != VIOC_WDMA_INT_MASK)
 			do_irq_mask = 0;
 		break;
+    case VIOC_INTR_VIN0:
+    case VIOC_INTR_VIN1:
+    case VIOC_INTR_VIN2:
+    case VIOC_INTR_VIN3:
+		sub_id = id - VIOC_INTR_VIN0;
+		reg = (void __iomem *)io_p2v(VIOC_VIN + (0x1000*sub_id) + VIOC_VIN_INT);
+		__raw_writel(__raw_readl(reg) & ((((~mask)&VIOC_VIN_INT_MASK) << (VIOC_VIN_INT_MASK_OFFSET)) | (1 << VIOC_VIN_INT_INTEN)), reg);
+		if ((__raw_readl(reg) & (VIOC_VIN_INT_MASK << VIOC_VIN_INT_MASK_OFFSET)) != 0)
+			do_irq_mask = 0;
+        else
+            __raw_writel(__raw_readl(reg) & (~(1 << VIOC_VIN_INT_INTEN)), reg);
+		break;
 	}
 
 	if (do_irq_mask) {
@@ -157,6 +186,13 @@ unsigned int vioc_intr_get_status(int id)
 		id -= VIOC_INTR_WD0;
 		reg = (void __iomem *)io_p2v(VIOC_WDMA + (0x100*id) + VIOC_WDMA_IRQSTS);
 		return (__raw_readl(reg) &VIOC_WDMA_INT_MASK);
+    case VIOC_INTR_VIN0:
+    case VIOC_INTR_VIN1:
+    case VIOC_INTR_VIN2:
+    case VIOC_INTR_VIN3:
+		id -= VIOC_INTR_VIN0;
+		reg = (void __iomem *)io_p2v(VIOC_VIN + (0x1000*id) + VIOC_VIN_INT);
+		return (__raw_readl(reg) & VIOC_VIN_INT_MASK);
 
 	}
 	return 0;
@@ -212,6 +248,15 @@ bool is_vioc_intr_activatied(int id, unsigned mask)
 		if (__raw_readl(reg) & (mask&VIOC_WDMA_INT_MASK))
 			return true;
 		return false;
+    case VIOC_INTR_VIN0:
+    case VIOC_INTR_VIN1:
+    case VIOC_INTR_VIN2:
+    case VIOC_INTR_VIN3:
+        id -= VIOC_INTR_VIN0;
+        reg = (void __iomem *)io_p2v(VIOC_VIN + (0x1000*id) + VIOC_VIN_INT);
+        if (__raw_readl(reg) & (mask&VIOC_VIN_INT_MASK))
+            return true;
+        return false;
 	}
 	return false;
 }
@@ -244,6 +289,15 @@ bool is_vioc_intr_unmasked(int id, unsigned mask)
                 if (__raw_readl(reg) & (mask&VIOC_WDMA_INT_MASK))
                         return false;
                 return true;
+        case VIOC_INTR_VIN0:
+        case VIOC_INTR_VIN1:
+        case VIOC_INTR_VIN2:
+        case VIOC_INTR_VIN3:
+                id -= VIOC_INTR_VIN0;
+                reg = (void __iomem *)io_p2v(VIOC_VIN + (0x1000*id) + VIOC_VIN_INT);
+                if ((__raw_readl(reg) & ((VIOC_VIN_INT_MASK << VIOC_VIN_INT_MASK_OFFSET) | (1 << VIOC_VIN_INT_INTEN))) & (((mask&VIOC_VIN_INT_MASK) << VIOC_VIN_INT_MASK_OFFSET) | (1 << VIOC_VIN_INT_INTEN)))
+                        return true;
+                return false;
         }
         return false;
 }
@@ -274,6 +328,14 @@ int vioc_intr_clear(int id, unsigned mask)
 		reg = (void __iomem *)io_p2v(VIOC_WDMA + (0x100*id) + VIOC_WDMA_IRQSTS);
 		__raw_writel((mask&VIOC_WDMA_INT_MASK), reg);
 		break;
+    case VIOC_INTR_VIN0:
+    case VIOC_INTR_VIN1:
+    case VIOC_INTR_VIN2:
+    case VIOC_INTR_VIN3:
+		id -= VIOC_INTR_VIN0;
+		reg = (void __iomem *)io_p2v(VIOC_VIN + (0x1000*id) + VIOC_VIN_INT);
+		__raw_writel(((__raw_readl(reg) & ((1 << VIOC_VIN_INT_INTEN) | (VIOC_VIN_INT_MASK << VIOC_VIN_INT_MASK_OFFSET))) | (mask&VIOC_VIN_INT_MASK)), reg);
+		break;
 	}
 	return 0;
 }
@@ -296,5 +358,12 @@ void vioc_intr_init(void)
 	for (i=0 ; i<(VIOC_INTR_WD8-VIOC_INTR_WD0) ; i++) {
 		__raw_writel(VIOC_WDMA_INT_MASK, (void __iomem *)io_p2v(VIOC_WDMA + (i*100) + VIOC_WDMA_IRQMASK));
 		__raw_writel(VIOC_WDMA_INT_MASK, (void __iomem *)io_p2v(VIOC_WDMA + (i*100) + VIOC_WDMA_IRQSTS));
+	}
+
+	/* vin irq mask & status clear */
+	for (i=0 ; i<(VIOC_INTR_VIN3-VIOC_INTR_VIN0) ; i++) {
+        reg = (void __iomem *)io_p2v(VIOC_VIN + (i*0x1000) + VIOC_VIN_INT);
+		__raw_writel(__raw_readl(reg) & (~((VIOC_VIN_INT_MASK << VIOC_VIN_INT_MASK_OFFSET) & (1 << VIOC_VIN_INT_INTEN))), reg);
+		__raw_writel(VIOC_VIN_INT_MASK, reg);
 	}
 }

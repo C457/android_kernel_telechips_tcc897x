@@ -75,6 +75,8 @@ Suite 330, Boston, MA 02111-1307 USA
 
 #include <mach/tcc_board_component.h>
 
+#include <mach/daudio_info.h>
+
 #ifdef CONFIG_HDMI_DISPLAY_LASTFRAME
 #include <mach/tcc_vsync_ioctl.h>
 #endif
@@ -1220,6 +1222,8 @@ static int component_parse_dt(struct device_node *np)
 		pr_err("%s, could not find fbdisplay_num\n", __func__);
 		ret = -ENODEV;
 	}
+
+	Composite_Disp_Num = daudio_lcd_type_lvds_check();
 
 	#if defined(CONFIG_HWCOMPOSER_OVER_1_1_FOR_STB)
 		component_io_port_num = 0;

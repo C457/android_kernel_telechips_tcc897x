@@ -166,9 +166,9 @@ int read_em_setting(em_setting_info *info)
 		return ret;
 	}
 
-#if defined(CONFIG_HIBERNATION) && defined(CONFIG_SNAPSHOT_BOOT)	//if quickboot mode
+//#if defined(CONFIG_HIBERNATION) && defined(CONFIG_SNAPSHOT_BOOT)	//if quickboot mode  //20.06.11 In Onebinary branches, This config should NOT be included !!
 	ret = read_data(SETTINGS_BLOCK, buf, size, OFFSET_EM_SETTINGS);
-#endif
+//#endif
 	if (ret == SUCCESS)
 	{
 		memcpy((char *)info, buf, size);
@@ -204,9 +204,9 @@ int write_em_setting(em_setting_info *info)
 
 	DPRINTK("%s id: 0x%llx mode: %d size: %d\n", __func__, info->id, info->mode, size);
 
-#if defined(CONFIG_HIBERNATION) && defined(CONFIG_SNAPSHOT_BOOT)	//if quickboot mode
+//#if defined(CONFIG_HIBERNATION) && defined(CONFIG_SNAPSHOT_BOOT)	//if quickboot mode  //20.06.11 In Onebinary branches, This config should NOT be included !!
 	ret = write_data(SETTINGS_BLOCK, (char *)info, size, OFFSET_EM_SETTINGS);
-#endif
+//#endif
 
 	return ret;
 }
@@ -236,9 +236,9 @@ int read_ie_setting(ie_setting_info *info)
 		return ret;
 	}
 
-#if defined(CONFIG_HIBERNATION) && defined(CONFIG_SNAPSHOT_BOOT)	//if quickboot mode
+//#if defined(CONFIG_HIBERNATION) && defined(CONFIG_SNAPSHOT_BOOT)	//if quickboot mode  //20.06.11 In Onebinary branches, This config should NOT be included !!
 	ret = read_data(SETTINGS_NAME, buf, size, OFFSET_IE_SETTINGS);
-#endif
+//#endif
 
 	if (ret == SUCCESS)
 	{
@@ -272,9 +272,9 @@ int read_ie_setting(ie_setting_info *info)
 		return ret;
 	}
 
-#if defined(CONFIG_HIBERNATION) && defined(CONFIG_SNAPSHOT_BOOT)	//if quickboot mode
+//#if defined(CONFIG_HIBERNATION) && defined(CONFIG_SNAPSHOT_BOOT)	//if quickboot mode  //20.06.11 In Onebinary branches, This config should NOT be included !!
 	ret = write_data(SETTINGS_NAME, (char *)info, size, OFFSET_IE_SETTINGS);
-#endif
+//#endif
 
 	if(ret == 0)
 	{

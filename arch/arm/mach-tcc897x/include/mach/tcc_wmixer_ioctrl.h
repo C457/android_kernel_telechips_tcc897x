@@ -157,8 +157,11 @@ typedef struct {
 
 
 #define WMIXER                  'w'
-#define TCC_WMIXER_IOCTRL 					0x01
+#define TCC_WMIXER_IOCTRL	 				0x01
+#define TCC_WMIXER_LUT_IOCTRL 					0x101	// lut 0 plug in and then call wmixer ioctl
 #define TCC_WMIXER_IOCTRL_KERNEL 			0x02	
+
+
 #define TCC_WMIXER_ALPHA_SCALING 			0x04
 #define TCC_WMIXER_ALPHA_SCALING_KERNEL		0x08
 #define TCC_WMIXER_ALPHA_MIXING 			0x10

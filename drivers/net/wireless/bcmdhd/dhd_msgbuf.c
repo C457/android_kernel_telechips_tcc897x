@@ -3,9 +3,9 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -28,7 +28,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_msgbuf.c 664367 2017-03-23 09:23:22Z $
+ * $Id: dhd_msgbuf.c 712143 2019-03-04 16:21:26Z $
  */
 
 
@@ -699,10 +699,11 @@ dhd_prot_d2h_sync_seqnum(dhd_pub_t *dhd, msgbuf_ring_t *ring,
 
 			OSL_CACHE_INV(msg, msglen); /* invalidate and try again */
 			OSL_CPU_RELAX(); /* CPU relax for msg_seqnum  value to update */
-#if defined(CONFIG_ARCH_MSM8996) || defined(CONFIG_SOC_EXYNOS8890)
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64) || defined(CONFIG_ARCH_MSM8996) || \
+	defined(CONFIG_SOC_EXYNOS8890)
 			/* For ARM there is no pause in cpu_relax, so add extra delay */
 			OSL_DELAY(delay * step);
-#endif /* defined(CONFIG_ARCH_MSM8996) || defined(CONFIG_SOC_EXYNOS8890) */
+#endif /* defined(CONFIG_ARM) || defined(CONFIG_ARM64) */
 		} /* for PCIE_D2H_SYNC_WAIT_TRIES */
 	} /* for number of steps */
 
@@ -775,10 +776,11 @@ dhd_prot_d2h_sync_xorcsum(dhd_pub_t *dhd, msgbuf_ring_t *ring,
 
 			OSL_CACHE_INV(msg, msglen); /* invalidate and try again */
 			OSL_CPU_RELAX(); /* CPU relax for msg_seqnum  value to update */
-#if defined(CONFIG_ARCH_MSM8996) || defined(CONFIG_SOC_EXYNOS8890)
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64) || defined(CONFIG_ARCH_MSM8996) || \
+	defined(CONFIG_SOC_EXYNOS8890)
 			/* For ARM there is no pause in cpu_relax, so add extra delay */
 			OSL_DELAY(delay * step);
-#endif /* defined(CONFIG_ARCH_MSM8996) || defined(CONFIG_SOC_EXYNOS8890) */
+#endif /* defined(CONFIG_ARM) || defined(CONFIG_ARM64) */
 
 		} /* for PCIE_D2H_SYNC_WAIT_TRIES */
 	} /* for number of steps */

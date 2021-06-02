@@ -20,6 +20,15 @@
 
 #define I2C_RETRY_COUNT		3
 
+//(hklee)2018.10.04 - IE Default Value Define
+#define DEFAULT_LVDS_SVM_BRIGHTNESS	122
+#define DEFAULT_LVDS_SVM_CONTRAST	122
+#define DEFAULT_LVDS_SVM_SATURATION	122
+
+#define DEFAULT_TW9990_CAM_BRIGHTNESS	123
+#define DEFAULT_TW9990_CAM_CONTRAST	95
+#define DEFAULT_TW9990_CAM_SATURATION	128
+
 enum daudio_atvs {
 	SENSOR_TW9990 = 0,
 	SENSOR_CMMB,
@@ -131,7 +140,7 @@ extern struct capture_size sensor_sizes[];
 extern struct sensor_reg *sensor_reg_common[];
 extern void sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info);
 extern void sensor_init_fnc(SENSOR_FUNC_TYPE *sensor_func);
-#ifdef CONFIG_BOARD3HW_GPIO
+#if defined(INCLUDE_BOARD3HW_GPIO)
 extern void tw9990_sensor_init_fnc(SENSOR_FUNC_TYPE_DAUDIO *sensor_func);
 extern void lvds_sensor_init_fnc(SENSOR_FUNC_TYPE_DAUDIO *sensor_func);
 #else

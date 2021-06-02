@@ -145,7 +145,7 @@
 	add dummy key for booting  - end -
  */
 
-	//IPOD, RTC, FM1688
+	//IPOD, RTC, FM8802
 	i2c@76300000 {
 		status = "okay";
 		port-mux = <22>;
@@ -201,7 +201,7 @@
 			reg = <0x44>; /* check slave address */
 		};	
 
-		lvds_camera@94 {
+		camera@94 {
 			compatible = "tcc_camera,0x94";
 			reg = <0x4A>; /* check slave address */
 		};
@@ -498,58 +498,29 @@
 		compatible = "telechips,dummy";
 	};
 
+	fbdisplay: fbdisplay@72000000 {
+                telechips,fbdisplay_num = <0>;
+                status ="okay";
+        };
 
-//DAUDIOKK wide sound+
+        panel_1920x720 {
+        status = "okay";
+        compatible = "telechips,hdmi1920x720";
+        clocks = <&clk_peri PERI_LCD0>, <&clk_peri PERI_LCD1>, <&clk_peri PERI_HDMI>, <&clk_ddi DDIBUS_HDMI>, <&clk_isoip_top ISOIP_TOP_HDMI>, <&clk_peri PERI_HDMI_PCLK>;
+        clock-names = "lcdc0-clk", "lcdc1-clk", "hdmi-lclk", "hdmi-hclk", "hdmi-phy", "hdmi-pclk";
+};
 
-	/* Audio 3 */
-	i2s@76101000 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&media_i2s3_clks &media_i2s3_dout>;
-		status = "okay";
-	};
-
-	/* Audio 1  not used */ 
-	
-	i2s@76401000 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&micspk_i2s1_clks &mic_i2s1_din &spk_i2s1_dout>;
-		status = "disabled";
-	};
-
-	/* Audio 2 */
-	i2s@76b01000 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&bt_modem_fm1688_i2s2_clks &bt_i2s2_din &bt_i2s2_dout &modem_i2s2_din &modem_i2s2_dout &fm1688_i2s2_din &fm1688_i2s2_dout>;
-		status = "okay";
-	};
-	
-	spdif@76202000 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&mdai_spdif_tx &mdai_spdif_rx>;
-		status = "okay";
-	};
-
-	sound {
-		compatible = "telechips,snd-daudio-dummy";
-		telechips,model = "TCC Audio Card";
-		telechips,audio-routing =
-			"Headphone Jack", "HPOUTR",
-			"Headphone Jack", "HPOUTL",
-			"Int Spk", "ROP",
-			"Int Spk", "RON",
-			"Int Spk", "LOP",
-			"Int Spk", "LON",
-			"Mic Jack", "MICBIAS",
-			"IN1L", "Mic Jack";
-
-		/* DAI setting for 5th board */
-		telechips,dai-controller = <&i2s2 &spdif0 &i2s3>;
-		telechips,audio-codec = <&dummy &dummy &dummy  &dummy>;
-
-		status="okay";
-	};
-
-//DAUDIOKK wide sound -	
+        fld0800 {
+                compatible = "telechips,lvds-fld0800";
+                status = "okay";
+                lvds0 = <&lvds>;
+//              power-on-gpios  = ;                     //LCD_ON
+                display-on-gpios        = <&gpc 22 0>;          //LCD_DISP
+//              reset-gpios             = <&gpf 19 0>;          //LCD_RST
+//              lvds-stby-gpios         = <&gpb 19 0>;          //LCD_DE = LVDS_STBY in LVDS
+//              lvds-power-gpios        = ;                     //LVDS_EN
+//              lvds-power-gpios1       = ;                     //V_5V0_EN
+        };
 
 	overlaymixer:overlaymixer@72400000 {
 //		status ="okay";

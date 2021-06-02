@@ -28,7 +28,23 @@ acenic-objs := acenic/tg1.bin acenic/tg2.bin
 endif
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MIT401) += melfas/melfas_mip4_ts_10_25.fw \
 						  melfas/melfas_mip4_ts_12_3.fw \
-						  melfas/melfas_mip4_ts_10_25_plastic.fw
+						  melfas/melfas_mip4_ts_10_25_plastic.fw \
+						  melfas/Auto10d25_FW_v0005_171123 \
+						  melfas/Auto10d25_FW_v0006_180110 \
+						  melfas/Auto10d25_FW_v0009_180406 \
+						  melfas/Auto10d25_FW_v0011_180516 \
+						  melfas/Auto10d25_FW_v0012_180726 \
+						  melfas/Auto10d25_FW_v0014_180904 \
+						  melfas/Auto10d25_FW_v0015_190123 \
+						  melfas/Auto10d25_FW_v0016_200608 \
+						  melfas/Auto10d25_Plastic2T_Test_FW_vF001 \
+						  melfas/Auto12d3_FW_v0200_v0220_180226 \
+						  melfas/Auto12d3_GMSL2_FW_v0001_180906 \
+						  melfas/Auto12d3_GMSL2_FW_v0003_181012 \
+						  melfas/Auto12d3_GMSL2_FW_v0007_190128 \
+						  melfas/Auto12d3_GMSL2_FW_v0008_190322 \
+						  melfas/Auto12d3_GMSL2_FW_v0009_191010 \
+						  melfas/Auto12d3_GMSL2_FW_v0010_200608
 
 fw-shipped-$(CONFIG_ACENIC) += $(acenic-objs)
 fw-shipped-$(CONFIG_ADAPTEC_STARFIRE) += adaptec/starfire_rx.bin \

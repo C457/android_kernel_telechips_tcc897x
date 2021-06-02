@@ -56,6 +56,7 @@
 #include "device_config_mxt336S.h"
 #include "atmel_mxt1189T_cfg.h"
 #include "atmel_mxt641T_cfg.h"
+#include "atmel_mxt641TD_cfg.h"
 
 u8 firmware_latest[] = {
 	/* only for test */
@@ -141,6 +142,495 @@ static proci_shieldless_t56_config_t shieldless_t56_config = {0, };
 /* static proci_stylus_t47_config_t stylus_t47_config = {0, }; */
 static procg_noisesuppression_t62_config_t \
 noisesuppression_t62_config = {0, };
+
+#if defined (MXT_CONFIG_RAW_FILE) || defined(MXT_CONFIG_XCFG_FILE)
+int mxt_set_config_file_641t(int object_id,int offset,int width,int data, int instance)
+{
+
+        switch (object_id)
+        {
+                case 7:
+                cfg_641T_T7[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T7[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T7[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T7[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T7[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 8:
+                cfg_641T_T8[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T8[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T8[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T8[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T8[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 38:
+                cfg_641T_T38[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T38[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T38[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T38[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T38[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 25:
+                cfg_641T_T25[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T25[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T25[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T25[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T25[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 37:
+                cfg_641T_T37[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T37[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T37[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T37[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T37[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 42:
+                cfg_641T_T42[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T42[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T42[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T42[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T42[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 46:
+                cfg_641T_T46[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T46[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T46[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T46[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T46[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+		
+		case 56:
+                cfg_641T_T56[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T56[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T56[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T56[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T56[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 65:
+                cfg_641T_T65[instance][offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T65[instance][offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T65[instance][offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T65[instance][offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T65[instance][offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::instance=%d:object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,instance,object_id,offset,width,data);
+                break;
+
+                case 72:
+                cfg_641T_T72[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T72[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T72[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T72[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T72[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+		case 78:
+                cfg_641T_T78[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T78[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T78[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T78[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T78[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 100:
+                cfg_641T_T100[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641T_T100[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641T_T100[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641T_T100[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641T_T100[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                default:
+                //printk( "mxt_set_config_file Skip T%d\r\n",width);
+                return -1;
+        }
+}
+int mxt_set_config_file_641td(int object_id,int offset,int width,int data,int instance)
+{
+
+        switch (object_id)
+        {
+                case 7:
+                cfg_641TD_T7[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T7[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T7[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T7[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T7[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 8:
+                cfg_641TD_T8[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T8[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T8[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T8[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T8[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 38:
+                cfg_641TD_T38[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T38[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T38[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T38[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T38[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 25:
+                cfg_641TD_T25[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T25[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T25[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T25[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T25[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 37:
+                cfg_641TD_T37[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T37[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T37[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T37[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T37[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 42:
+                cfg_641TD_T42[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T42[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T42[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T42[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T42[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 46:
+                cfg_641TD_T46[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T46[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T46[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T46[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T46[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+		
+		case 56:
+                cfg_641TD_T56[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T56[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T56[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T56[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T56[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 65:
+                cfg_641TD_T65[instance][offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T65[instance][offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T65[instance][offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T65[instance][offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T65[instance][offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::instance=%d:object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,instance,object_id,offset,width,data);
+                break;
+
+                case 72:
+                cfg_641TD_T72[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T72[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T72[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T72[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T72[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+		case 78:
+                cfg_641TD_T78[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T78[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T78[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T78[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T78[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+		case 80:
+                cfg_641TD_T80[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T80[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T80[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T80[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T80[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                case 100:
+                cfg_641TD_T100[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T100[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T100[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T100[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T100[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+		case 104:
+                cfg_641TD_T104[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T104[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T104[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T104[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T104[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+		case 109:
+                cfg_641TD_T109[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T109[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T109[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T109[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T109[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+		case 110:
+		cfg_641TD_T110[instance][offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T110[instance][offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T110[instance][offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T110[instance][offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T110[instance][offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::instance=%d:object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,instance,object_id,offset,width,data);
+                break;
+
+		case 111:
+                cfg_641TD_T111[instance][offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T111[instance][offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T111[instance][offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T111[instance][offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T111[instance][offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::instance=%d:object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,instance,object_id,offset,width,data);
+                break;
+
+		case 113:
+                cfg_641TD_T113[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T113[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T113[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T113[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T113[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+		case 133:
+		cfg_641TD_T133[offset] = data & 0xFF;
+                if(width == 2)
+                {
+                        cfg_641TD_T133[offset+1] =  ((data >> 8) & 0xFF);
+                }
+                else if(width == 4)
+                {
+                        cfg_641TD_T133[offset + 1] = ((data >> 8) & 0xFF);
+                        cfg_641TD_T133[offset + 2] = ((data >> 16) & 0xFF);
+                        cfg_641TD_T133[offset + 3] = ((data >> 24) & 0xFF);
+                }
+                //printk("[%s:%d::::::::object_id=T%d:offset=%d:width=%d:data=%d] \r\n",__func__,__LINE__,object_id,offset,width,data);
+                break;
+
+                default:
+                //printk( "mxt_set_config_file Skip T%d:offset=%d:width=%d:data=%d\r\n",object_id,offset,width,data);
+                return -1;
+        }
+}
+#endif
+
 
 int mxt_get_objects(struct mxt_data *mxt, u8 *buf, int buf_size, int obj_type)
 {
@@ -1056,7 +1546,7 @@ int mxt_config_write_1189T(struct mxt_data *mxt, u8 *mem, int which, unsigned in
 		}
 	}
 
-#ifdef CONFIG_LCD_TOUCHKEY
+#if defined(INCLUDE_LCD_TOUCHKEY)
     obj_addr = MXT_BASE_ADDR(MXT_TOUCH_KEYARRAY_T15);
     obj_size = MXT_GET_SIZE(MXT_TOUCH_KEYARRAY_T15);
     if(which == TOMEM)
@@ -1120,7 +1610,7 @@ int mxt_config_write_1189T(struct mxt_data *mxt, u8 *mem, int which, unsigned in
 			return -EIO;
 		}
 	}
-#ifdef CONFIG_LCD_TOUCHKEY
+#if defined(INCLUDE_LCD_TOUCHKEY)
 	obj_addr = MXT_BASE_ADDR(MXT_SPT_TIMER_T61);
         obj_size = MXT_GET_SIZE(MXT_SPT_TIMER_T61);
         if(which == TOMEM)
@@ -1154,7 +1644,7 @@ int mxt_config_write_1189T(struct mxt_data *mxt, u8 *mem, int which, unsigned in
 		}
 	}
 
-#ifdef CONFIG_LCD_TOUCHKEY
+#if defined(INCLUDE_LCD_TOUCHKEY) 
 	obj_addr = MXT_BASE_ADDR(MXT_SPT_DYNAMICCONFIGURATIONCONTROLLER_T70);
         obj_size = MXT_GET_SIZE(MXT_SPT_DYNAMICCONFIGURATIONCONTROLLER_T70);
 	if(which == TOMEM)
@@ -1467,20 +1957,26 @@ int mxt_config_write_641T(struct mxt_data *mxt, u8 *mem, int which)
 	}
 
 	obj_addr = MXT_BASE_ADDR(65u);
-	obj_size = MXT_GET_SIZE(65u);
-	if(which == TOMEM)
-	{
-		memcpy(mem+obj_addr, cfg_641T_T65, sizeof(cfg_641T_T65));
-	}
-	else
-	{
-		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641T_T65);
-		if (error < 0) {
-			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
-					"(%s, %d)\n", __func__, __LINE__);
-			return -EIO;
-		}
-	}
+        obj_size = MXT_GET_SIZE(65u);
+        if(which == TOMEM)
+        {
+                for(i=0; i<=2; i++)
+                {
+                        memcpy(mem+obj_addr+i*obj_size, cfg_641T_T65[i], sizeof(cfg_641T_T65[0]));
+                }
+        }
+        else
+        {
+                for(i=0; i<=2; i++)
+                {
+                        error = mxt_write_block(client, obj_addr+i*obj_size, obj_size, (u8 *)cfg_641T_T65[i]);
+                        if (error < 0) {
+                                dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+                                                "(%s, %d)\n", __func__, __LINE__);
+                                return -EIO;
+                        }
+                }
+        }
 
 	obj_addr = MXT_BASE_ADDR(72u);
 	obj_size = MXT_GET_SIZE(72u);
@@ -1498,7 +1994,7 @@ int mxt_config_write_641T(struct mxt_data *mxt, u8 *mem, int which)
 		}
 	}
 
-#if 0
+
 	obj_addr = MXT_BASE_ADDR(78u);
 	obj_size = MXT_GET_SIZE(78u);
 	if(which == TOMEM)
@@ -1515,6 +2011,7 @@ int mxt_config_write_641T(struct mxt_data *mxt, u8 *mem, int which)
 		}
 	}
 
+#if 0
 	obj_addr = MXT_BASE_ADDR(80u);
 	obj_size = MXT_GET_SIZE(80u);
 	if(which == TOMEM)
@@ -1646,6 +2143,384 @@ int mxt_config_write_641T(struct mxt_data *mxt, u8 *mem, int which)
 }
 
 
+int mxt_userdata_config_641TD(struct mxt_data *mxt)
+{
+        struct i2c_client *client = mxt->client;
+        u16 obj_addr, obj_size;
+        int error;
+
+        obj_addr = MXT_BASE_ADDR(MXT_USER_INFO_T38);
+        obj_size = MXT_GET_SIZE(MXT_USER_INFO_T38);
+        error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T38);
+        if (error < 0) {
+                dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+                                "(%s, %d)\n", __func__, __LINE__);
+                return -EIO;
+        }
+
+        return 0;
+}
+
+
+int mxt_config_write_641TD(struct mxt_data *mxt, u8 *mem, int which)
+{
+	struct i2c_client *client = mxt->client;
+
+	u16 obj_addr, obj_size, i;
+	int error;
+
+	if((which == TOMEM) && (mem == NULL))
+	{
+		return -EINVAL;
+	}
+
+	obj_addr = MXT_BASE_ADDR(MXT_GEN_POWERCONFIG_T7);
+	obj_size = MXT_GET_SIZE(MXT_GEN_POWERCONFIG_T7);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T7, sizeof(cfg_641TD_T7));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T7);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(MXT_GEN_ACQUIRECONFIG_T8);
+	obj_size = MXT_GET_SIZE(MXT_GEN_ACQUIRECONFIG_T8);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T8, sizeof(cfg_641TD_T8));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T8);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+#if 0
+	obj_addr = MXT_BASE_ADDR(24u);
+	obj_size = MXT_GET_SIZE(24u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T24, sizeof(cfg_641TD_T24));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T24);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+#endif
+
+	obj_addr = MXT_BASE_ADDR(25u);
+	obj_size = MXT_GET_SIZE(25u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T25, sizeof(cfg_641TD_T25));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T25);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+#if 0
+	obj_addr = MXT_BASE_ADDR(27u);
+	obj_size = MXT_GET_SIZE(27u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T27, sizeof(cfg_641TD_T27));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T27);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+#endif
+
+	obj_addr = MXT_BASE_ADDR(37u);
+	obj_size = MXT_GET_SIZE(37u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T37, sizeof(cfg_641TD_T37));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T37);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(MXT_PROCI_TOUCHSUPPRESSION_T42);
+	obj_size = MXT_GET_SIZE(MXT_PROCI_TOUCHSUPPRESSION_T42);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T42, sizeof(cfg_641TD_T42));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T42);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(MXT_SPT_CTECONFIG_T46);
+	obj_size = MXT_GET_SIZE(MXT_SPT_CTECONFIG_T46);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T46, sizeof(cfg_641TD_T46));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T46);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(MXT_SHIELDLESS_T56);
+	obj_size = MXT_GET_SIZE(MXT_SHIELDLESS_T56);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T56, sizeof(cfg_641TD_T56));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T56);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(65u);
+        obj_size = MXT_GET_SIZE(65u);
+        if(which == TOMEM)
+        {
+                for(i=0; i<=2; i++)
+                {
+                        memcpy(mem+obj_addr+i*obj_size, cfg_641TD_T65[i], sizeof(cfg_641TD_T65[0]));
+                }
+        }
+        else
+        {
+                for(i=0; i<=2; i++)
+                {
+                        error = mxt_write_block(client, obj_addr+i*obj_size, obj_size, (u8 *)cfg_641TD_T65[i]);
+                        if (error < 0) {
+                                dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+                                                "(%s, %d)\n", __func__, __LINE__);
+                                return -EIO;
+                        }
+                }
+        }
+
+	obj_addr = MXT_BASE_ADDR(72u);
+	obj_size = MXT_GET_SIZE(72u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T72, sizeof(cfg_641TD_T72));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T72);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(78u);
+	obj_size = MXT_GET_SIZE(78u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T78, sizeof(cfg_641TD_T78));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T78);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(80u);
+	obj_size = MXT_GET_SIZE(80u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T80, sizeof(cfg_641TD_T80));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T80);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+
+	obj_addr = MXT_BASE_ADDR(100u);
+	obj_size = MXT_GET_SIZE(100u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T100, sizeof(cfg_641TD_T100));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T100);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(104u);
+	obj_size = MXT_GET_SIZE(104u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T104, sizeof(cfg_641TD_T104));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T104);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(109u);
+	obj_size = MXT_GET_SIZE(109u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T109, sizeof(cfg_641TD_T109));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T109);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(110u);
+	obj_size = MXT_GET_SIZE(110u);
+	if(which == TOMEM)
+	{
+		for(i=0; i<=8; i++)
+		{
+			memcpy(mem+obj_addr+i*obj_size, cfg_641TD_T110[i], sizeof(cfg_641TD_T110[0]));
+		}
+	}
+	else
+	{
+		for(i=0; i<=8; i++)
+		{
+			error = mxt_write_block(client, obj_addr+i*obj_size, obj_size, (u8 *)cfg_641TD_T110[i]);
+			if (error < 0) {
+				dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+						"(%s, %d)\n", __func__, __LINE__);
+				return -EIO;
+			}
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(111u);
+	obj_size = MXT_GET_SIZE(111u);
+	if(which == TOMEM)
+	{
+		for(i=0; i<=2; i++)
+		{
+			memcpy(mem+obj_addr+i*obj_size, cfg_641TD_T111[i], sizeof(cfg_641TD_T111[0]));
+		}
+	}
+	else
+	{
+		for(i=0; i<=2; i++)
+		{
+			error = mxt_write_block(client, obj_addr+i*obj_size, obj_size, (u8 *)cfg_641TD_T111[i]);
+			if (error < 0) {
+				dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+						"(%s, %d)\n", __func__, __LINE__);
+				return -EIO;
+			}
+		}
+	}
+
+	obj_addr = MXT_BASE_ADDR(113u);
+	obj_size = MXT_GET_SIZE(113u);
+	if(which == TOMEM)
+	{
+		memcpy(mem+obj_addr, cfg_641TD_T113, sizeof(cfg_641TD_T113));
+	}
+	else
+	{
+		error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T113);
+		if (error < 0) {
+			dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+					"(%s, %d)\n", __func__, __LINE__);
+			return -EIO;
+		}
+	}
+	
+	obj_addr = MXT_BASE_ADDR(133u);
+        obj_size = MXT_GET_SIZE(133u);
+        if(which == TOMEM)
+        {
+                memcpy(mem+obj_addr, cfg_641TD_T133, sizeof(cfg_641TD_T133));
+        }
+        else
+        {
+                error = mxt_write_block(client, obj_addr, obj_size, (u8 *)cfg_641TD_T133);
+                if (error < 0) {
+                        dev_err(&client->dev, "[TSP] mxt_write_block failed! "
+                                        "(%s, %d)\n", __func__, __LINE__);
+                        return -EIO;
+                }
+        }
+
+	return 0;
+}
+
+
 int mxt_config_settings(struct mxt_data *mxt, u8 *mem, int which, unsigned int touch_type)
 {
 	int version;
@@ -1699,6 +2574,13 @@ int mxt_config_settings(struct mxt_data *mxt, u8 *mem, int which, unsigned int t
 		        if (mxt_shieldless_t56_config(mxt, mem, which) < 0)
 		                return -1;	
 			break;
+		case 8:
+                        if (mxt_userdata_config_641TD(mxt) < 0) /* T38 */
+                                return -1;
+
+                        if (mxt_config_write_641TD(mxt, mem, which) < 0)            /* ALL */
+                                return -1;
+                        break;
 		default :
 			printk("%s Wrong touch type %d\n",__func__,touch_type);
 			break;

@@ -1,9 +1,9 @@
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary,Open:>>
  *
- * $Id: bcmsdh_sdmmc_linux.c 662764 2016-11-10 09:38:01Z $
+ * $Id: bcmsdh_sdmmc_linux.c 686269 2018-04-05 05:08:00Z $
  */
 
 #include <typedefs.h>
@@ -92,13 +92,7 @@ void sdio_function_cleanup(void);
 
 /* module param defaults */
 static int clockoverride = 0;
-//=============================================================  
-//FEATURE_MOBIS_WIFI
-//jaehyungkim@mobis.co.kr 2018.03.23
-//to fix kernel panic during insmod when wifi module or system has problem
-//=============================================================
 static int bcmsdh_client_driver_registered = 0;
-//=============================================================
 
 module_param(clockoverride, int, 0644);
 MODULE_PARM_DESC(clockoverride, "SDIO card clock override");
@@ -406,12 +400,6 @@ MODULE_AUTHOR(AUTHOR);
 */
 int bcmsdh_register_client_driver(void)
 {
-//=============================================================  
-//FEATURE_MOBIS_WIFI
-//jaehyungkim@mobis.co.kr 2018.03.23
-//to fix kernel panic during insmod when wifi module or system has problem
-//=============================================================	
-	//return sdio_register_driver(&bcmsdh_sdmmc_driver);
 	int error = 0;
 	error = sdio_register_driver(&bcmsdh_sdmmc_driver);
 	if (!error)
@@ -420,7 +408,7 @@ int bcmsdh_register_client_driver(void)
 		sd_err(("%s client driver failed to register %d\n", __FUNCTION__, error));
 
 	return error;
-//=============================================================	
+
 }
 
 /*
@@ -428,17 +416,10 @@ int bcmsdh_register_client_driver(void)
 */
 void bcmsdh_unregister_client_driver(void)
 {
-//=============================================================  
-//FEATURE_MOBIS_WIFI
-//jaehyungkim@mobis.co.kr 2018.03.23
-//to fix kernel panic during insmod when wifi module or system has problem
-//=============================================================		
-	//sdio_unregister_driver(&bcmsdh_sdmmc_driver);
 	if (bcmsdh_client_driver_registered) {
 		sdio_unregister_driver(&bcmsdh_sdmmc_driver);
 		bcmsdh_client_driver_registered = 0;
 	} else {
 		sd_err(("%s client driver not registered\n", __FUNCTION__));
 	}
-//=============================================================		
 }

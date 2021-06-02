@@ -1312,6 +1312,11 @@ static inline uint32_t dwc_otg_read_dev_in_ep_intr(dwc_otg_core_if_t * core_if,
 	dwc_otg_dev_if_t *dev_if = core_if->dev_if;
 	uint32_t v, msk, emp;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!ep)
+		return -ENOMEM;
+#endif
+
 	if (core_if->multiproc_int_enable) {
 		msk =
 		    DWC_READ_REG32(&dev_if->
@@ -1343,6 +1348,10 @@ static inline uint32_t dwc_otg_read_dev_out_ep_intr(dwc_otg_core_if_t *
 	uint32_t v;
 	doepmsk_data_t msk = {.d32 = 0 };
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!_ep)
+		return -ENOMEM;
+#endif
 	if (_core_if->multiproc_int_enable) {
 		msk.d32 =
 		    DWC_READ_REG32(&dev_if->

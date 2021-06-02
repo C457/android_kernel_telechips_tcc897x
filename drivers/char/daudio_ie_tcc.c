@@ -152,6 +152,7 @@ static int set_tcc_video_ie(void)
 	VIOC_LUT_Set_value(pLUT, LUT_COMP1, rgb);
 #else
 	tcc_set_lut_table(TVC_LUT(LUT_COMP1), rgb);
+	tcc_set_lut_table(TVC_LUT(LUT_COMP0), rgb);
 #endif
 
 	ret = SUCCESS;

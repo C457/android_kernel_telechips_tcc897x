@@ -84,6 +84,7 @@ Suite 330, Boston, MA 02111-1307 USA
 #include "tcc_camera_device.h"
 
 #include <tcc_cam_cm_control.h>
+#include <mach/daudio_info.h>
 
 #define PREVIEW_BUFFER_NUMBER	4
 
@@ -118,64 +119,48 @@ void test_registers(struct tcc_camera_device * vdev) {
 	int i = 0;
 	 
 	struct reg_test regList[] = { 
-	{ (unsigned int *)pVINBase,  16 },
+	{ (unsigned int *)pVINBase+10,  4 },
 #if defined(CONFIG_TCC_REAR_CAMERA_DRV)
-	{ (unsigned int *)pRDMA_PGL, 12 }, 
+//	{ (unsigned int *)pRDMA_PGL, 12 }, 
 #endif
 #ifdef FEATURE_USE_DEINTLS_REAR_CAMERA
-	{ (unsigned int *)pDeintls, 4 },
+//	{ (unsigned int *)pDeintls, 4 },
 #else
-	{ (unsigned int *)pVIQE, 4 },
+//	{ (unsigned int *)pVIQE, 4 },
 #endif
-	{ (unsigned int *)pSC, 8 },
-	{ (unsigned int *)pWMIX, 28 }, 
-	{ (unsigned int *)pWDMA, 18 }, 
-	{ (unsigned int *)pRDMA_disp, 12 }, 
-	{ (unsigned int *)VIOC_CONFIG_GetPathStruct(VIOC_SC0 + vdev->vioc.scaler.index),  1 },
+//	{ (unsigned int *)pSC, 8 },
+//	{ (unsigned int *)pWMIX, 28 }, 
+	{ (unsigned int *)pWDMA+4, 1 }, 
+//	{ (unsigned int *)pRDMA_disp, 12 }, 
+//	{ (unsigned int *)VIOC_CONFIG_GetPathStruct(VIOC_SC0 + vdev->vioc.scaler.index),  1 },
 #ifdef FEATURE_USE_DEINTLS_REAR_CAMERA
-	{ (unsigned int *)VIOC_CONFIG_GetPathStruct(VIOC_DEINTLS), 1 },
+//	{ (unsigned int *)VIOC_CONFIG_GetPathStruct(VIOC_DEINTLS), 1 },
 #else
-	{ (unsigned int *)VIOC_CONFIG_GetPathStruct(VIOC_VIQE), 1 },
+//	{ (unsigned int *)VIOC_CONFIG_GetPathStruct(VIOC_VIQE), 1 },
 #endif
 	}; 
 	unsigned int * addr; 
 	unsigned int reg, idxLoop, nReg, idxReg; 
 	 
 	for(i=0; i<3; i++) {
-	printk("\n\n");
-	 
-	for(idxLoop=0; idxLoop<sizeof(regList)/sizeof(regList[0]); idxLoop++) { 
-	addr = regList[idxLoop].reg;
-	nReg = regList[idxLoop].cnt;
-	 
-	for(idxReg=0; idxReg<nReg; idxReg++) {
-	if((idxReg%4) == 0)
-	printk("\n%08x: ", (unsigned int)(addr + idxReg));
-	 
-	 
-	// REGREAD((unsigned int)(addr + idxReg), reg); 
-	printk("%08x ", *(addr + idxReg));
+		for(idxLoop=0; idxLoop<sizeof(regList)/sizeof(regList[0]); idxLoop++) { 
+			addr = regList[idxLoop].reg;
+			nReg = regList[idxLoop].cnt;
+
+			for(idxReg=0; idxReg<nReg; idxReg++) {
+				if((idxReg%4) == 0)
+					printk("\n%08x: ", (unsigned int)(addr + idxReg));
+
+
+				// REGREAD((unsigned int)(addr + idxReg), reg); 
+				printk("%08x ", *(addr + idxReg));
+			}
+		}
+		printk("\n[TW9990 Register Check]\n");
+		printk("reg : 0x01, val : 0x%x\n", sensor_if_read_i2c(0x01,vdev));
 	}
-	printk("\n");
-	}
-	printk("\n\n");
-	 
-#if 1
-	printk("[%s]TW99XX Register Check\n", __func__);
-	printk("[%s]reg : 0x01, val : 0x%x\n", __func__,sensor_if_read_i2c(0x01,vdev));
-	printk("[%s]reg : 0x02, val : 0x%x\n", __func__,sensor_if_read_i2c(0x02,vdev));
-	printk("[%s]reg : 0x03, val : 0x%x\n", __func__,sensor_if_read_i2c(0x03,vdev));
-	printk("[%s]reg : 0x06, val : 0x%x\n", __func__,sensor_if_read_i2c(0x06,vdev));
-	printk("[%s]reg : 0x07, val : 0x%x\n", __func__,sensor_if_read_i2c(0x07,vdev));
-	printk("[%s]reg : 0x09, val : 0x%x\n", __func__,sensor_if_read_i2c(0x09,vdev));
-	printk("[%s]reg : 0x0A, val : 0x%x\n", __func__,sensor_if_read_i2c(0x0A,vdev));
-	printk("[%s]reg : 0x0F, val : 0x%x\n", __func__,sensor_if_read_i2c(0x0F,vdev));
-	printk("[%s]reg : 0x10, val : 0x%x\n", __func__,sensor_if_read_i2c(0x10,vdev));
-	printk("[%s]reg : 0x11, val : 0x%x\n", __func__,sensor_if_read_i2c(0x11,vdev));
-	printk("[%s]reg : 0x13, val : 0x%x\n", __func__,sensor_if_read_i2c(0x13,vdev));
-	printk("[%s]reg : 0x14, val : 0x%x\n", __func__,sensor_if_read_i2c(0x14,vdev));
-#endif
-	}
+	printk("reg : 0x02, val : 0x%x\n", sensor_if_read_i2c(0x02,vdev));
+	printk("reg : 0x03, val : 0x%x\n", sensor_if_read_i2c(0x03,vdev));
 }
 
 int direct_display_parse_device_tree(struct tcc_camera_device * vdev) {
@@ -274,6 +259,8 @@ int direct_display_parse_device_tree(struct tcc_camera_device * vdev) {
 		printk("%s - FAILED: to find fbdisplay_num node.\n", __func__);
                 return -ENODEV;
 	}
+
+	vdev->vioc.disp.index = daudio_lcd_type_lvds_check();
 
 	/* get register address for main output */
 	np_fb_1st = of_find_node_by_name(np_fb, ((vdev->vioc.disp.index) ? "fbdisplay1" : "fbdisplay0"));
@@ -376,8 +363,10 @@ int direct_display_init_parameters(struct tcc_camera_device * vdev) {
 	data->intl_en		= vdev->tcc_sensor_info.intl_en;
 	data->intpl_en		= vdev->tcc_sensor_info.intpl_en;
 	data->fmt		= vdev->tcc_sensor_info.format;
-	data->main_set.source_x	= vdev->tcc_sensor_info.preview_w;
-	data->main_set.source_y	= vdev->tcc_sensor_info.preview_h;
+	data->main_set.vin_crop.width	= vdev->tcc_sensor_info.preview_w;
+	data->main_set.vin_crop.height	= vdev->tcc_sensor_info.preview_h;
+	data->main_set.vin_crop.left = 0;
+	data->main_set.vin_crop.top = 0;
 
 	log("polarity_pclk	= 0x%x\n", data->polarity_pclk);
 	log("polarity_vsync	= 0x%x\n", data->polarity_vsync);
@@ -393,8 +382,10 @@ int direct_display_init_parameters(struct tcc_camera_device * vdev) {
 	log("intl_en		= 0x%x\n", data->intl_en);
 	log("ntpl_en		= 0x%x\n", data->intpl_en);
 	log("fmt		= 0x%x\n", data->fmt);
-	log("main_set.source_x	= 0x%x\n", data->main_set.source_x);
-	log("main_set.source_y	= 0x%x\n", data->main_set.source_y);
+	log("main_set.vin_crop.width	= 0x%x\n", data->main_set.vin_crop.width);
+	log("main_set.vin_crop.height	= 0x%x\n", data->main_set.vin_crop.height);
+	log("main_set.vin_crop.left	= 0x%x\n", data->main_set.vin_crop.left);
+	log("main_set.vin_crop.top	= 0x%x\n", data->main_set.vin_crop.top);
 
 	return 0;
 }
@@ -407,11 +398,14 @@ int direct_display_set_port(struct tcc_camera_device * vdev) {
 	unsigned int	nUsingPort;
 	
 	// Camera Port
-	of_property_read_u32_index(camera_np, "camera_port", 1, &nUsingPort);
+	if(vdev->data.cam_info < DAUDIO_CAMERA_LVDS) 
+		of_property_read_u32_index(camera_np, "camera_port", 1, &nUsingPort);
+	else
+		of_property_read_u32_index(camera_np, "camera_port", 3, &nUsingPort);
 	port_np = of_parse_phandle(camera_np, "camera_port", 0);
 	cifport_addr = of_iomap(port_np, 0);
 	
-	log("cifport register = 0x%x\n", *cifport_addr);
+	printk("cifport register = 0x%x\n", *cifport_addr);
 	
 	BITCSET(*cifport_addr, 0x00077777, nUsingPort << (vdev->vioc.vin.index * 4));
 	
@@ -437,15 +431,13 @@ int direct_display_set_pgl(struct tcc_camera_device * vdev, unsigned int addrY, 
 int direct_display_set_vin(struct tcc_camera_device * vdev) {
 	VIOC_VIN * pVIN = (VIOC_VIN *)vdev->vioc.vin.address;
 	struct cif_c_t * data = (struct cif_c_t *)&vdev->data.cif_cfg;
-	
-	log("VIN[%d] = 0x%08x, size = %d * %d, De-Interlace = %d\n", vdev->vioc.vin.index, (unsigned int)vdev->vioc.vin.address,	\
-		vdev->tcc_sensor_info.preview_w, vdev->tcc_sensor_info.preview_h, vdev->tcc_sensor_info.intl_en);
-	
-	if(vdev->data.cam_info != DAUDIO_CAMERA_LVDS)
-	{
-		if(!data->intl_en)
-			data->main_set.source_y *= 2;
-	}
+
+	log("VIN[%d] = 0x%08x, size = %d * %d, crop(x, y(w * h), %d, %d(%d * %d), De-Interlace = %d\n", \
+		vdev->vioc.vin.index, (unsigned int)vdev->vioc.vin.address,	\
+		vdev->tcc_sensor_info.preview_w, vdev->tcc_sensor_info.preview_h, \
+		data->main_set.vin_crop.left, data->main_set.vin_crop.top, \
+		data->main_set.vin_crop.width, data->main_set.vin_crop.height, \
+		vdev->tcc_sensor_info.intl_en);
 
 	VIOC_VIN_SetSyncPolarity(pVIN, !(data->polarity_href), !(data->polarity_vsync), \
 			data->field_bfield_low, data->polarity_de, data->gen_field_en,!(data->polarity_pclk));
@@ -453,7 +445,9 @@ int direct_display_set_vin(struct tcc_camera_device * vdev) {
 	VIOC_VIN_SetInterlaceMode(pVIN, data->intl_en, data->intpl_en);
 	VIOC_VIN_SetCaptureModeEnable(pVIN, OFF);
 	
-	VIOC_VIN_SetImageSize(pVIN, data->main_set.source_x, data->main_set.source_y);
+	VIOC_VIN_SetImageSize(pVIN, \
+		vdev->tcc_sensor_info.preview_w, vdev->tcc_sensor_info.preview_h);
+
 	//2017.12.22 - LVDS SVM Display Timing Fixed. Horizontal Blank(128) Vertical Blank(4)
 	//2018.06.15 - LVDS SVM PCLK Changed(2208 -> 2528). Horizontal Blank(128+320 = 448)
 	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS)
@@ -462,22 +456,30 @@ int direct_display_set_vin(struct tcc_camera_device * vdev) {
 			VIOC_VIN_SetImageOffset(pVIN, 448, 4, 0);
 		else				//b100
 			VIOC_VIN_SetImageOffset(pVIN, 128, 4, 0);
+	} else if (vdev->data.cam_info == DAUDIO_ADAS_PRK) 
+	{
+		VIOC_VIN_SetImageOffset(pVIN, 288, 0, 0);
 	}
 	else
 		VIOC_VIN_SetImageOffset(pVIN, 0, 0, 0);
-	VIOC_VIN_SetImageCropSize(pVIN, data->main_set.source_x, data->main_set.source_y);
-	VIOC_VIN_SetImageCropOffset(pVIN, 0, 0);
+	VIOC_VIN_SetImageCropOffset(pVIN, \
+		data->main_set.vin_crop.left, data->main_set.vin_crop.top);
+	VIOC_VIN_SetImageCropSize(pVIN, \
+		data->main_set.vin_crop.width, data->main_set.vin_crop.height);
 
 	//2018.05.08 - Using VIN-LUT for LVDS SVM Display Image Enhancement
 	//	     - Don't use Y2R block of VIN component when the camera device uses VIN-LUT.
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS) {
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK) {
 		VIOC_VIN_SetLUT(pVIN, vdev->vioc.lut.address);
 		VIOC_VIN_SetLUTEnable(pVIN, ON, ON, ON);
-		VIOC_VIN_SetLUT_by_table(pVIN, rgb);
+//		VIOC_VIN_SetLUT_by_table(pVIN, rgb);
+        tccxxx_cif_vin_lut_update(vdev);
+        vioc_intr_enable(vdev->data.vioc_vin_intr.id, vdev->data.vioc_vin_intr.bits);
 	}
 	else {
 		VIOC_VIN_SetLUTEnable(pVIN, OFF, OFF, OFF);
 	}
+	
 
 	VIOC_VIN_SetEnable(pVIN, ON);
 	
@@ -491,7 +493,7 @@ int direct_display_set_viqe(struct tcc_camera_device * vdev) {
 #ifdef FEATURE_USE_DEINTLS_REAR_CAMERA
 	unsigned int * pDeintls = (unsigned int *)vdev->vioc.deintls.address;
 	
-	log("DEINTL_S: %d * %d\n", data->main_set.source_x, data->main_set.source_y);
+	log("DEINTL_S: %d * %d\n", data->main_set.vin_crop.width, data->main_set.vin_crop.height);
 	
 	VIOC_CONFIG_PlugIn(VIOC_DEINTLS, VIOC_VIQE_VIN_00);
 	/*	mode = 3,	case: TCC8960 / TCC8970
@@ -512,7 +514,8 @@ int direct_display_set_viqe(struct tcc_camera_device * vdev) {
 	unsigned int	viqe_height	= 0;
 	unsigned int	format		= FMT_FC_YUV420;
 	unsigned int	bypass_deintl	= VIOC_VIQE_DEINTL_MODE_3D;
-	unsigned int	offset		= data->main_set.source_x * data->main_set.source_y * 2 * 2;
+	unsigned int	offset		= \
+		data->main_set.vin_crop.width * data->main_set.vin_crop.height * 2 * 2;
 	unsigned int	deintl_base0	= vdev->pmap_viqe.base;
 	unsigned int	deintl_base1	= deintl_base0 + offset;
 	unsigned int	deintl_base2	= deintl_base1 + offset;
@@ -531,7 +534,7 @@ int direct_display_set_viqe(struct tcc_camera_device * vdev) {
 	viqe_set_reg1 = (unsigned int *)of_iomap(handler_np, 0);
 	viqe_set_reg2 = (unsigned int *)of_iomap(handler_np, 1);
 	
-	log("VIQE: %d * %d\n", data->main_set.source_x, data->main_set.source_y);
+	log("VIQE: %d * %d\n", data->main_set.vin_crop.width, data->main_set.vin_crop.height);
 	
 	VIOC_CONFIG_PlugIn(VIOC_VIQE, VIOC_VIQE_VIN_00);
 	
@@ -563,57 +566,15 @@ int direct_display_set_scaler(struct tcc_camera_device * vdev, unsigned int outW
 	struct cif_c_t * data = (struct cif_c_t *)&vdev->data.cif_cfg;
 	unsigned int srcW, srcH, dstW, dstH;
 	int diffLcdW_SrcW, diffLcdH_SrcH, outX, outY;
+	unsigned int interlaced = data->intl_en == ON ? 2 : 1;
 
-	srcW = data->main_set.source_x;
-	srcH = data->main_set.source_y;
+	srcW = data->main_set.vin_crop.width;
+	srcH = data->main_set.vin_crop.height * interlaced;
 	dstW = outW;
 	diffLcdW_SrcW = diffLcdH_SrcH = outX = 0;
-
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS) {
-		outY = 0;
-		dstH = outH;
-	}
-	else {
-		outY = 7;
-		dstH = outH + outY;
-	}
+	outY = vdev->rcam_misc.preview_crop_y;
+	dstH = outH + vdev->rcam_misc.preview_additional_height;
 	
-#ifdef PREVIEW_RATIO_KEEP
-	int ratioExp, ratioMts, mul = 1000000;
-	
-	// If the input video is interlaced, it will be deinterlaced in VIQE or Simple De-Interlacer.
-	if(data->intl_en)	srcH *= 2;
-
-	diffLcdW_SrcW = (int)(outW - srcW);
-	diffLcdH_SrcH = (int)(outH - srcH);
-	
-	if((diffLcdW_SrcW < 0) && (diffLcdH_SrcH < 0)) {
-		if(diffLcdW_SrcW < diffLcdH_SrcH) {
-			ratioExp = outH / srcH;
-			ratioMts = (outH * mul) / srcH;
-		} else {
-			ratioExp = outW / srcW;
-			ratioMts = (outW * mul) / srcW;
-		}
-	} else {
-		if(diffLcdW_SrcW <= diffLcdH_SrcH) {
-			ratioExp = outH / srcH;
-			ratioMts = (outH * mul) / srcH;
-		} else {
-			ratioExp = outW / srcW;
-			ratioMts = (outW * mul) / srcW;
-		}
-	}
-	ratioMts -= (ratioExp * mul);
-	
-	dstW = (srcW * ratioExp) + ((srcW * ratioMts) / mul);
-	dstH = (srcH * ratioExp) + ((srcH * ratioMts) / mul);
-	if(dstW % 2) dstW += 1;
-	if(dstH % 2) dstH += 1;
-	
-	outX = ((int)dstW - (int)outW) / 2;
-	outY = ((int)dstH - (int)outH) / 2;
-#endif	
 	log("src: %d * %d\n", srcW, srcH);
 	log("lcd: %d * %d\n", outW, outH);
 	log("diff: %d * %d\n", diffLcdW_SrcW, diffLcdH_SrcH);
@@ -670,7 +631,7 @@ int direct_display_set_wdma(struct tcc_camera_device * vdev, unsigned int addrY,
 		//VIOC_WDMA_SetImageY2REnable(pWDMA, OFF);
 
 	// Because of using YCbCr color space LUT formala to set VIN_LUT
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS) {
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK) {
 		VIOC_WDMA_SetImageY2RMode(pWDMA, 2);
 		VIOC_WDMA_SetImageY2REnable(pWDMA, 1);
 	}
@@ -700,21 +661,20 @@ int direct_display_set_rdma(struct tcc_camera_device * vdev, unsigned int addrY,
 	return 0;
 }
 
-int direct_display_set_display(struct tcc_camera_device * vdev, unsigned int width, unsigned int height, unsigned int on_off) {
+int direct_display_set_display(struct tcc_camera_device * vdev, unsigned int pos_x, unsigned int pos_y, unsigned int on_off) {
 	VIOC_WMIX * pWMIX = (VIOC_WMIX *)vdev->vioc.wmixer_out.address;
+	unsigned int num_layer = 1; //vdev->vioc.rdma.index; For 8 inch LCD models(ex-JSN) rdma & wmix number was set different in buildtime. => RearCamera always started from (0 = pos_x,0 = pos_y) in Set Display menu 
 	
 	log("WMIX[%d] = 0x%08x\n", vdev->vioc.wmixer_out.index, (unsigned int)pWMIX);
 	
-	VIOC_API_WMIX_SetOverlayAlphaValue(pWMIX, VIOC_WMIX0_ALPHA_L0, 0x00, 0x00);
-	VIOC_API_WMIX_SetOverlayAlphaSelection(pWMIX, VIOC_WMIX0_ALPHA_L0, VIOC_WMIX_ALPHA_SEL3);
-	VIOC_API_WMIX_SetOverlayAlphaROPMode(pWMIX, VIOC_WMIX0_ALPHA_L0, 0x18);
-
-	VIOC_WMIX_SetOverlayPriority(pWMIX, 24);
-	VIOC_WMIX_SetBGColor(pWMIX, 0, 0, 0, 0);
-	VIOC_WMIX_SetSize(pWMIX, width, height);
-	VIOC_WMIX_SetPosition(pWMIX, 1, 0, 0);
-	VIOC_WMIX_SetUpdate(pWMIX);
-	
+	VIOC_WMIX_SetPosition(pWMIX, num_layer, pos_x, pos_y);
+	if(on_off) {
+		VIOC_WMIX_SetOverlayPriority(pWMIX, 24);
+	}
+	else {
+		VIOC_WMIX_SetOverlayPriority(pWMIX, 24);
+	}
+	VIOC_WMIX_SetUpdate(pWMIX);	
 	return 0;
 }
 
@@ -751,26 +711,43 @@ int direct_display_start(struct tcc_camera_device * vdev) {
 	
 	VIOC_DISP_GetSize(pDISP, &lcdW, &lcdH);
 	log("lcd: %d * %d\n", lcdW, lcdH);
-	log("out: (%d, %d), %d * %d\n", outX, outY, outW, outH);
+	printk("out: (%d, %d), %d * %d\n", outX, outY, outW, outH);
 	if(!lcdW || !lcdH)
 		return -1;
 
 	if(!outW || !outH) {
 		vdev->gParams.preview_width = outW = lcdW;
 		vdev->gParams.preview_height = outH = lcdH;
+		vdev->gParams.preview_x = outX = 0;
+		vdev->gParams.preview_y = outY = 0;
 		printk("default preview size: %d * %d\n", outW, outH);
+	}
+
+	if(outX + outW > lcdW || outY + outH > lcdH || \
+		outX < 0 || outY < 0) {
+		pr_err("%s error - pos & size (lcd(%d x %x) pos and size(%d, %d)(%d, %d) \n", \
+			__func__, lcdW, lcdH, outX, outY, outW, outH);
+		return -1;
+	}
+
+	if(outX == -1 || outY == -1) {
+		vdev->gParams.preview_x = outX = 0;
+		vdev->gParams.preview_y = outY = 0;
 	}
 
 	if(vdev->gParams.handover) {
 		log("### HANDOVER (Skip the VIOC initialization) ###\n");
-		
+
 #if !defined(CONFIG_TCC_REAR_CAMERA_DRV)
 		// disable PGL.
 		VIOC_RDMA_SetImageDisable(pPGL);
 #endif//!defined(CONFIG_TCC_REAR_CAMERA_DRV)
-		
-		direct_display_set_display(vdev, lcdW, lcdH, ON);
-		
+		mdelay(100);
+
+		vioc_intr_enable(vdev->data.vioc_vin_intr.id, vdev->data.vioc_vin_intr.bits);
+
+		direct_display_set_display(vdev, 0, 0, ON);
+
 		vdev->gParams.handover = 0;
 		return 0;
 	}
@@ -824,6 +801,9 @@ int direct_display_start(struct tcc_camera_device * vdev) {
 	direct_display_set_wdma(vdev, vdev->addrPreview[0], outW, outH, VIOC_IMG_FMT_ARGB8888);
 	msleep(50);
 
+	// set DISPlay
+	direct_display_set_display(vdev, outX, outY, ON);
+
 	// set Display
 	direct_display_set_rdma(vdev, vdev->addrPreview[0], outW, outH, VIOC_IMG_FMT_ARGB8888);
 	
@@ -831,9 +811,6 @@ int direct_display_start(struct tcc_camera_device * vdev) {
 	direct_display_enable_async_fifo(vdev, vdev->vioc.wdma.index,	\
 		vdev->vioc.rdma.index, vdev->vioc.rdma.index, vdev->vioc.rdma.index);
 
-	// set DISPlay
-	direct_display_set_display(vdev, lcdW, lcdH, ON);
-	
 	FUNCTION_OUT
 	return 0;
 }
@@ -851,25 +828,18 @@ int direct_display_stop(struct tcc_camera_device * vdev) {
 #endif//defined(CONFIG_TCC_REAR_CAMERA_DRV)
 	
 	struct cif_c_t * data = (struct cif_c_t *)&vdev->data.cif_cfg;
-	unsigned int	outW = 0;
-	unsigned int	outH = 0;
 	int		idxLoop = 0;
 
 	FUNCTION_IN
-	
-	VIOC_DISP_GetSize(pDISP, &outW, &outH);
-	log("lcd: %d * %d\n", outW, outH);
-	if(!outW || !outH)
-		return -1;
-	
-	// Display Off
-	direct_display_set_display(vdev, outW, outH, OFF);
 	
 	// disable AsyncFIFO
 	direct_display_disable_async_fifo(vdev);
 	
 	// disable RDMA
 	VIOC_RDMA_SetImageDisable(pRDMA);
+	
+	// Display Off(pos_x, pos_y are not used)
+	direct_display_set_display(vdev, 0, 0, OFF);
 	
 	// disable WDMA
 	VIOC_WDMA_SetIreqMask(pWDMA, VIOC_WDMA_IREQ_ALL_MASK, ON);	// disable WDMA interrupt
@@ -904,8 +874,9 @@ int direct_display_stop(struct tcc_camera_device * vdev) {
 	}
 	
 	// disable VIN
+    vioc_intr_disable(vdev->data.vioc_vin_intr.id, vdev->data.vioc_vin_intr.bits);
 	VIOC_VIN_SetEnable(pVIN, OFF);
-	
+    
 #if defined(CONFIG_TCC_REAR_CAMERA_DRV)
 	// disable PGL
 	VIOC_RDMA_SetImageDisable(pPGL);
@@ -952,8 +923,6 @@ int direct_display_monitor_thread(void * data) {
 	FUNCTION_IN
 	
 	while(1) {
-		msleep(200);
-		
 		if(kthread_should_stop())
 			break;
 		
@@ -995,10 +964,8 @@ int direct_display_stop_monitor(struct tcc_camera_device * vdev) {
 		return -1;
 	}
 	else {
-		if(kthread_stop(vdev->threadRecovery) != 0) {
+		if(kthread_stop(vdev->threadRecovery) != 0)
 			printk("%s - FAILED: kthread_stop\n", __func__);
-			return -1;
-		}
 		vdev->threadRecovery = NULL;
 	}
 	return 0;
@@ -1045,7 +1012,17 @@ int direct_display_if_start(DIRECT_DISPLAY_IF_PARAMETERS params, struct tcc_came
 	
 	mutex_init(&vdev->dd_lock);
 	mutex_lock(&vdev->dd_lock);
-	
+
+	if(!vdev->cam_irq) {
+		if((tccxxx_cif_vin_irq_request(vdev)) < 0) {
+			printk("FAILED to aquire camera-vin-irq.\n");
+		}
+		else { 
+			vdev->cam_irq = ENABLE;
+			log("cif_vin_irq_request success ! \n");
+		}
+	}
+
 	// Start Camera Preview.
 	ret = direct_display_start(vdev);
 	
@@ -1086,7 +1063,12 @@ int direct_display_if_stop(struct tcc_camera_device * vdev) {
 	
 	// Stop Camera Preview.
 	ret = direct_display_stop(vdev);
-	
+
+	if(vdev->cam_irq){
+		tccxxx_cif_vin_irq_free(vdev);
+	}
+	vdev->cam_irq = DISABLE;
+
 	mutex_unlock(&vdev->dd_lock);
 	mutex_destroy(&vdev->dd_lock);
 	

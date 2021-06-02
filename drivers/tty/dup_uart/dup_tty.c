@@ -122,6 +122,10 @@ static int dt_ldops_open(struct tty_struct *tty)
 	}
 	dt->tty = tty;
 	dt->add_device = 0;
+	if(dt->tty == NULL)
+		DT_dev_err(tty, "%s: dt->tty is NULL.\n", __func__);
+	else
+		dt->tty->receive_room = 65536;  // set default init value
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 24)	
 	mutex_init(&dt->output_lock);

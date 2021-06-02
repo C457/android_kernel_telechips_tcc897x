@@ -10,11 +10,9 @@
  */
 
 #include "mip4_ts.h"
-#include <mach/daudio_info.h>
-#include <linux/gpio.h>
-#include <mach/gpio.h>
 #include <linux/miscdevice.h>
-#include <mach/daudio.h>
+#undef VERIFY_OCTAL_PERMISSIONS
+#define VERIFY_OCTAL_PERMISSIONS(perms) (perms)
 /*
  * Start-up run command
  */
@@ -24,307 +22,408 @@ int mip4_ts_startup_run(struct mip4_ts_info *info);
 int mip4_ts_config(struct mip4_ts_info *info);
 static irqreturn_t mip4_ts_interrupt(int irq, void *dev_id);
 int mip4_ts_i2c_read(struct mip4_ts_info *info, char *write_buf, unsigned int write_len, char *read_buf, unsigned int read_len);
+static int ser_i2c_bitrate_check(struct i2c_client *client);
 
-static struct mip4_ts_info g_info;
-
-static bool LCD_TOUCH_RESET_NEED = 0;
-static bool LCD_DES_RESET_NEED = 0;
+static int LCD_TOUCH_RESET_NEED = 0;
+static int LCD_DES_RESET_NEED = 0;
 static int LCD_TOUCH_INT_CHECK = 0;
-static int LCD_VER = 0;
-/* 2018.3.19
-LCD_VER 0 : INTEGRATED 10.25 1920X720 MELFAS LGD In-cell
-	3 : DEPARTED 10.25 1920X720 MELFAS LGD In-cell
-	4 : DEPARTED 12.3 1920X720 MELFAS LGD In-cell
-	10 : INTEGRATED No Monitor 
-*/
+static int FW_UPDATE_RESULT = 0;
+int MELFAS_LCD_VER = 0;
 
 /* for debugging, enable DEBUG_TRACE */
 
-int debug;
+static DEFINE_SPINLOCK(reset_lock);
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activate debugging output");
+int melfas_debug;
 
+module_param(melfas_debug, int, 0644);
+MODULE_PARM_DESC(melfas_debug, "Activate debugging output");
 
-#define SER_SIZE 71
-#define SER_RETRY_SIZE 19
-#define SER_RETRY_SIZE_12_3 6
 #define MIP4_SERDES_RESET_TIME 3000
-#define DES_ADDRESS 0x48
-#define SER_ADDRESS 0x40
 
-struct mip4_ts_info *info_mip4 ;
+struct mip4_ts_info *info_mip4;
 
+ssize_t mip4_set_adm(struct device *dev, const char *buf, size_t count);
 
+static int mip4_touch_reboot_notifier(struct notifier_block *this, unsigned long code, void *unused);
 
-
-static u16 serdes_config [SER_SIZE][3] = {
-	{0x6a, 0x0010, 0x11}, /* Reset */
-	{0x40, 0x0010, 0x11},
-	{0x40, 0x20F5, 0x00},
-	{0x40, 0x0001, 0x88},
-	{0x6a, 0x01CE, 0xDF},
-
-	{0x40, 0x0140, 0x20},
-	{0x40, 0x0002, 0x03},
-	{0x6a, 0x0140, 0x20},
-	{0x6a, 0x0002, 0x03},
-	{0x40, 0x020C, 0x04},
-
-	{0x40, 0x020D, 0x44},
-	{0x40, 0x020E, 0x04},
-	{0x6a, 0x0212, 0x83},
-	{0x6a, 0x0213, 0x64},
-	{0x6a, 0x0214, 0x44},
-
-	{0x6a, 0x0215, 0x84},
-	{0x6a, 0x0216, 0xA5},
-	{0x6a, 0x0217, 0x05},
-	{0x40, 0x020F, 0x83},
-	{0x40, 0x0210, 0xA5},
-
-	{0x40, 0x0211, 0x45},
-	{0x6a, 0x020C, 0x84},
-	{0x6a, 0x020D, 0xA2},
-	{0x6a, 0x020E, 0x02},
-	{0x40, 0x0206, 0x83},
-
-	{0x40, 0x0207, 0xA2},
-	{0x40, 0x0208, 0x42},
-	{0x6a, 0x020F, 0x84},
-	{0x6a, 0x0210, 0xA3},
-	{0x6a, 0x0211, 0x03},
-
-	{0x40, 0x0209, 0x83},
-	{0x40, 0x020A, 0xA3},
-	{0x40, 0x020B, 0x43},
-	{0x6a, 0x0209, 0x8C},
-	{0x6a, 0x020A, 0xA1},
-
-	{0x6a, 0x020B, 0x41},
-	{0x40, 0x0203, 0x8B},
-	{0x40, 0x0204, 0xA1},
-	{0x40, 0x0205, 0x41},
-	{0x6a, 0x0200, 0x81},
-
-	{0x6a, 0x0206, 0x8C},
-	{0x6a, 0x0207, 0xA0},
-	{0x6a, 0x0208, 0x40},
-	{0x40, 0x0200, 0x0B},
-	{0x40, 0x0201, 0xA0},
-
-	{0x40, 0x0202, 0x00},
-	{0x6a, 0x021B, 0x8C},
-	{0x6a, 0x021C, 0xA6},
-	{0x6a, 0x021D, 0x46},
-	{0x40, 0x0212, 0x8B},
-
-	{0x40, 0x0213, 0xA6},
-	{0x40, 0x0214, 0x06},
-	{0x40, 0x0215, 0x84},
-	{0x40, 0x0216, 0xA7},
-	{0x40, 0x0217, 0x07},
-
-	{0x6a, 0x021E, 0x83},
-	{0x6a, 0x021F, 0xA7},
-	{0x6a, 0x0220, 0x47},
-	{0x40, 0x0218, 0x8C},
-	{0x40, 0x0219, 0xA8},
-
-	{0x40, 0x021A, 0x48},
-	{0x6a, 0x0218, 0x8B},
-	{0x6a, 0x0219, 0xA8},
-	{0x6a, 0x021A, 0x48},
-	{0x40, 0x021B, 0x83},
-
-	{0x40, 0x021C, 0xA9},
-	{0x40, 0x021D, 0x49},
-	{0x6a, 0x0221, 0x84},
-	{0x6a, 0x0222, 0x29},
-	{0x6a, 0x0223, 0x09},
-
-	{0x40, 0x20F5, 0x01},
+static struct notifier_block mip4_reboot_notifier = {
+ .notifier_call =	mip4_touch_reboot_notifier,
 };
-
-static u16 serdes_re_try[SER_RETRY_SIZE][3] = {
-	{DES_ADDRESS, 0x01CE, 0xDF},
-	{DES_ADDRESS, 0x0140, 0x20},
-	{DES_ADDRESS, 0x0002, 0x43},
-
-	{DES_ADDRESS, 0x0219, 0x64},
-	{DES_ADDRESS, 0x021A, 0x44},
-	{DES_ADDRESS, 0x0213, 0xA6},
-	{DES_ADDRESS, 0x0214, 0x06},
-
-	{DES_ADDRESS, 0x0222, 0xA3},
-	{DES_ADDRESS, 0x0223, 0x03},
-	{DES_ADDRESS, 0x0216, 0xA7},
-	{DES_ADDRESS, 0x0217, 0x07},
-	
-	{DES_ADDRESS, 0x0218, 0x83},
-	{DES_ADDRESS, 0x021E, 0x90},
-	{DES_ADDRESS, 0x0212, 0x84},
-	{DES_ADDRESS, 0x0221, 0x84},
-
-	{DES_ADDRESS, 0x0215, 0x8C},
-	{DES_ADDRESS, 0x0206, 0x80},
-	{DES_ADDRESS, 0x0227, 0x80},
-	
-	{DES_ADDRESS, 0x0010, 0x31},
-};
-static u16 serdes_link [1][2] = {
-	{SER_ADDRESS, 0x0013},
-};
-
-static u16 serdes_re_try_12_3[SER_RETRY_SIZE_12_3][3] = {
-        {DES_ADDRESS, 0x14, 0x05},
-        {DES_ADDRESS, 0x02, 0x0F},
-        {DES_ADDRESS, 0x15, 0x70},
-        {DES_ADDRESS, 0x0F, 0x01},
-        {DES_ADDRESS, 0x06, 0x00},
-
-        {DES_ADDRESS, 0x06, 0x08},
-};
-
-
-static u16 serdes_link_12_3[1][2] = {
-	{DES_ADDRESS, 0x01},
-};
-
-
-
-static int serdes_i2c_init(struct i2c_client *client)
+static int mip4_touch_reboot_notifier(struct notifier_block *this,
+                                        unsigned long code, void *unused)
 {
-	int ret;
-	int i;
-	u8 buf[3];
-	int retry;
-	unsigned short addr;
+        struct device *dev = NULL;
+        char buf[32] = {0, };
 
-	addr = client->addr;
+        printk("%s [START] code : %d\n",__func__,code);
+        if (info_mip4 == NULL)
+        {
+                pr_err("g_ts value is NULL!!! %s, %d\n", __func__, __LINE__);
+                return NOTIFY_DONE;
+        }
+        dev = &info_mip4->client->dev;
+        if (dev == NULL)
+        {
+                pr_err("dev value is NULL!!! %s, %d\n", __func__, __LINE__);
+                return NOTIFY_DONE;
+        }
 
-	printk("-----------%s\n",__func__);
-
-	for(i=0; i<SER_SIZE; i++)
-	{
-		retry = 0;
-		client->addr = serdes_config[i][0];
-		buf[0] = (serdes_config[i][1] >> 8) & 0xff;
-		buf[1] = serdes_config[i][1] & 0xff;
-		buf[2] = serdes_config[i][2];
-retry_write:
-		ret =  i2c_master_send(client, buf, 3);
-		if(ret!=3) {
-			if(retry<5){
-				dev_err(&client->dev, "%s: i2c retry\n", __func__);
-				msleep(25);
-				retry++;
-				goto retry_write;
-			} else {
-				dev_err(&client->dev, "%s: i2c send failed (%d), {0x%x, 0x%x %x, 0x%x}\n", __func__, ret, client->addr, buf[0], buf[1], buf[2]);
-				ret = -EIO;
-				return ret;
-			}
-		} else {
-			ret = 0;
-		}
-	}
-	printk("-----------%s Success\n",__func__);
-	client->addr = addr;
-	return 0;
+        if (code == SYS_HALT || code == SYS_POWER_OFF || code == SYS_RESTART) // need to check HALT or POWER_OFF
+        {
+                buf[0] = '1';
+                if (mip4_set_adm(dev, buf, 1) < 0)
+                {
+                        pr_err("_set_adm return value is zero!!! %s, %d\n", __func__, __LINE__);
+                        return NOTIFY_DONE;
+                }
+        }
+        return NOTIFY_DONE;
 }
 
-static int serdes_i2c_retry(struct i2c_client *client)
+static int serdes_i2c_reset(struct i2c_client *client, bool des_only)
 {
-	int ret;
-	int i;
-	u8 buf[3];
-	int retry;
-	unsigned short addr;
+        int ret;
+        int i;
+        u8 buf[3];
+	u8 buf2[3];
+        int retry;
+        unsigned short addr;
 
-	addr = client->addr;
+        addr = client->addr;
 
-	printk("-----------%s\n",__func__);
+        printk("-----------%s\n", __func__);
 
-	for(i=0; i<((LCD_VER ==4) ? SER_RETRY_SIZE_12_3 : SER_RETRY_SIZE); i++)
-	{
-		retry = 0;
-		if(LCD_VER == 4)
-		{	
-			client->addr = serdes_re_try_12_3[i][0];
-			buf[0] = serdes_re_try_12_3[i][1];
-			buf[1] = serdes_re_try_12_3[i][2];
+        for(i = 1; i < sizeof(serdes_1920_720_12_3_config_Si_LG) / sizeof(serdes_config_5) ;i++) {
+                retry = 0;
 
-			ret = i2c_master_send(client, buf, 2);	
+		client->addr = serdes_1920_720_12_3_config_Si_LG[i].chip_addr;
+                buf[0] = (serdes_1920_720_12_3_config_Si_LG[i].reg_addr >> 8) & 0xff;
+                buf[1] = serdes_1920_720_12_3_config_Si_LG[i].reg_addr & 0xff;
+                buf[2] = serdes_1920_720_12_3_config_Si_LG[i].value;
+
+		if(des_only && (client->addr == SER_ADDRESS))
+			continue;
+
+		if(client->addr == DES_DELAY)
+                {
+			mdelay(buf[2]);
+			continue;
+                }
+		ret = i2c_master_send(client, buf, 3);
+
+		if(ret != 3) {
+                        dev_err(&client->dev, "%s: i2c fail\n", __func__);
+                        goto out_i2c;
+                }
+		if(client->addr != DES_DELAY)
+		{
+			ret = i2c_master_send(client, buf, 2);
+			ret = i2c_master_recv(client, buf2, 3);
 		}
+
+		if(des_only)
+			continue;
+
+		if(client->addr == SER_ADDRESS)
+			printk("SER ");
+		else if(client->addr == DES_ADDRESS)
+			printk("DES ");
+		printk("0x%04x write:0x%02x right:0x%02x",serdes_1920_720_12_3_config_Si_LG[i].reg_addr, serdes_1920_720_12_3_config_Si_LG[i].value,serdes_1920_720_12_3_config_Si_LG[i].right_value);
+		if(buf2[0] == serdes_1920_720_12_3_config_Si_LG[i].right_value)
+			printk(" == ");
 		else
-		{
-			client->addr = serdes_re_try[i][0];
-			buf[0] = (serdes_re_try[i][1] >> 8) & 0xff;
-			buf[1] = serdes_re_try[i][1] & 0xff;
-			buf[2] = serdes_re_try[i][2];
-
-			ret =  i2c_master_send(client, buf, 3);
-		}
-			
-		if(ret!=((LCD_VER==4) ? 2 : 3)) {
-			dev_err(&client->dev, "%s: i2c fail\n", __func__);
-			goto out_i2c;
-		}
+			printk(" != ");
+		printk("read:0x%02x\n",buf2[0]);
 	}
-	printk("-----------%s Success\n",__func__);
-out_i2c:	
+	printk("-----------%s Success\n", __func__);
 	client->addr = addr;
-	return 0;
+        return 0;
+out_i2c:
+        client->addr = addr;
+        return 1;
 }
 
+static int ser_i2c_bitrate_3gbps_to_6gbps(struct i2c_client *client)
+{
+        int ret;
+        int i;
+        u8 buf[3];
+        int retry;
+        unsigned short addr;
 
-static int serdes_i2c_read(struct i2c_client *client)
+        addr = client->addr;
+
+        printk("-----------%s\n", __func__);
+
+        for(i = 0; i < 3; i++) {
+                retry = 0;
+
+		client->addr = ser_6gbps_config[i][0];
+                buf[0] = (ser_6gbps_config[i][1] >> 8) & 0xff;
+                buf[1] = ser_6gbps_config[i][1] & 0xff;
+                buf[2] = ser_6gbps_config[i][2];
+
+                if(client->addr == DES_DELAY)
+                {
+	                mdelay(buf[2]);
+                        continue;
+                }
+                ret =  i2c_master_send(client, buf, 3);
+        }
+        printk("-----------%s Success\n", __func__);
+        client->addr = addr;
+        return 0;
+}
+static int des_i2c_bitrate_3gbps_to_6gbps(struct i2c_client *client)
+{
+        int ret;
+        int i;
+        u8 buf[3];
+        int retry;
+        unsigned short addr;
+
+        addr = client->addr;
+
+        printk("-----------%s\n", __func__);
+
+        for(i = 0; i < 3; i++) {
+                retry = 0;
+
+                client->addr = des_6gbps_config[i][0];
+                buf[0] = (des_6gbps_config[i][1] >> 8) & 0xff;
+                buf[1] = des_6gbps_config[i][1] & 0xff;
+                buf[2] = des_6gbps_config[i][2];
+
+                if(client->addr == DES_DELAY)
+                {
+                        mdelay(buf[2]);
+                        continue;
+                }
+                ret =  i2c_master_send(client, buf, 3);
+        }
+        printk("-----------%s Success\n", __func__);
+        client->addr = addr;
+        return 0;
+}
+static int serdes_i2c_bitrate_6gbps_to_3gbps(struct i2c_client *client)
+{
+        int ret;
+        int i;
+        u8 buf[3];
+        int retry;
+        unsigned short addr;
+
+        addr = client->addr;
+
+        printk("-----------%s\n", __func__);
+
+        for(i = 0; i < 4; i++) {
+                retry = 0;
+
+                client->addr = serdes_3gbps_config[i][0];
+                buf[0] = (serdes_3gbps_config[i][1] >> 8) & 0xff;
+                buf[1] = serdes_3gbps_config[i][1] & 0xff;
+                buf[2] = serdes_3gbps_config[i][2];
+
+                if(client->addr == DES_DELAY)
+                {
+                        mdelay(buf[2]);
+                        continue;
+                }
+                ret =  i2c_master_send(client, buf, 3);
+        }
+        printk("-----------%s Success\n", __func__);
+        client->addr = addr;
+        return 0;
+}
+
+static int des_i2c_set_check(struct i2c_client *client)
+{
+	int ret;
+        int i;
+        u8 buf[2];
+        u8 buf2[3];
+	int check_ret;
+        int retry;
+        unsigned short addr;
+	struct mip4_ts_info *info = i2c_get_clientdata(client);
+	int check_bit[2] = {0x7f,0xf7};
+
+        addr = client->addr;
+
+	check_ret = 0;
+
+	for(i=0;i<2;i++)
+	{
+		client->addr = des_set_check[i][0];
+	        buf[0] = (des_set_check[i][1] >> 8) & 0xff;
+	        buf[1] = des_set_check[i][1] & 0xff;
+
+		if(info->irq_enabled) {
+			disable_irq(info->client->irq);
+	                info->irq_enabled = false;
+		}
+
+	        ret = i2c_master_send(client, buf, 2);
+	        ret = i2c_master_recv(client, buf2, 3);
+
+		if(!info->irq_enabled) {
+			enable_irq(info->client->irq);
+	                info->irq_enabled = true;
+	        }
+
+		if((buf2[0]&check_bit[i]) != des_set_check[i][2]){
+			printk("%s Register(0x%x) Value(0x%x) != Read(0x%x)\n",__func__,des_set_check[i][1],des_set_check[i][2],buf2[0]);
+			check_ret ++;
+		}
+	}
+
+        client->addr = addr;
+        return check_ret;
+}
+
+static int ser_i2c_bitrate_check(struct i2c_client *client)
+{
+        int ret;
+        int i;
+        u8 buf[2];
+        u8 buf2[3];
+        int retry;
+        unsigned short addr;
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+        addr = client->addr;
+
+	client->addr = ser_bitrate_check[0][0];
+        buf[0] = (ser_bitrate_check[0][1] >> 8) & 0xff;
+        buf[1] = ser_bitrate_check[0][1] & 0xff;
+
+	ret = i2c_master_send(client, buf, 2);
+        ret = i2c_master_recv(client, buf2, 3);
+
+	printk("%s Ser bitrate = 0x%x\n",__func__,buf2[0]);
+
+        client->addr = addr;
+        return buf2[0];
+}
+
+static int des_i2c_bitrate_check(struct i2c_client *client)
+{
+        int ret;
+        int i;
+        u8 buf[2];
+        u8 buf2[3];
+        int retry;
+        unsigned short addr;
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+        addr = client->addr;
+
+	client->addr = des_bitrate_check[0][0];
+        buf[0] = (des_bitrate_check[0][1] >> 8) & 0xff;
+        buf[1] = des_bitrate_check[0][1] & 0xff;
+
+        ret = i2c_master_send(client, buf, 2);
+        ret = i2c_master_recv(client, buf2, 3);
+
+	printk("%s Des bitrate = 0x%x\n",__func__,buf2[0]);
+
+        client->addr = addr;
+        return buf2[0];
+}
+
+static int serdes_line_fault_check(struct i2c_client *client)
+{
+	int ret;
+	int check_ret;
+        u8 buf[3];
+        u8 buf2[3];
+        int retry;
+        unsigned short addr;
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+        addr = client->addr;
+
+	client->addr = serdes_line_fault_config[0][0];
+        buf[0] = (serdes_line_fault_config[0][1] >> 8) & 0xff;
+        buf[1] = serdes_line_fault_config[0][1] & 0xff;
+	buf[2] = serdes_line_fault_config[0][2];
+
+	if(info->irq_enabled) {
+        	disable_irq(info->client->irq);
+                info->irq_enabled = false;
+	}
+
+	ret = i2c_master_send(client, buf, 3);
+
+	mdelay(20);
+
+	ret = i2c_master_send(client, buf, 2);
+        ret = i2c_master_recv(client, buf2, 3);
+
+	printk("%s 0x%x -> 0x%x\n",__func__, buf2[0], buf2[0]&0x0C);
+	if((buf2[0] & 0x0C) == 0x08)
+		check_ret = 1;
+	else
+		check_ret = 0;
+
+	buf[2] = serdes_line_fault_config[1][2];
+	
+	ret = i2c_master_send(client, buf, 3);
+
+	client->addr = serdes_line_fault_config[2][0];
+        buf[0] = (serdes_line_fault_config[2][1] >> 8) & 0xff;
+        buf[1] = serdes_line_fault_config[2][1] & 0xff;
+
+	ret = i2c_master_send(client, buf, 2);
+        ret = i2c_master_recv(client, buf2, 3);
+
+        if(!info->irq_enabled) {
+        	enable_irq(info->client->irq);
+        	info->irq_enabled = true;
+        }
+
+	//printk("%s check_ret : %d\n",__func__, check_ret);
+
+	client->addr = addr;
+	return check_ret;
+}
+
+static int serdes_i2c_connect(struct i2c_client *client)
 {
 	int ret;
 	int i;
-	u8 buf[2];
-	u8 buf2[2];
+	u8 buf[3];
+	u8 buf2[3];
 	int retry;
 	unsigned short addr;
-	
+	struct mip4_ts_info *info = i2c_get_clientdata(client);
+
 	addr = client->addr;
 
+	client->addr = serdes_link_lock_config[0][0];
+	buf[0] = (serdes_link_lock_config[0][1] >> 8) & 0xff;
+	buf[1] = serdes_link_lock_config[0][1] & 0xff;
 
-	if(LCD_VER == 4)
-	{
-		client->addr = serdes_link_12_3[0][0];
-		buf[1] = serdes_link_12_3[0][1];
-		
-		ret = i2c_master_send(client, buf, 1);	
+	if(info->irq_enabled) {
+        	disable_irq(info->client->irq);
+                info->irq_enabled = false;
+        }
+	ret = i2c_master_send(client, buf, 2);
+	ret = i2c_master_recv(client, buf2, 3);
 
-		if(ret != 1)
-		{
-			dev_info(&client->dev, "%s LCD_DES_RESET_NEED Set 1\n",__func__);
-			LCD_DES_RESET_NEED =1;
-		}
-	}
-	else
-	{
-		client->addr = serdes_link[0][0];
-		buf[0] = (serdes_link[0][1] >> 8) & 0xff;
-		buf[1] = serdes_link[0][1] & 0xff;
-		//buf[2] = (u8 *) value;
-		ret =  i2c_master_send(client, buf, 2);
-		ret = i2c_master_recv(client, buf2, 3);
-	
+	if(!info->irq_enabled) {
+        	enable_irq(info->client->irq);
+        	info->irq_enabled = true;
+        }
 
-#if 1
-		if(buf2[0] != 0xde)
-		{
-			printk(KERN_ERR "---------%s: i2c read  (%d), {0x%x, 0x%x ,0x%x,0x%x}\n", __func__, ret, client->addr, buf2[0], buf2[1],buf2[2]);
-			LCD_DES_RESET_NEED = 1;
-		}
-#endif	
+	if((buf2[0]&0xfa)!=0xda) {
+		printk(KERN_ERR "---------%s: i2c read  (%d), {0x%x, 0x%x ,0x%x,0x%x}\n", __func__, ret, client->addr, buf2[0], buf2[1], buf2[2]);
 	}
 
 	client->addr = addr;
-	return ((LCD_VER==4) ? ret : buf2[0]);
+	return buf2[0];
 }
 
 
@@ -337,84 +436,237 @@ inline void mip4_serdes_reset_dwork_start(struct mip4_ts_info *info)
 {
 	mip4_serdes_reset_dwork_stop(info);
 	schedule_delayed_work(&info->serdes.reset_dwork,
-			msecs_to_jiffies(MIP4_SERDES_RESET_TIME));
+						  msecs_to_jiffies(MIP4_SERDES_RESET_TIME));
 }
 
-
-
-static void mip4_serdes_reset(struct mip4_ts_info *info,struct mip4_ts_info *info_mip4)
+static void mip4_serdes_reset(struct mip4_ts_info *info)
 {
-	u8 val;
-	int ret = 0,i = 0;
+        u8 val;
+        int ret = 0, i = 0;
+        int retry = I2C_RETRY_COUNT;
+	u8 ser_bitrate = 0;
+        u8 des_bitrate = 0;
 
-	mutex_lock(&info->serdes.lock);
-	
-	val = serdes_i2c_read(info->client);
+        mutex_lock(&info->serdes.lock);
 
-	
-	if((val == ((LCD_VER==4) ? 1 : 0xde)) && LCD_DES_RESET_NEED == 1)
-	{
-		printk(KERN_ERR "---------%s: DISPLAY & TouchIC Recovery !!! \n", __func__);
-		printk(KERN_ERR "%s mip4_read_byte :0x[%x]!!!\r\n", __func__, val);
-		printk(KERN_ERR "%s LCD_DES_RESET_NEED value :(%d) !!!\r\n", __func__, LCD_DES_RESET_NEED);
+        val = serdes_i2c_connect(info->client);
 
-		serdes_i2c_retry(info->client);
+	if((val&0xfa)==0xda &&LCD_DES_RESET_NEED == 2)
+        {
+                LCD_DES_RESET_NEED = 0;
+                printk("LCD_DES_RESET_NEED set 0\n");
+        }
 
-		if(info_mip4->irq_enabled) {
-			disable_irq(info_mip4->client->irq);
-			info_mip4->irq_enabled = false;
-		}		
-		
-		mip4_ts_restart(info_mip4);
-
-		ret = mip4_ts_config(info_mip4);
-		
-		if (ret) {
+	// Check Des Register Set
+        if(!LCD_DES_RESET_NEED)
+		if(((val&0xfa)==0xda) && (des_i2c_set_check(info->client)!=0))
+                {
 			LCD_DES_RESET_NEED = 1;
-			printk(KERN_ERR "%s [ERROR] mip4_ts_config\n", __func__);
+			printk("LCD_DES_RESET_NEED set %d\n", LCD_DES_RESET_NEED);
+                }
+
+	// Des Reset
+        if(((val&0xfa)==0xda) && LCD_DES_RESET_NEED == 1)
+	{
+                printk("---------%s: DISPLAY & TouchIC Recovery !!! \n", __func__);
+                printk("%s mip4_read_byte :0x[%x]!!!\r\n", __func__, val);
+
+                if(info->irq_enabled) {
+                        disable_irq(info->client->irq);
+                        info->irq_enabled = false;
+                }
+
+                ret = serdes_i2c_reset(info->client,false);
+
+		if(ret)
+		{
+			LCD_DES_RESET_NEED = 1;
+			LCD_TOUCH_INT_CHECK = 2;
+			printk("%s [ERROR] serdes_i2c_reset\n", __func__);
 		}
 		else
-			{
-				printk(KERN_ERR "%s write LCD_DES_RESET 0x[%x]\r\n", __func__, val);
-				LCD_DES_RESET_NEED = 0;
-			}
-			
-		mip4_ts_config_input(info_mip4); 
+		{
 
-		if(!info_mip4->irq_enabled) {
-			enable_irq(info_mip4->client->irq);
-			info_mip4->irq_enabled = true;
+	                mip4_ts_clear_input(info);
+
+	                mip4_ts_restart(info);
+
+        	        while(retry--) {
+	                        ret = mip4_ts_config(info);
+
+        	                if(ret == 0)
+	                                break;
+	                        msleep(200);
+        	                printk("msleep(200)\n");
+	                }
+
+	                if (ret) {
+	                        LCD_DES_RESET_NEED = 1;
+	                        LCD_TOUCH_INT_CHECK = 2; //prevent touch reset again right after serdes reset
+	                        printk("%s [ERROR] mip4_ts_config\n", __func__);
+	                }
+	                else {
+	                        LCD_DES_RESET_NEED = 0;
+				LCD_TOUCH_INT_CHECK = 2;
+				printk("%s LCD_DES_RESET_NEED set %d\n", __func__, LCD_DES_RESET_NEED);
+	                }
+
+	                mip4_ts_config_input(info);
 		}
-			
+
+                if(!info->irq_enabled) {
+                        enable_irq(info->client->irq);
+                        info->irq_enabled = true;
+                }
+        }
+        else if(((val)&0xfa)!=0xda)
+	{
+		if(serdes_line_fault_check(info->client))
+		{
+			printk("---------%s: Line Fault OK !!! \n", __func__);
+
+			ser_bitrate = ser_i2c_bitrate_check(info->client);
+
+			if(ser_bitrate==0x84)
+			{
+				if(info->irq_enabled) {
+					disable_irq(info->client->irq);
+					info->irq_enabled = false;
+		                }
+
+				ser_i2c_bitrate_3gbps_to_6gbps(info->client);
+				ser_bitrate = ser_i2c_bitrate_check(info->client);
+                                des_bitrate = des_i2c_bitrate_check(info->client);
+
+				serdes_i2c_reset(info->client,false);
+
+				serdes_i2c_bitrate_6gbps_to_3gbps(info->client);
+
+				mdelay(100);
+
+				ser_bitrate = ser_i2c_bitrate_check(info->client);
+				des_bitrate = des_i2c_bitrate_check(info->client);
+
+				if(des_bitrate != 0x01)
+				{
+					printk("%s DES Doesn't Set 3Gbps\n",__func__);
+				}
+				else
+				{
+					printk("%s DES Set 3Gbps\n",__func__);
+
+					mip4_ts_clear_input(info);
+
+					mip4_ts_restart(info);
+
+					while(retry--) {
+						ret = mip4_ts_config(info);
+
+						if(ret == 0)
+							break;
+						msleep(200);
+						printk("msleep(200)\n");
+					}
+
+					if (ret) {
+			                        LCD_TOUCH_INT_CHECK = 2; //prevent touch reset again right after serdes reset
+			                        printk("%s [ERROR] mip4_ts_config\n", __func__);
+			                }
+			                else {
+			                        LCD_DES_RESET_NEED = 0;
+						LCD_TOUCH_INT_CHECK = 2;
+						printk("%s LCD_DES_RESET_NEED set %d\n", __func__, LCD_DES_RESET_NEED);
+					}
+
+					mip4_ts_config_input(info);
+				}
+
+				if(!info->irq_enabled) {
+					enable_irq(info->client->irq);
+					info->irq_enabled = true;
+		                }
+			}
+			else if(ser_bitrate==0x88)
+			{
+				if(info->irq_enabled) {
+					disable_irq(info->client->irq);
+					info->irq_enabled = false;
+				}
+
+				serdes_i2c_bitrate_6gbps_to_3gbps(info->client);
+				ser_bitrate = ser_i2c_bitrate_check(info->client);
+				des_bitrate = des_i2c_bitrate_check(info->client);
+
+				serdes_i2c_reset(info->client,false);
+
+				des_i2c_bitrate_3gbps_to_6gbps(info->client);
+				ser_i2c_bitrate_3gbps_to_6gbps(info->client);
+
+				ser_bitrate = ser_i2c_bitrate_check(info->client);
+                                des_bitrate = des_i2c_bitrate_check(info->client);
+
+				if(des_bitrate != 0x02)
+				{
+					printk("%s DES Doesn't Set 6Gbps\n",__func__);
+				}
+				else
+				{
+					printk("%s DES Set 6Gbps\n",__func__);
+
+					mip4_ts_clear_input(info);
+
+					mip4_ts_restart(info);
+
+					while(retry--) {
+						ret = mip4_ts_config(info);
+
+						if(ret == 0)
+							break;
+						msleep(200);
+						printk("msleep(200)\n");
+					}
+
+					if (ret) {
+						LCD_TOUCH_INT_CHECK = 2; //prevent touch reset again right after serdes reset
+						printk("%s [ERROR] mip4_ts_config\n", __func__);
+					}
+					else {
+						LCD_DES_RESET_NEED = 0;
+						LCD_TOUCH_INT_CHECK = 2;
+						printk("%s LCD_DES_RESET_NEED set %d\n", __func__, LCD_DES_RESET_NEED);
+					}
+
+					mip4_ts_config_input(info);
+				}
+
+				if(!info->irq_enabled) {
+                                        enable_irq(info->client->irq);
+                                        info->irq_enabled = true;
+                                }
+			}
+		}
+		else
+		{
+			printk("---------%s: HDMI Connect ERROR !!! \n", __func__);
+			if(LCD_DES_RESET_NEED != 2)
+			{
+				LCD_DES_RESET_NEED = 2;
+				printk("LCD_DES_RESET_NEED set %d\n",LCD_DES_RESET_NEED);
+			}
+		}
+        }
+
+	// Serdes Connect Dignosis
+	if((val&0xfa)==0xda)
+	{
+		set_serdes_conn_check(0);
 	}
 	else
 	{
-		if(val != ((LCD_VER==4) ? 1 : 0xde))
-		{
-			printk(KERN_ERR "---------%s: HDMI Connect ERROR !!! \n", __func__);
-		}
-		
-	}
-	for(i=0; i<3; i++) //serdes conn check 20180622 mhjung
-	{
-		val = serdes_i2c_read(info->client);
+		set_serdes_conn_check(2);
+        }
 
-		if(val != ((LCD_VER==4) ? 1 : 0xde))
-		{
-			if (i == 2)  
-			{
-				set_serdes_conn_check(2);
-			}	
-		
-			msleep(30);
-		}else{
-				set_serdes_conn_check(0);
-				break;
-		}
-	
-	}
-	// mxt->client->addr=addr;
-	mutex_unlock(&info->serdes.lock);
+        mutex_unlock(&info->serdes.lock);
 }
 
 static void mip4_touch_reset(struct mip4_ts_info *info)
@@ -422,28 +674,29 @@ static void mip4_touch_reset(struct mip4_ts_info *info)
 	int ret = 0;
 	int retry = I2C_RETRY_COUNT;
 
-	if(LCD_TOUCH_INT_CHECK >= 2)
-	{
+	if(LCD_TOUCH_INT_CHECK >= 2) {
+		spin_lock_irq(&reset_lock);
 		LCD_TOUCH_INT_CHECK = 0;
+		LCD_TOUCH_RESET_NEED = 0;
+		spin_unlock_irq(&reset_lock);
 	}
-	else
-	{
+	else {
 		LCD_TOUCH_RESET_NEED = 1;
 	}
-	
-	if(LCD_TOUCH_RESET_NEED == 1)
-	{
-		dev_info(&info->client->dev, "%s LCD_TOUCH_RESET [START]",__func__);
+
+	if(LCD_TOUCH_RESET_NEED == 1) {
+		dev_info(&info->client->dev, "%s LCD_TOUCH_RESET [START]", __func__);
 
 		if(info->irq_enabled) {
 			disable_irq(info->client->irq);
 			info->irq_enabled = false;
-		}		
-		
+		}
+
+		mip4_ts_clear_input(info);
+
 		mip4_ts_restart(info);
 
-		while(retry--)
-		{
+		while(retry--) {
 			ret = mip4_ts_config(info);
 
 			if(ret == 0)
@@ -452,22 +705,22 @@ static void mip4_touch_reset(struct mip4_ts_info *info)
 			printk("msleep(200)\n");
 		}
 
-		if(ret !=0)
-		{
-			dev_err(&info->client->dev, "%s [ERROR]\n", __func__);	
+		if(ret != 0) {
+			dev_err(&info->client->dev, "%s [ERROR]\n", __func__);
 			return;
 		}
-		
-		mip4_ts_config_input(info); 
+
+		mip4_ts_config_input(info);
+
+		LCD_TOUCH_RESET_NEED = 0;
+		LCD_TOUCH_INT_CHECK = 0;
 
 		if(!info->irq_enabled) {
 			enable_irq(info->client->irq);
 			info->irq_enabled = true;
 		}
-		LCD_TOUCH_RESET_NEED = 0;
-		LCD_TOUCH_INT_CHECK = 0;
-		
-		dev_info(&info->client->dev, "%s LCD_TOUCH_RESET [DONE]",__func__);
+
+		dev_info(&info->client->dev, "%s LCD_TOUCH_RESET [DONE]", __func__);
 	}
 
 }
@@ -475,25 +728,20 @@ static void mip4_touch_reset(struct mip4_ts_info *info)
 static void mip4_serdes_reset_dwork(struct work_struct *work)
 {
 	struct input_dev *dev;
-	struct mip4_ts_info *info_serdes = container_of(work, struct mip4_ts_info, serdes.reset_dwork);
-	
-	LCD_VER = daudio_lcd_version();
+	struct mip4_ts_info *info = container_of(work, struct mip4_ts_info, serdes.reset_dwork);
 
-	if(LCD_VER == 4 || LCD_VER == 3)// 3 : 10.25 departed 4 : 12.3 departed 
-	{	
-		mip4_serdes_reset(info_serdes,info_mip4);
-		
-		if(LCD_DES_RESET_NEED != 1)
+	if(!get_montype())
+	{
+		mip4_serdes_reset(info);
+		if(!LCD_DES_RESET_NEED)
 		{
-			mip4_touch_reset(info_mip4);
+			mip4_touch_reset(info);
 		}
 	}
 	else
-	{
-		mip4_touch_reset(info_mip4);
-	}
+		mip4_touch_reset(info);
 
-	mip4_serdes_reset_dwork_start(info_serdes);
+	mip4_serdes_reset_dwork_start(info);
 }
 
 int mip4_ts_startup_run(struct mip4_ts_info *info)
@@ -548,7 +796,8 @@ int mip4_ts_startup(struct mip4_ts_info *info)
 	ret = wait_for_completion_interruptible_timeout(&info->startup_done, msecs_to_jiffies(STARTUP_TIMEOUT));
 	if (ret > 0) {
 		dev_dbg(&info->client->dev, "%s - startup : completed[%d]\n", __func__, jiffies_to_msecs(ret));
-	} else {
+	}
+	else {
 		dev_dbg(&info->client->dev, "%s - startup : timeout[%d]\n", __func__, ret);
 
 #if USE_FW_RECOVERY
@@ -624,9 +873,11 @@ int mip4_ts_i2c_read(struct mip4_ts_info *info, char *write_buf, unsigned int wr
 
 		if (res == ARRAY_SIZE(msg)) {
 			goto exit;
-		} else if (res < 0) {
+		}
+		else if (res < 0) {
 			dev_err(&info->client->dev, "%s [ERROR] i2c_transfer - errno[%d]\n", __func__, res);
-		} else {
+		}
+		else {
 			dev_err(&info->client->dev, "%s [ERROR] i2c_transfer - size[%zu] result[%d]\n", __func__, ARRAY_SIZE(msg), res);
 		}
 	}
@@ -650,16 +901,18 @@ int mip4_ts_i2c_write(struct mip4_ts_info *info, char *write_buf, unsigned int w
 {
 	int retry = I2C_RETRY_COUNT;
 	int res;
-	printk("%s\n",__func__);
+	printk("%s\n", __func__);
 
 	while (retry--) {
 		res = i2c_master_send(info->client, write_buf, write_len);
 
 		if (res == write_len) {
 			goto exit;
-		} else if (res < 0) {
+		}
+		else if (res < 0) {
 			dev_err(&info->client->dev, "%s [ERROR] i2c_master_send - errno [%d]\n", __func__, res);
-		} else {
+		}
+		else {
 			dev_err(&info->client->dev, "%s [ERROR] i2c_master_send - write[%d] result[%d]\n", __func__, write_len, res);
 		}
 	}
@@ -704,12 +957,13 @@ int mip4_ts_enable(struct mip4_ts_info *info)
 #if USE_STARTUP_WAITING
 	mip4_ts_startup(info);
 #else
-	if(info->init){
+	if(info->init) {
 		info->init = false;
-	}else{
+	}
+	else {
 		mip4_ts_power_on(info);
 	}
-	
+
 
 	if (!info->irq_enabled) {
 		enable_irq(info->client->irq);
@@ -802,23 +1056,23 @@ static int mip4_ts_fb_notifier_callback(struct notifier_block *self, unsigned lo
 	dev_dbg(&info->client->dev, "%s - blank[0x%02X]\n", __func__, blank);
 
 	switch (blank) {
-	case FB_BLANK_UNBLANK:
-	    /* Enable */
-		dev_dbg(&info->client->dev, "%s - FB_BLANK_UNBLANK\n", __func__);
-		dev_info(&info->client->dev, "%s - Display : On\n", __func__);
+		case FB_BLANK_UNBLANK:
+			/* Enable */
+			dev_dbg(&info->client->dev, "%s - FB_BLANK_UNBLANK\n", __func__);
+			dev_info(&info->client->dev, "%s - Display : On\n", __func__);
 
-		break;
+			break;
 
-	case FB_BLANK_POWERDOWN:
-	    /* Disable */
-		dev_dbg(&info->client->dev, "%s - FB_BLANK_POWERDOWN\n", __func__);
-		dev_info(&info->client->dev, "%s - Display : Off\n", __func__);
+		case FB_BLANK_POWERDOWN:
+			/* Disable */
+			dev_dbg(&info->client->dev, "%s - FB_BLANK_POWERDOWN\n", __func__);
+			dev_info(&info->client->dev, "%s - Display : Off\n", __func__);
 
-		break;
+			break;
 
-	default:
-		dev_dbg(&info->client->dev, "%s - skip blank [0x%02X]\n", __func__, blank);
-		break;
+		default:
+			dev_dbg(&info->client->dev, "%s - skip blank [0x%02X]\n", __func__, blank);
+			break;
 	}
 
 exit:
@@ -839,7 +1093,8 @@ static int mip4_ts_input_open(struct input_dev *dev)
 
 	if (info->init == true) {
 		info->init = false;
-	} else {
+	}
+	else {
 		mip4_ts_enable(info);
 	}
 
@@ -884,7 +1139,8 @@ int mip4_ts_get_ready_status(struct mip4_ts_info *info)
 	/* Check status */
 	if ((ret == MIP4_CTRL_STATUS_NONE) || (ret == MIP4_CTRL_STATUS_LOG) || (ret == MIP4_CTRL_STATUS_READY)) {
 		//dev_dbg(&info->client->dev, "%s - status[0x%02X]\n", __func__, ret);
-	} else {
+	}
+	else {
 		dev_err(&info->client->dev, "%s [ERROR] Unknown status[0x%02X]\n", __func__, ret);
 		goto error;
 	}
@@ -1114,15 +1370,18 @@ static int mip4_ts_alert_handler_esd(struct mip4_ts_info *info, u8 *rbuf)
 		if (info->disable_esd == true) {
 			mip4_ts_disable_esd_alert(info);
 			info->esd_cnt = 0;
-		} else if (info->esd_cnt > ESD_COUNT_FOR_DISABLE) {
+		}
+		else if (info->esd_cnt > ESD_COUNT_FOR_DISABLE) {
 			if (!mip4_ts_disable_esd_alert(info)) {
 				info->disable_esd = true;
 				info->esd_cnt = 0;
 			}
-		} else {
+		}
+		else {
 			mip4_ts_restart(info);
 		}
-	} else {
+	}
+	else {
 		/* ESD detected */
 		info->esd_cnt = 0;
 		mip4_ts_restart(info);
@@ -1163,15 +1422,15 @@ static int mip4_ts_alert_handler_inputtype(struct mip4_ts_info *info, u8 *rbuf)
 	dev_dbg(&info->client->dev, "%s [START]\n", __func__);
 
 	switch (input_type) {
-	case 0:
-		dev_dbg(&info->client->dev, "%s - Input type : Finger\n", __func__);
-		break;
-	case 1:
-		dev_dbg(&info->client->dev, "%s - Input type : Glove\n", __func__);
-		break;
-	default:
-		dev_err(&info->client->dev, "%s - Input type : Unknown[%d]\n", __func__, input_type);
-		goto error;
+		case 0:
+			dev_dbg(&info->client->dev, "%s - Input type : Finger\n", __func__);
+			break;
+		case 1:
+			dev_dbg(&info->client->dev, "%s - Input type : Glove\n", __func__);
+			break;
+		default:
+			dev_err(&info->client->dev, "%s - Input type : Unknown[%d]\n", __func__, input_type);
+			goto error;
 	}
 
 	dev_dbg(&info->client->dev, "%s [DONE]\n", __func__);
@@ -1193,19 +1452,19 @@ static int mip4_ts_alert_handler_image(struct mip4_ts_info *info, u8 *rbuf)
 
 	switch (image_type) {
 #if USE_WAKEUP_GESTURE
-	case MIP4_IMG_TYPE_GESTURE:
-		if (mip4_ts_gesture_wakeup_event_handler(info, 1)) {
-			dev_err(&info->client->dev, "%s [ERROR] mip4_ts_wakeup_event_handler\n", __func__);
-			goto error;
-		}
-		if (mip4_ts_get_image(info, rbuf[1])) {
-			dev_err(&info->client->dev, "%s [ERROR] mip4_ts_get_image\n", __func__);
-			goto error;
-		}
-		break;
+		case MIP4_IMG_TYPE_GESTURE:
+			if (mip4_ts_gesture_wakeup_event_handler(info, 1)) {
+				dev_err(&info->client->dev, "%s [ERROR] mip4_ts_wakeup_event_handler\n", __func__);
+				goto error;
+			}
+			if (mip4_ts_get_image(info, rbuf[1])) {
+				dev_err(&info->client->dev, "%s [ERROR] mip4_ts_get_image\n", __func__);
+				goto error;
+			}
+			break;
 #endif /* USE_WAKEUP_GESTURE */
-	default:
-		goto error;
+		default:
+			goto error;
 	}
 
 	dev_dbg(&info->client->dev, "%s [DONE]\n", __func__);
@@ -1298,6 +1557,54 @@ error:
  */
 static int __maybe_unused mip4_ts_alert_handler_f1(struct mip4_ts_info *info, u8 *rbuf, u8 size)
 {
+
+	u8 wbuf[8];
+	u8 rbuf1[256];
+        u8 rbuf2[256];
+	u8 rbuf3[256];
+
+	wbuf[0] = MIP4_R0_EVENT;
+        wbuf[1] = 0x13;
+        if (mip4_ts_i2c_read(info, wbuf, 2, rbuf2, 1)) {
+                dev_err(&info->client->dev, "%s [ERROR] Read packet data\n", __func__);
+        }
+
+        wbuf[0] = MIP4_R0_EVENT;
+        wbuf[1] = 0x14;
+        if (mip4_ts_i2c_read(info, wbuf, 2, rbuf3, 1)) {
+                dev_err(&info->client->dev, "%s [ERROR] Read packet data\n", __func__);
+        }
+
+	if(rbuf2[0]||rbuf3[0]||melfas_debug >= DEBUG_TRACE)
+	{
+
+		wbuf[0] = MIP4_R0_EVENT;
+	        wbuf[1] = 0x12;
+	        if (mip4_ts_i2c_read(info, wbuf, 2, rbuf1, 1)) {
+	                dev_err(&info->client->dev, "%s [ERROR] Read packet data\n", __func__);
+	        }
+
+		dev_info(&info->client->dev, "%s 0x0212 = %d\n",__func__,rbuf1[0]);
+		dev_info(&info->client->dev, "%s 0x0213 = %d\n",__func__,rbuf2[0]);
+		dev_info(&info->client->dev, "%s 0x0214 = %d\n",__func__,rbuf3[0]);
+
+		wbuf[0] = MIP4_R0_EVENT;
+	        wbuf[1] = 0x15;
+	        if (mip4_ts_i2c_read(info, wbuf, 2, rbuf2, 1)) {
+	                dev_err(&info->client->dev, "%s [ERROR] Read packet data\n", __func__);
+	        }
+
+		dev_info(&info->client->dev, "%s 0x0215 = %d\n",__func__,rbuf2[0]);
+		
+	        wbuf[0] = MIP4_R0_EVENT;
+        	wbuf[1] = 0x16;
+	        if (mip4_ts_i2c_read(info, wbuf, 2, rbuf2, 1)) {
+	                dev_err(&info->client->dev, "%s [ERROR] Read packet data\n", __func__);
+	        }
+
+		dev_info(&info->client->dev, "%s 0x0216 = %d\n",__func__,rbuf2[0]);
+	}
+
 #if USE_INT_DBG
 	dev_dbg(&info->client->dev, "%s [START]\n", __func__);
 #endif
@@ -1358,7 +1665,8 @@ static irqreturn_t mip4_ts_interrupt(int irq, void *dev_id)
 		if (!startup) {
 			info->i2c_error_cnt++;
 			goto error;
-		} else {
+		}
+		else {
 			flash_fail_type = flash_fail_critical;
 			goto startup_exit;
 		}
@@ -1366,8 +1674,9 @@ static irqreturn_t mip4_ts_interrupt(int irq, void *dev_id)
 
 	size = (rbuf[0] & 0x3F);
 	category = ((rbuf[0] >> 6) & 0x1);
-#if USE_INT_DBG
-	dev_dbg(&info->client->dev, "%s - packet info : size[%d] category[%d]\n", __func__, size, category);
+#if 1//USE_INT_DBG
+	if(melfas_debug >= DEBUG_TRACE)
+		dev_info(&info->client->dev, "%s - packet info : size[%d] category[%d]\n", __func__, size, category);
 #endif
 
 	/* Check packet size */
@@ -1376,7 +1685,8 @@ static irqreturn_t mip4_ts_interrupt(int irq, void *dev_id)
 		if (!startup) {
 			info->i2c_error_cnt++;
 			goto error;
-		} else {
+		}
+		else {
 			flash_fail_type = flash_fail_critical;
 			goto startup_exit;
 		}
@@ -1390,7 +1700,8 @@ static irqreturn_t mip4_ts_interrupt(int irq, void *dev_id)
 		if (!startup) {
 			info->i2c_error_cnt++;
 			goto error;
-		} else {
+		}
+		else {
 			flash_fail_type = flash_fail_critical;
 			goto startup_exit;
 		}
@@ -1398,64 +1709,69 @@ static irqreturn_t mip4_ts_interrupt(int irq, void *dev_id)
 
 	/* Event handler */
 	if (startup == false) {
+		spin_lock_irq(&reset_lock);
 		LCD_TOUCH_INT_CHECK ++;
+		spin_unlock_irq(&reset_lock);
 		if (category == 0) {
 			/* Input event */
 			info->esd_cnt = 0;
 
 			mip4_ts_input_event_handler(info, size, rbuf);
-		} else {
+		}
+		else {
 			/* Alert event */
 			alert_type = rbuf[0];
-#if USE_INT_DBG		
-			dev_dbg(&info->client->dev, "%s - alert type[%d]\n", __func__, alert_type);
+#if 1//USE_INT_DBG
+			if(melfas_debug >= DEBUG_TRACE)
+				dev_info(&info->client->dev, "%s - alert type[%d]\n", __func__, alert_type);
 #endif
 			switch (alert_type) {
-			case MIP4_ALERT_ESD:
-				if (mip4_ts_alert_handler_esd(info, rbuf)) {
+				case MIP4_ALERT_ESD:
+					if (mip4_ts_alert_handler_esd(info, rbuf)) {
+						goto error;
+					}
+					break;
+				case MIP4_ALERT_WAKEUP:
+					if (mip4_ts_alert_handler_wakeup(info, rbuf)) {
+						goto error;
+					}
+					break;
+				case MIP4_ALERT_INPUT_TYPE:
+					if (mip4_ts_alert_handler_inputtype(info, rbuf)) {
+						goto error;
+					}
+					break;
+				case MIP4_ALERT_IMAGE:
+					if (mip4_ts_alert_handler_image(info, rbuf)) {
+						goto error;
+					}
+					break;
+				case MIP4_ALERT_FLASH_FAILURE:
+					if (mip4_ts_alert_handler_flash(info, &rbuf[1])) {
+						goto error;
+					}
+					break;
+				case MIP4_ALERT_SRAM_FAILURE:
+					if (mip4_ts_alert_handler_sram(info, &rbuf[1])) {
+						goto error;
+					}
+					break;
+				case MIP4_ALERT_BOOT_SUCCEEDED:
+					mip4_ts_startup_config(info);
+					mip4_ts_startup_run(info);
+					break;
+				case MIP4_ALERT_F1:
+					if (mip4_ts_alert_handler_f1(info, rbuf, size)) {
+						goto error;
+					}
+					break;
+				default:
+					dev_err(&info->client->dev, "%s [ERROR] Unknown alert type[%d]\n", __func__, alert_type);
 					goto error;
-				}
-				break;
-			case MIP4_ALERT_WAKEUP:
-				if (mip4_ts_alert_handler_wakeup(info, rbuf)) {
-					goto error;
-				}
-				break;
-			case MIP4_ALERT_INPUT_TYPE:
-				if (mip4_ts_alert_handler_inputtype(info, rbuf)) {
-					goto error;
-				}
-				break;
-			case MIP4_ALERT_IMAGE:
-				if (mip4_ts_alert_handler_image(info, rbuf)) {
-					goto error;
-				}
-				break;
-			case MIP4_ALERT_FLASH_FAILURE:
-				if (mip4_ts_alert_handler_flash(info, &rbuf[1])) {
-					goto error;
-				}
-				break;
-			case MIP4_ALERT_SRAM_FAILURE:
-				if (mip4_ts_alert_handler_sram(info, &rbuf[1])) {
-					goto error;
-				}
-				break;
-			case MIP4_ALERT_BOOT_SUCCEEDED:
-				mip4_ts_startup_config(info);
-				mip4_ts_startup_run(info);
-				break;
-			case MIP4_ALERT_F1:
-				if (mip4_ts_alert_handler_f1(info, rbuf, size)) {
-					goto error;
-				}
-				break;
-			default:
-				dev_err(&info->client->dev, "%s [ERROR] Unknown alert type[%d]\n", __func__, alert_type);
-				goto error;
 			}
 		}
-	} else {
+	}
+	else {
 #if USE_STARTUP_WAITING
 		/* Start-up */
 		if (category == 1) {
@@ -1463,18 +1779,19 @@ static irqreturn_t mip4_ts_interrupt(int irq, void *dev_id)
 			dev_dbg(&info->client->dev, "%s - alert type[%d]\n", __func__, alert_type);
 
 			switch (alert_type) {
-			case MIP4_ALERT_FLASH_FAILURE:
-				flash_fail_type = flash_fail_section;
-				break;
-			case MIP4_ALERT_BOOT_SUCCEEDED:
-				flash_fail_type = flash_fail_none;
-				break;
-			default:
-				dev_err(&info->client->dev, "%s [ERROR] Unknown alert type[%d]\n", __func__, alert_type);
-				flash_fail_type = flash_fail_critical;
-				break;
+				case MIP4_ALERT_FLASH_FAILURE:
+					flash_fail_type = flash_fail_section;
+					break;
+				case MIP4_ALERT_BOOT_SUCCEEDED:
+					flash_fail_type = flash_fail_none;
+					break;
+				default:
+					dev_err(&info->client->dev, "%s [ERROR] Unknown alert type[%d]\n", __func__, alert_type);
+					flash_fail_type = flash_fail_critical;
+					break;
 			}
-		} else {
+		}
+		else {
 			dev_err(&info->client->dev, "%s [ERROR] Unknown catetory[%d]\n", __func__, category);
 			flash_fail_type = flash_fail_critical;
 		}
@@ -1504,7 +1821,8 @@ startup_exit:
 #if USE_FW_RECOVERY
 	if (flash_fail_type == flash_fail_critical) {
 		mip4_ts_fw_restore_critical_section(info);
-	} else if (flash_fail_type == flash_fail_section) {
+	}
+	else if (flash_fail_type == flash_fail_section) {
 		mip4_ts_alert_handler_flash(info, &rbuf[1]);
 	}
 #endif /* USE_FW_RECOVERY */
@@ -1569,9 +1887,8 @@ int mip4_ts_config(struct mip4_ts_info *info)
 	/* Sometimes chip didn't enough time to read f/w info after chip reset.
 	(f/w version read 00.00 00.00 00.00 00.00)
 	So add 200ms delay, and retry to read f/w info(from ESD test 18/5/2)*/
-	if((info->fw_version[0] == 0)&&(info->fw_version[1] == 0)) 
-	{
-		printk("%s - F/W not correct\n",__func__);
+	if((info->fw_version[0] == 0) && (info->fw_version[1] == 0)) {
+		dev_err(&info->client->dev, "%s - F/W not correct\n", __func__);
 		goto error;
 	}
 
@@ -1611,7 +1928,8 @@ int mip4_ts_config(struct mip4_ts_info *info)
 	while (retry--) {
 		if (mip4_ts_i2c_read(info, wbuf, 2, rbuf, 3)) {
 			dev_err(&info->client->dev, "%s [ERROR] mip4_ts_i2c_read - event format\n", __func__);
-		} else {
+		}
+		else {
 			info->event_format = rbuf[0] | (rbuf[1] << 8);
 			info->event_size = rbuf[2];
 			if (info->event_size <= 0) {
@@ -1672,7 +1990,8 @@ static int mip4_ts_config_platform(struct mip4_ts_info *info)
 			dev_err(&info->client->dev, "%s [ERROR] mip4_ts_parse_devicetree\n", __func__);
 			goto exit;
 		}
-	} else {
+	}
+	else {
 		dev_err(&info->client->dev, "%s [ERROR] of_node\n", __func__);
 		goto exit;
 	}
@@ -1776,7 +2095,8 @@ int mip4_ts_fw_restore_from_kernel(struct mip4_ts_info *info, u8 *sections, int 
 	if (retry <= 0) {
 		dev_err(&info->client->dev, "%s [ERROR] mip4_ts_restore_fw failed\n", __func__);
 		ret = fw_err_download;
-	} else {
+	}
+	else {
 		ret = fw_err_none;
 	}
 
@@ -1802,11 +2122,12 @@ error:
 /*
  * Update firmware from kernel built-in firmware file
  */
-int mip4_ts_fw_update_from_kernel(struct mip4_ts_info *info)
+int mip4_ts_fw_update_from_kernel(struct mip4_ts_info *info, bool force)
 {
 	const char *fw_name = FW_PATH_INTERNAL;
 	const struct firmware *fw;
 	int retry = 1;
+	int retry2 = 5;
 	int ret = fw_err_none;
 	u16 ver_chip[FW_MAX_SECT_NUM];
 
@@ -1818,21 +2139,43 @@ int mip4_ts_fw_update_from_kernel(struct mip4_ts_info *info)
 	mip4_ts_clear_input(info);
 
 	/* Get firmware */
-	if(LCD_VER == 4)
-	{
-		request_firmware(&fw, FW_PATH_INTERNAL_12_3, &info->client->dev);
-	}
-	else
-	{
-		request_firmware(&fw, FW_PATH_INTERNAL_10_25, &info->client->dev);	
-		
-		mip4_ts_get_fw_version_u16(info, ver_chip);
 
-		if((ver_chip[3]&0xF000)==0xF000&&ver_chip[3]!=0xFFFF)
-		{
-			request_firmware(&fw, FW_PATH_INTERNAL_10_25_plastic, &info->client->dev);
-		}
+	while(retry2--) {
+		mip4_ts_get_fw_version_u16(info, ver_chip);
+		if(ver_chip[3] != 0 && ver_chip[2] != 0)
+			break;
+		msleep(100);
+		dev_info(&info->client->dev, "%s MELFAS CHIP msleep(100)\n",__func__);
 	}
+
+
+	dev_info(&info->client->dev, "Chip firmware version [0x%04X 0x%04X 0x%04X 0x%04X]\n", ver_chip[0], ver_chip[1], ver_chip[2], ver_chip[3]);
+
+	if(ver_chip[2] == 0x0100)
+        {
+                if((ver_chip[3] & 0xF000) == 0xF000)
+                {
+                         request_firmware(&fw, FW_PATH_INTERNAL_10_25_plastic, &info->client->dev);
+                }
+                else
+                {
+                        request_firmware(&fw, FW_PATH_INTERNAL_10_25, &info->client->dev);
+                }
+        }
+        else if(ver_chip[2] == 0x0200||ver_chip[2] == 0x0300)
+        {
+                request_firmware(&fw, FW_PATH_INTERNAL_12_3, &info->client->dev);
+        }
+        else
+        {
+                force = true;
+                if(!get_montype()) {
+                        request_firmware(&fw, FW_PATH_INTERNAL_12_3, &info->client->dev);
+                }
+                else {
+                        request_firmware(&fw, FW_PATH_INTERNAL_10_25, &info->client->dev);
+                }
+        }
 
 	if (!fw) {
 		dev_err(&info->client->dev, "%s [ERROR] request_firmware\n", __func__);
@@ -1842,11 +2185,12 @@ int mip4_ts_fw_update_from_kernel(struct mip4_ts_info *info)
 
 	/* Update firmware */
 	do {
-		ret = mip4_ts_flash_fw(info, fw->data, fw->size, false, true);
+		ret = mip4_ts_flash_fw(info, fw->data, fw->size, force, true);
 		if (ret >= fw_err_none) {
 			break;
 		}
-	} while (--retry);
+	}
+	while (--retry);
 
 	if (!retry) {
 		dev_err(&info->client->dev, "%s [ERROR] mip4_ts_flash_fw failed\n", __func__);
@@ -1910,13 +2254,15 @@ int mip4_ts_fw_update_from_storage(struct mip4_ts_info *info, char *path, bool f
 		if (nread != fw_size) {
 			dev_err(&info->client->dev, "%s [ERROR] vfs_read - size[%zu] read[%zu]\n", __func__, fw_size, nread);
 			ret = fw_err_file_read;
-		} else {
+		}
+		else {
 			/* Update firmware */
 			ret = mip4_ts_flash_fw(info, fw_data, fw_size, force, true);
 		}
 
 		kfree(fw_data);
-	} else {
+	}
+	else {
 		dev_err(&info->client->dev, "%s [ERROR] fw_size[%zu]\n", __func__, fw_size);
 		ret = fw_err_file_read;
 	}
@@ -1932,7 +2278,8 @@ error:
 
 	if (ret < fw_err_none) {
 		dev_err(&info->client->dev, "%s [ERROR]\n", __func__);
-	} else {
+	}
+	else {
 		dev_dbg(&info->client->dev, "%s [DONE]\n", __func__);
 	}
 
@@ -1942,42 +2289,232 @@ error:
 /*
  * Sysfs - firmware update
  */
-static ssize_t mip4_ts_sys_fw_update(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t mip4_ts_sys_fw_update(struct device *dev, struct device_attribute *attr, char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mip4_ts_info *info = i2c_get_clientdata(client);
 	int result = 0;
 	u8 data[255];
 	int ret = 0;
+	const struct firmware *fw;
+	int retry = 5;
+	u16 ver_chip[FW_MAX_SECT_NUM];
+	int state;
+
+	dev_info(&info->client->dev, "%s [START]\n", __func__);
+
+	sscanf(buf, "%d", &state);
+
+	if(state == 1)
+	{
+		FW_UPDATE_RESULT = 1;
+
+		mip4_serdes_reset_dwork_stop(info);
+
+		ret = mip4_ts_fw_update_from_kernel(info, false);
+	}
+	else if(state == 2)
+	{
+		FW_UPDATE_RESULT = 1;
+
+		mip4_serdes_reset_dwork_stop(info);
+
+		while(retry--) {
+			mip4_ts_get_fw_version_u16(info, ver_chip);
+	                if(ver_chip[3] != 0 && ver_chip[2] != 0)
+	                        break;
+	                msleep(100);
+	                printk("%s MELFAS CHIP msleep(100)\n",__func__);
+	        }
+
+		dev_info(&info->client->dev, "Chip firmware version [0x%04X 0x%04X 0x%04X 0x%04X]\n", ver_chip[0], ver_chip[1], ver_chip[2], ver_chip[3]);
+
+		if(ver_chip[2] == 0x0100)
+	        {
+			info->fw_path_ext = kstrdup(FW_PATH_EXTERNAL_10_25, GFP_KERNEL);
+	        }
+	        else if(ver_chip[2] == 0x0200||ver_chip[2] == 0x0300)
+	        {
+			info->fw_path_ext = kstrdup(FW_PATH_EXTERNAL_12_3, GFP_KERNEL);
+	        }
+	        else
+	        {
+	                if(!get_montype()) {
+				info->fw_path_ext = kstrdup(FW_PATH_EXTERNAL_12_3, GFP_KERNEL);
+	                }
+	                else {
+				info->fw_path_ext = kstrdup(FW_PATH_EXTERNAL_10_25, GFP_KERNEL);
+	                }
+	        }
+
+		ret = mip4_ts_fw_update_from_storage(info, info->fw_path_ext, true);
+	}
+	else
+	{
+		dev_info(&info->client->dev, "F/W upgrade end with wrong value %d\n", state);	
+		return count;
+	}
+
+	switch (ret) {
+		case fw_err_none:
+			snprintf(data, sizeof(data), "F/W update success.\n");
+			break;
+		case fw_err_uptodate:
+			snprintf(data, sizeof(data), "F/W is already up-to-date.\n");
+			break;
+		case fw_err_download:
+			snprintf(data, sizeof(data), "F/W update failed : Download error\n");
+			break;
+		case fw_err_file_type:
+			snprintf(data, sizeof(data), "F/W update failed : File type error\n");
+			break;
+		case fw_err_file_open:
+			snprintf(data, sizeof(data), "F/W update failed : File open error[%s]\n", info->fw_path_ext);
+			break;
+		case fw_err_file_read:
+			snprintf(data, sizeof(data), "F/W update failed : File read error\n");
+			break;
+		default:
+			snprintf(data, sizeof(data), "F/W update failed.\n");
+			break;
+	}
+
+	/* Re-config driver */
+	mip4_ts_config(info);
+	mip4_ts_config_input(info);
+
+	dev_info(&info->client->dev, "%s [DONE]\n", __func__);
+
+	LCD_TOUCH_INT_CHECK = 2;
+
+	FW_UPDATE_RESULT = 0;
+
+	mip4_serdes_reset_dwork_start(info);
+
+	result = snprintf(buf, 255, "%s\n", data);
+	return result;
+}
+
+static ssize_t mip4_ts_sys_fw_update_select(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct mip4_ts_info *info = i2c_get_clientdata(client);
+	int result = 0;
+	u8 data[255];
+	int ret = 0;
+	int choice;
+	const struct firmware *fw;
+	int retry = 1;
 
 	dev_dbg(&info->client->dev, "%s [START]\n", __func__);
 
+	sscanf(buf, "%d", &choice);
+
+
+	switch(choice) {
+		case 0:
+			request_firmware(&fw, "melfas/Auto10d25_FW_v0005_171123", &info->client->dev);
+			break;
+		case 1:
+			request_firmware(&fw, "melfas/Auto10d25_FW_v0006_180110", &info->client->dev);
+			break;
+		case 2:
+			request_firmware(&fw, "melfas/Auto10d25_FW_v0009_180406", &info->client->dev);
+			break;
+		case 3:
+			request_firmware(&fw, "melfas/Auto10d25_FW_v0011_180516", &info->client->dev);
+			break;
+		case 4:
+			request_firmware(&fw, "melfas/Auto10d25_FW_v0012_180726", &info->client->dev);
+			break;
+		case 5:
+                        request_firmware(&fw, "melfas/Auto10d25_FW_v0014_180904", &info->client->dev);
+                        break;
+		case 6:
+			request_firmware(&fw, "melfas/Auto10d25_FW_v0015_190123", &info->client->dev);
+			break;
+		case 7:
+                        request_firmware(&fw, "melfas/Auto10d25_FW_v0016_200608", &info->client->dev);
+                        break;
+                case 8:
+                        request_firmware(&fw, "melfas/Auto10d25_Plastic2T_Test_FW_vF001", &info->client->dev);
+                        break;
+                case 9:
+                        request_firmware(&fw, "melfas/Auto12d3_FW_v0200_v0220_180226", &info->client->dev);
+                        break;
+                case 10:
+                        request_firmware(&fw, "melfas/Auto12d3_GMSL2_FW_v0001_180906", &info->client->dev);
+                        break;
+                case 11:
+                        request_firmware(&fw, "melfas/Auto12d3_GMSL2_FW_v0003_181012", &info->client->dev);
+                        break;
+                case 12:
+                        request_firmware(&fw, "melfas/Auto12d3_GMSL2_FW_v0007_190128", &info->client->dev);
+                        break;
+                case 13:
+                        request_firmware(&fw, "melfas/Auto12d3_GMSL2_FW_v0008_190322", &info->client->dev);
+                        break;
+                case 14:
+                        request_firmware(&fw, "melfas/Auto12d3_GMSL2_FW_v0009_191010", &info->client->dev);
+                        break;
+                case 15:
+                        request_firmware(&fw, "melfas/Auto12d3_GMSL2_FW_v0010_200608", &info->client->dev);
+                        break;
+		default:
+			printk("number you choose is wrong : %d\n", choice);
+			return;
+			break;
+	}
+
 	mip4_serdes_reset_dwork_stop(info);
 
-	ret = mip4_ts_fw_update_from_kernel(info);
+	/* Disable IRQ */
+	mutex_lock(&info->lock);
+	disable_irq(info->client->irq);
+	mip4_ts_clear_input(info);
+
+	/* Update firmware */
+	do {
+		ret = mip4_ts_flash_fw(info, fw->data, fw->size, true, true);
+		if (ret >= fw_err_none) {
+			break;
+		}
+	}
+	while (--retry);
+
+	if (!retry) {
+		dev_err(&info->client->dev, "%s [ERROR] mip4_ts_flash_fw failed\n", __func__);
+		ret = fw_err_download;
+	}
+
+	release_firmware(fw);
+
+	/* Enable IRQ */
+	enable_irq(info->client->irq);
+	mutex_unlock(&info->lock);
 
 	switch (ret) {
-	case fw_err_none:
-		snprintf(data, sizeof(data), "F/W update success.\n");
-		break;
-	case fw_err_uptodate:
-		snprintf(data, sizeof(data), "F/W is already up-to-date.\n");
-		break;
-	case fw_err_download:
-		snprintf(data, sizeof(data), "F/W update failed : Download error\n");
-		break;
-	case fw_err_file_type:
-		snprintf(data, sizeof(data), "F/W update failed : File type error\n");
-		break;
-	case fw_err_file_open:
-		snprintf(data, sizeof(data), "F/W update failed : File open error[%s]\n", info->fw_path_ext);
-		break;
-	case fw_err_file_read:
-		snprintf(data, sizeof(data), "F/W update failed : File read error\n");
-		break;
-	default:
-		snprintf(data, sizeof(data), "F/W update failed.\n");
-		break;
+		case fw_err_none:
+			snprintf(data, sizeof(data), "F/W update success.\n");
+			break;
+		case fw_err_uptodate:
+			snprintf(data, sizeof(data), "F/W is already up-to-date.\n");
+			break;
+		case fw_err_download:
+			snprintf(data, sizeof(data), "F/W update failed : Download error\n");
+			break;
+		case fw_err_file_type:
+			snprintf(data, sizeof(data), "F/W update failed : File type error\n");
+			break;
+		case fw_err_file_open:
+			snprintf(data, sizeof(data), "F/W update failed : File open error[%s]\n", info->fw_path_ext);
+			break;
+		case fw_err_file_read:
+			snprintf(data, sizeof(data), "F/W update failed : File read error\n");
+			break;
+		default:
+			snprintf(data, sizeof(data), "F/W update failed.\n");
+			break;
 	}
 
 	/* Re-config driver */
@@ -1986,48 +2523,589 @@ static ssize_t mip4_ts_sys_fw_update(struct device *dev, struct device_attribute
 
 	dev_dbg(&info->client->dev, "%s [DONE]\n", __func__);
 
+	LCD_TOUCH_INT_CHECK = 2;
+
 	mip4_serdes_reset_dwork_start(info);
 
 	result = snprintf(buf, 255, "%s\n", data);
 	return result;
 }
 
-
-static ssize_t show_debug(struct device *dev,struct device_attribute *attr, char *buf)
+static ssize_t mip4_ts_sys_fw_update_result(struct device *dev, struct device_attribute *attr, char *buf)
 {
-        return snprintf(buf, PAGE_SIZE, "CURRENT DEBUG MODE : %d\n"
-                                        "0:NONE\n" "1:INFO\n"
-                                        "2:MESSAGES\n" "3:TRACE\n", debug);
+        int ret;
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+	dev_info(&info->client->dev, "%s [START] %d\n", __func__,FW_UPDATE_RESULT);
+
+        ret = snprintf(buf, 255, "%d\n", FW_UPDATE_RESULT);
+
+        return ret;
 }
 
-static ssize_t set_debug(struct device *dev,struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t mip4_ts_show_list(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct mip4_ts_info *info = i2c_get_clientdata(client);
+	u16 ver_chip[FW_MAX_SECT_NUM];
+
+	mip4_ts_get_fw_version_u16(info, ver_chip);
+
+	return snprintf(buf, PAGE_SIZE, "Current hip firmware version [0x%04X 0x%04X 0x%04X 0x%04X]\n"
+					"0:Auto10d25_FW_v0005_171123\n"
+					"1:Auto10d25_FW_v0006_180110\n"
+					"2:Auto10d25_FW_v0009_180406\n"
+					"3:Auto10d25_FW_v0011_180516\n"
+					"4:Auto10d25_FW_v0012_180726\n"
+					"5:Auto10d25_FW_v0014_180904\n"
+					"6:Auto10d25_FW_v0015_190123\n"
+					"7:Auto10d25_FW_v0016_200608\n"
+                                        "8:Auto10d25_Plastic2T_Test_FW_vF001\n"
+                                        "9:Auto12d3_FW_v0200_v0220_180226\n"
+                                        "10:Auto12d3_GMSL2_FW_v0001_180906\n"
+                                        "11:Auto12d3_GMSL2_FW_v0003_181012\n"
+                                        "12:Auto12d3_GMSL2_FW_v0007_190128\n"
+                                        "13:Auto12d3_GMSL2_FW_v0008_190322\n"
+                                        "14:Auto12d3_GMSL2_FW_v0009_191010\n"
+                                        "15:Auto12d3_GMSL2_FW_v0010_200608\n"
+					, ver_chip[0], ver_chip[1], ver_chip[2], ver_chip[3]);
+}
+
+static ssize_t show_debug(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "CURRENT DEBUG MODE : %d\n"
+					"0:NONE\n" "1:INFO\n"
+					"2:MESSAGES\n" "3:TRACE\n", melfas_debug);
+}
+
+static ssize_t set_debug(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int state;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+	sscanf(buf, "%d", &state);
+	if (state >= DEBUG_NONE && state <= DEBUG_INT) {
+		melfas_debug = state;
+		pr_info("\tCURRENT DEBUG MODE : %d\n"
+				"\t0:NONE\n" "\t1:INFO\n"
+				"\t2:MESSAGES\n" "\t3:TRACE\n \t4:INTURRUPT\n", melfas_debug);
+	}
+	else {
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t show_sensitivity(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int ret;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+	u8 buf1[3];
+	u8 buf2[3];
+	u8 data[255];
+
+	buf1[0] = 0x06;
+	buf1[1] = 0x23;
+
+	ret = i2c_master_send(client, buf1, 2);
+	ret = i2c_master_recv(client, buf2, 3);
+
+//	dev_info(&info->client->dev, "%s current touch sensitivity : %d %d %d\n", __func__, buf2[0], buf2[1], buf2[2]);
+
+	snprintf(data, sizeof(data), "%d\n", buf2[0]);
+
+	ret = snprintf(buf, 255, "%s\n", data);
+
+	return ret;
+
+}
+
+
+static ssize_t set_sensitivity(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int state;
+	int ret;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+	u8 buf1[3];
+	u8 buf2[3];
+	u8 data[255];
+
+	buf1[0] = 0x06;
+	buf1[1] = 0x23;
+
+	ret = i2c_master_send(client, buf1, 2);
+	ret = i2c_master_recv(client, buf2, 3);
+
+	dev_info(&info->client->dev, "%s current touch sensitivity : %d\n", __func__, buf2[0]);
+
+	sscanf(buf, "%d", &state);
+
+	if (state >= 0 && state <= 3) {
+		buf1[2] = state;
+		ret =  i2c_master_send(client, buf1, 3);
+	}
+	else {
+		return -EINVAL;
+	}
+
+	if(ret != 3) {
+		dev_err(&client->dev, "%s: i2c fail\n", __func__);
+	}
+
+	ret = i2c_master_send(client, buf1, 2);
+	ret = i2c_master_recv(client, buf2, 3);
+
+	dev_info(&info->client->dev, "%s change touch sensitivity : %d\n", __func__, buf2[0]);
+
+	return count;
+}
+static ssize_t show_read_register(struct device *dev, struct device_attribute *attr, char *buf)
+{
+        int ret, i;
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+        u8 buf1[3];
+        u8 buf2[3];
+        unsigned short addr;
+
+        mutex_lock(&info->serdes.lock);
+        if(info->irq_enabled) {
+                disable_irq(info->client->irq);
+                info->irq_enabled = false;
+        }
+
+        addr = client->addr;
+
+        printk("-----------%s\n", __func__);
+
+	client->addr = serdes_line_fault_config[0][0];
+	buf1[0] = (serdes_line_fault_config[0][1] >> 8) & 0xff;
+	buf1[1] = serdes_line_fault_config[0][1] & 0xff;
+	buf1[2] = serdes_line_fault_config[0][2];
+
+	ret = i2c_master_send(client, buf1, 3);
+
+	mdelay(20);
+
+        for(i = 0; i < 8 ;i++) {
+
+                client->addr = serdes_read[i][0];
+                buf1[0] = (serdes_read[i][1] >> 8) & 0xff;
+                buf1[1] = serdes_read[i][1] & 0xff;
+                buf1[2] = serdes_read[i][2];
+
+                if(client->addr != DES_DELAY)
+                {
+                        ret = i2c_master_send(client, buf1, 2);
+                        ret = i2c_master_recv(client, buf2, 3);
+                }
+                printk(" 0x%04X write:0x%02X read:0x%02X\n",serdes_read[i][1], serdes_read[i][2], buf2[0]);
+        }
+
+	client->addr = serdes_line_fault_config[1][0];
+        buf1[0] = (serdes_line_fault_config[1][1] >> 8) & 0xff;
+        buf1[1] = serdes_line_fault_config[1][1] & 0xff;
+        buf1[2] = serdes_line_fault_config[1][2];
+
+        ret = i2c_master_send(client, buf1, 3);
+
+	mdelay(100);
+
+	client->addr = serdes_line_fault_config[2][0];
+        buf1[0] = (serdes_line_fault_config[2][1] >> 8) & 0xff;
+        buf1[1] = serdes_line_fault_config[2][1] & 0xff;
+
+	ret = i2c_master_send(client, buf1, 2);
+        ret = i2c_master_recv(client, buf2, 3);
+
+	printk("%s err 0x%x\n",__func__, buf2[0]);
+
+        printk("-----------%s Success\n", __func__);
+out_i2c:
+        client->addr = addr;
+
+        if(!info->irq_enabled) {
+                enable_irq(info->client->irq);
+                info->irq_enabled = true;
+        }
+        mutex_unlock(&info->serdes.lock);
+
+        return ;
+}
+
+static ssize_t show_serdes_setting(struct device *dev, struct device_attribute *attr, char *buf)
+{
+        int ret, i;
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+	u8 buf1[3];
+        u8 buf2[3];
+	unsigned short addr;
+
+	mutex_lock(&info->serdes.lock);
+        if(info->irq_enabled) {
+                disable_irq(info->client->irq);
+                info->irq_enabled = false;
+        }
+
+        addr = client->addr;
+
+        printk("-----------%s\n", __func__);
+
+        for(i = 0; i < sizeof(serdes_1920_720_12_3_config_Si_LG) / sizeof(serdes_config_5) ;i++) {
+
+		client->addr = serdes_1920_720_12_3_config_Si_LG[i].chip_addr;
+                buf1[0] = (serdes_1920_720_12_3_config_Si_LG[i].reg_addr >> 8) & 0xff;
+                buf1[1] = serdes_1920_720_12_3_config_Si_LG[i].reg_addr & 0xff;
+                buf1[2] = serdes_1920_720_12_3_config_Si_LG[i].value;
+
+                if(client->addr == DES_DELAY)
+                	continue;
+
+		ret = i2c_master_send(client, buf1, 2);
+		ret = i2c_master_recv(client, buf2, 3);
+
+		if(client->addr == SER_ADDRESS)
+                        printk("SER ");
+                else if(client->addr == DES_ADDRESS)
+                        printk("DES ");
+                printk("0x%04x write:0x%02x right:0x%02x",serdes_1920_720_12_3_config_Si_LG[i].reg_addr, serdes_1920_720_12_3_config_Si_LG[i].value,serdes_1920_720_12_3_config_Si_LG[i].right_value);
+                if(buf2[0] == serdes_1920_720_12_3_config_Si_LG[i].right_value)
+                        printk(" == ");
+                else
+                        printk(" != ");
+                printk("read:0x%02x\n",buf2[0]);
+        }
+        printk("-----------%s Success\n", __func__);
+out_i2c:
+        client->addr = addr;
+
+	if(!info->irq_enabled) {
+                enable_irq(info->client->irq);
+                info->irq_enabled = true;
+        }
+        mutex_unlock(&info->serdes.lock);
+
+        return ;
+}
+
+static ssize_t set_serdes_setting(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+	u8 ser_bitrate = 0;
+	u8 des_bitrate = 0;
+
+	mutex_lock(&info->serdes.lock);
+	if(info->irq_enabled) {
+		disable_irq(info->client->irq);
+	        info->irq_enabled = false;
+	}
+
+	ser_bitrate = ser_i2c_bitrate_check(info->client);
+        des_bitrate = des_i2c_bitrate_check(info->client);
+
+        printk("Ser_Bitrate : 0x%x Des_Bitrate : 0x%x\n",ser_bitrate,des_bitrate);
+
+	serdes_i2c_reset(info->client,false);
+
+	if(!info->irq_enabled) {
+		enable_irq(info->client->irq);
+		info->irq_enabled = true;
+	}
+	mutex_unlock(&info->serdes.lock);
+
+	return count;
+
+}
+
+static ssize_t set_des_setting(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+	u8 ser_bitrate = 0;
+	u8 des_bitrate = 0;
+
+        mutex_lock(&info->serdes.lock);
+        if(info->irq_enabled) {
+                disable_irq(info->client->irq);
+                info->irq_enabled = false;
+        }
+
+	ser_bitrate = ser_i2c_bitrate_check(info->client);
+        des_bitrate = des_i2c_bitrate_check(info->client);
+
+        printk("Ser_Bitrate : 0x%x Des_Bitrate : 0x%x\n",ser_bitrate,des_bitrate);
+
+	serdes_i2c_reset(info->client,true);
+
+        if(!info->irq_enabled) {
+                enable_irq(info->client->irq);
+                info->irq_enabled = true;
+        }
+        mutex_unlock(&info->serdes.lock);
+
+        return count;
+
+}
+
+static ssize_t _set_serdes_6gbps(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+        u8 ser_bitrate = 0;
+        u8 des_bitrate = 0;
+
+        mutex_lock(&info->serdes.lock);
+        if(info->irq_enabled) {
+                disable_irq(info->client->irq);
+                info->irq_enabled = false;
+        }
+
+        ser_bitrate = ser_i2c_bitrate_check(info->client);
+        des_bitrate = des_i2c_bitrate_check(info->client);
+
+        printk("Before Ser_Bitrate : 0x%x Des_Bitrate : 0x%x\n",ser_bitrate,des_bitrate);
+
+	des_i2c_bitrate_3gbps_to_6gbps(info->client);
+	ser_i2c_bitrate_3gbps_to_6gbps(info->client);
+
+        ser_bitrate = ser_i2c_bitrate_check(info->client);
+        des_bitrate = des_i2c_bitrate_check(info->client);
+
+        printk("Now Ser_Bitrate : 0x%x Des_Bitrate : 0x%x\n",ser_bitrate,des_bitrate);
+
+        if(!info->irq_enabled) {
+                enable_irq(info->client->irq);
+                info->irq_enabled = true;
+        }
+        mutex_unlock(&info->serdes.lock);
+
+        return count;
+
+}
+
+static ssize_t _set_serdes_3gbps(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+        u8 ser_bitrate = 0;
+        u8 des_bitrate = 0;
+
+        mutex_lock(&info->serdes.lock);
+        if(info->irq_enabled) {
+                disable_irq(info->client->irq);
+                info->irq_enabled = false;
+        }
+
+        ser_bitrate = ser_i2c_bitrate_check(info->client);
+        des_bitrate = des_i2c_bitrate_check(info->client);
+
+        printk("Before Ser_Bitrate : 0x%x Des_Bitrate : 0x%x\n",ser_bitrate,des_bitrate);
+
+        serdes_i2c_bitrate_6gbps_to_3gbps(info->client);
+	mdelay(100);
+
+        ser_bitrate = ser_i2c_bitrate_check(info->client);
+        des_bitrate = des_i2c_bitrate_check(info->client);
+
+        printk("Now Ser_Bitrate : 0x%x Des_Bitrate : 0x%x\n",ser_bitrate,des_bitrate);
+
+        if(!info->irq_enabled) {
+                enable_irq(info->client->irq);
+                info->irq_enabled = true;
+        }
+        mutex_unlock(&info->serdes.lock);
+
+        return count;
+
+}
+
+static ssize_t set_recovery_on(struct device *dev, struct device_attribute *attr, char *buf)
+{
+        int ret;
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+	printk("%s [Start]\n",__func__);
+
+	mip4_serdes_reset_dwork_start(info);
+}
+
+static ssize_t set_recovery_off(struct device *dev, struct device_attribute *attr, char *buf)
+{
+        int ret;
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+	printk("%s [Start]\n",__func__);
+
+	mip4_serdes_reset_dwork_stop(info);
+}
+
+static ssize_t set_int_on(struct device *dev, struct device_attribute *attr, char *buf)
+{
+        int ret;
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+        printk("%s [Start]\n",__func__);
+
+	if(!info->irq_enabled) {
+                enable_irq(info->client->irq);
+		info->irq_enabled = true;
+        }
+}
+
+static ssize_t set_int_off(struct device *dev, struct device_attribute *attr, char *buf)
+{
+        int ret;
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+        printk("%s [Start]\n",__func__);
+
+	if(info->irq_enabled) {
+                disable_irq(info->client->irq);
+		info->irq_enabled = false;
+	}
+}
+
+static ssize_t set_test(struct device *dev, struct device_attribute *attr, char *buf)
+{
+        int ret;
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+
+        printk("%s [Start]\n",__func__);
+}
+
+static ssize_t _set_adm(struct device *dev, const char *buf, size_t count)
 {
         int state;
-        struct i2c_client *client;
-        struct mxt_data *mxt;
-
-        client = to_i2c_client(dev);
-        mxt = i2c_get_clientdata(client);
+	struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+        u8 buf1[3];
+        unsigned short addr;
 
         sscanf(buf, "%d", &state);
-        if (state >= DEBUG_NONE && state <= DEBUG_TRACE) {
-                debug = state;
-                pr_info("\tCURRENT DEBUG MODE : %d\n"
-                                "\t0:NONE\n" "\t1:INFO\n"
-                                "\t2:MESSAGES\n" "\t3:TRACE\n", debug);
+        printk("%s state %d\n",__func__, state);
+        if (state == 1) {
+                printk("%s Set ADM Mode\n",__func__);
+                mip4_serdes_reset_dwork_stop(info);
+
+                mdelay(20);
+
+                printk("%s Set LVDS off Mode\n",__func__);
+
+                addr = client->addr;
+
+                client->addr = 0x48;
+                buf1[0] = 0x01;
+                buf1[1] = 0xCF;
+                buf1[2] = 0xC7;
+
+                i2c_master_send(client, buf1, 3);
+#ifdef CONFIG_WIDE_PE_COMMON
+		printk("%s Set Mute off Mode\n",__func__);
+
+                client->addr = 0x48;
+                buf1[0] = 0x02;
+                buf1[1] = 0x21;
+                buf1[2] = 0x80;
+
+		i2c_master_send(client, buf1, 3);
+#endif
+                client->addr = addr;
         }
-        else {
+        else{
                 return -EINVAL;
         }
+        return count;
+}
+
+static ssize_t _mip4_set_drag_test(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+        int state;
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mip4_ts_info *info = i2c_get_clientdata(client);
+        u8 buf1[3];
+        unsigned short addr;
+
+        struct input_dev *input = info->input_dev;
+
+        sscanf(buf, "%d", &state);
+
+        printk("%s Start1\n",__func__);
+
+        input_report_key(input, BTN_TOUCH, 1);
+
+        input_report_key(input, BTN_TOOL_FINGER, 1);
+
+        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
+
+        input_report_abs(input, ABS_MT_POSITION_X, 0x640);
+
+        input_report_abs(input, ABS_MT_POSITION_Y, 0x17e);
+
+        input_report_abs(input, ABS_MT_PRESSURE, 0x7);
+
+        input_sync(input);
+
+        mdelay(16);
+
+        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
+
+        input_report_abs(input, ABS_MT_POSITION_X, state);
+
+        input_sync(input);
+
+        mdelay(16);
+
+        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
+
+        input_report_abs(input, ABS_MT_POSITION_X, state);
+
+        input_sync(input);
+
+        mdelay(16);
+
+        input_report_abs(input, ABS_MT_TRACKING_ID, -1);
+
+        input_sync(input);
 
         return count;
 }
 
+ssize_t mip4_set_adm(struct device *dev, const char *buf, size_t count)
+{
+	return _set_adm(dev, buf, count);
+}
 
-
-
-static DEVICE_ATTR(fw_update, S_IRUGO, mip4_ts_sys_fw_update, NULL);
-static DEVICE_ATTR(8_debug,( S_IWUSR | S_IWGRP ) | S_IRUGO, show_debug, set_debug);
+static DEVICE_ATTR(fw_update, S_IRUGO | S_IWUGO, mip4_ts_sys_fw_update_result, mip4_ts_sys_fw_update);
+static DEVICE_ATTR(fw_update_select, ( S_IWUSR | S_IWGRP ) | S_IRUGO, mip4_ts_show_list, mip4_ts_sys_fw_update_select);
+static DEVICE_ATTR(fw_show_list, S_IRUGO, mip4_ts_show_list, NULL);
+static DEVICE_ATTR(8_debug, ( S_IWUSR | S_IWGRP ) | S_IRUGO, show_debug, set_debug);
+static DEVICE_ATTR(touch_sensitivity,  S_IWUSR|S_IWGRP|S_IWOTH|S_IRUGO , show_sensitivity, set_sensitivity);
+static DEVICE_ATTR(serdes_setting, S_IWUSR|S_IWGRP|S_IWOTH|S_IRUGO , show_serdes_setting, set_serdes_setting);
+static DEVICE_ATTR(des_setting, S_IWUSR|S_IWGRP|S_IWOTH|S_IRUGO ,NULL, set_des_setting);
+static DEVICE_ATTR(recovery_on, S_IRUGO, set_recovery_on, NULL);
+static DEVICE_ATTR(recovery_off, S_IRUGO, set_recovery_off, NULL);
+static DEVICE_ATTR(read_register, S_IRUGO, show_read_register, NULL);
+static DEVICE_ATTR(int_on, S_IRUGO, set_int_on, NULL);
+static DEVICE_ATTR(int_off, S_IRUGO, set_int_off, NULL);
+static DEVICE_ATTR(test, S_IRUGO, set_test, NULL);
+static DEVICE_ATTR(adm, S_IWUSR|S_IWGRP|S_IWOTH|S_IRUGO ,NULL, _set_adm);
+static DEVICE_ATTR(set_serdes_6gbps, S_IWUSR|S_IWGRP|S_IWOTH|S_IRUGO ,NULL, _set_serdes_6gbps);
+static DEVICE_ATTR(set_serdes_3gbps, S_IWUSR|S_IWGRP|S_IWOTH|S_IRUGO ,NULL, _set_serdes_3gbps);
+static DEVICE_ATTR(drag_test_m, S_IWUSR|S_IWGRP|S_IWOTH|S_IRUGO ,NULL, _mip4_set_drag_test);
 
 #endif /* CHIP_MODEL */
 
@@ -2037,8 +3115,23 @@ static DEVICE_ATTR(8_debug,( S_IWUSR | S_IWGRP ) | S_IRUGO, show_debug, set_debu
 static struct attribute *mip4_ts_attrs[] = {
 #if (CHIP_MODEL != CHIP_NONE)
 	&dev_attr_fw_update.attr,
+	&dev_attr_fw_update_select.attr,
+	&dev_attr_fw_show_list.attr,
 #endif /* CHIP_MODEL */
+	&dev_attr_touch_sensitivity.attr,
 	&dev_attr_8_debug.attr,
+	&dev_attr_serdes_setting.attr,
+	&dev_attr_des_setting.attr,
+	&dev_attr_recovery_on.attr,
+	&dev_attr_recovery_off.attr,
+	&dev_attr_read_register.attr,
+	&dev_attr_int_on.attr,
+        &dev_attr_int_off.attr,
+	&dev_attr_test.attr,
+	&dev_attr_adm.attr,
+	&dev_attr_set_serdes_6gbps.attr,
+	&dev_attr_set_serdes_3gbps.attr,
+	&dev_attr_drag_test_m.attr,
 	NULL,
 };
 
@@ -2052,69 +3145,92 @@ static const struct attribute_group mip4_ts_attr_group = {
 
 static ssize_t mip4_fops_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
-        printk("%s\n", __func__);
-        return 0;
+	printk("%s\n", __func__);
+	return 0;
 }
 
 static ssize_t mip4_fops_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
-        printk("%s\n", __func__);
-        return 0;
+	printk("%s\n", __func__);
+	return 0;
 }
 
 static int mip4_fops_open(struct inode *inode, struct file *file)
 {
-        return 0;
+	return 0;
 }
 
 static int mip4_fops_release(struct inode *inode, struct file *file)
 {
-        return 0;
+	return 0;
 }
 
 
 static long mip4_fops_ioctl(struct file *file, unsigned int cmd, unsigned long _arg)
 {
-/*	struct mip4_ts_info *info = &g_info;
-	u8 wbuf[4];
-
-	printk("%s [Start]\n",__func__);
-
+	u8 buf[3];
+	int ret;
+	
 	switch(cmd){
-		
 		case DAUDIO_TOUCHIOC_CHECK_RE_CAL:
+			/*
 			printk("%s DAUDIO_TOUCHIOC_CHECK_RE_CAL\n",__func__);
 			wbuf[0] = MIP4_R0_CTRL;
 			wbuf[1] = MIP4_R1_CTRL_RECALIBRATE;
 			wbuf[2] = 1;
 			mip4_ts_i2c_write(info, wbuf, 3);
+			*/
 			break;
+		case DAUDIO_TOUCHIOC_BLU_ON:
+			if(MELFAS_LCD_VER == DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG)
+			{		
+				printk("%s DAUDIO_TOUCHIOC_BLU_ON [Start]\n",__func__);
+
+				buf[0] = 0x06;
+				buf[1] = 0x12;
+				buf[2] = 1;
+
+				ret =  i2c_master_send(info_mip4->client, buf, 3);
+			}
+			break;
+		case DAUDIO_TOUCHIOC_BLU_OFF:
+			if(MELFAS_LCD_VER == DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG)
+			{
+				printk("%s DAUDIO_TOUCHIOC_BLU_OFF [Start]\n",__func__);
+
+	                        buf[0] = 0x06;
+	                        buf[1] = 0x1F;
+	                        buf[2] = 1;
+
+        	                ret =  i2c_master_send(info_mip4->client, buf, 3);
+			}
+                        break;			
 		default:
 			break;
 	}
-*/
+
 	return 0;
 }
 
 static const struct file_operations mip4_misc_fops = {
-        /**
-        * @ legolamp@cleinsoft
-        * @ date 2014.05.01
-        * @ add mxt336S_fops_write, mxt336S_fops_read, mxt336S_fops_ioctl
-        **/
-        .unlocked_ioctl = mip4_fops_ioctl,
-        .write                  = mip4_fops_write,
-        .read                   = mip4_fops_read,
-        .open                   = mip4_fops_open,
-        .release                = mip4_fops_release,
+	/**
+	* @ legolamp@cleinsoft
+	* @ date 2014.05.01
+	* @ add mxt336S_fops_write, mxt336S_fops_read, mxt336S_fops_ioctl
+	**/
+	.unlocked_ioctl = mip4_fops_ioctl,
+	.write                  = mip4_fops_write,
+	.read                   = mip4_fops_read,
+	.open                   = mip4_fops_open,
+	.release                = mip4_fops_release,
 };
 
 static struct miscdevice mip4_misc = {
-        .name = "mxt_misc",
-        .fops = &mip4_misc_fops,
-        .minor = MISC_DYNAMIC_MINOR,
+	.name = "mxt_misc",
+	.fops = &mip4_misc_fops,
+	.minor = MISC_DYNAMIC_MINOR,
 
-        .mode = 0660,
+	.mode = 0660,
 };
 
 /*
@@ -2123,10 +3239,10 @@ static struct miscdevice mip4_misc = {
 static int mip4_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	struct mip4_ts_info *info = &g_info;
+	struct mip4_ts_info *info = NULL;
 	struct input_dev *input_dev;
-	int ret = 0;	
-	
+	int ret = 0;
+
 	dev_dbg(&client->dev, "%s [START]\n", __func__);
 
 	/* Check I2C functionality */
@@ -2175,39 +3291,67 @@ static int mip4_ts_probe(struct i2c_client *client, const struct i2c_device_id *
 #endif /* USE_INPUT_OPEN_CLOSE */
 
 	info_mip4 = info;
-	
+
 	/* Set info data */
 	input_set_drvdata(input_dev, info);
 	i2c_set_clientdata(client, info);
 
 	/* Config regulator */
-	mip4_ts_config_regulator(info);
+//	mip4_ts_config_regulator(info);
 
 	mip4_ts_power_off(info);
 
 	/* Firmware update */
-#if USE_AUTO_FW_UPDATE
 	mip4_ts_power_on(info);
+#if USE_AUTO_FW_UPDATE
+	MELFAS_LCD_VER = daudio_lcd_version();
 
-	LCD_VER = daudio_lcd_version();
+	if(MELFAS_LCD_VER != DAUDIOKK_LCD_OI_DISCONNECTED) { //Condition : Connect Monitor
 
-	if(LCD_VER != 10)//Condition : Connect Monitor
-	{
-
-		if(LCD_VER == 3 || LCD_VER == 4)//Condition : Departed Monitor
+		//Condition : Departed Monitor
+		if(!get_montype())
 		{
-			if(serdes_i2c_read(info->client) == (LCD_VER==4 ? 1: 0xde))//Condition : Deserializer response
+			//Condition : Deserializer response
+                        if((serdes_i2c_connect(info->client)&0xfa) == 0xda)
 			{
-				ret = mip4_ts_fw_update_from_kernel(info);
-			}
-			else
+                                if(des_i2c_set_check(info->client)!=0)
+                                {
+                                        serdes_i2c_reset(info->client,false);
+					mip4_ts_power_on(info);
+                                }
+                                ret = mip4_ts_fw_update_from_kernel(info, false);
+                        }
+                        else
 			{
-				printk("%s [ERROR] LCD_VER : %d Deserializer doesn't response\n ",__func__,LCD_VER);
-			}
+				if(ser_i2c_bitrate_check(info->client)==0x84) //3gbps model only
+				{
+					ser_i2c_bitrate_3gbps_to_6gbps(info->client);
+
+					if((serdes_i2c_connect(info->client)&0xfa) == 0xda)
+					{
+						serdes_i2c_reset(info->client,false);
+						serdes_i2c_bitrate_6gbps_to_3gbps(info->client);
+						mdelay(100);
+
+						mip4_ts_power_on(info);
+
+						ret = mip4_ts_fw_update_from_kernel(info, false);
+					}
+					else
+					{
+						LCD_DES_RESET_NEED = 1;
+						printk("%s [ERROR] LCD_VER : %d Deserializer doesn't response\n ", __func__, MELFAS_LCD_VER);
+					}
+				}
+				else
+				{
+					LCD_DES_RESET_NEED = 1;
+					printk("%s [ERROR] LCD_VER : %d Deserializer doesn't response\n ", __func__, MELFAS_LCD_VER);
+	                        }
+                        }
 		}
-		else//Condition : Integrated Monitor
-		{
-			ret = mip4_ts_fw_update_from_kernel(info);
+		else { //Condition : Integrated Monitor
+			ret = mip4_ts_fw_update_from_kernel(info, false);
 		}
 		if (ret) {
 			dev_err(&client->dev, "%s [ERROR] mip4_ts_fw_update_from_kernel\n", __func__);
@@ -2234,7 +3378,7 @@ static int mip4_ts_probe(struct i2c_client *client, const struct i2c_device_id *
 
 	/* Config module */
 	ret = mip4_ts_config(info);
-	
+
 	if (ret) {
 		dev_err(&client->dev, "%s [ERROR] mip4_ts_config\n", __func__);
 		mip4_ts_disable(info);
@@ -2264,6 +3408,12 @@ static int mip4_ts_probe(struct i2c_client *client, const struct i2c_device_id *
 	fb_register_client(&info->fb_notifier);
 #endif /* USE_FB_NOTIFY */
 
+	ret = register_reboot_notifier(&mip4_reboot_notifier);
+	if(ret != 0){
+		pr_err("cannot register reboot notifier (err=%d)\n", ret);
+		goto error_notifier;
+	}
+
 #if USE_DEV
 	/* Create dev node (optional) */
 	if (mip4_ts_dev_create(info)) {
@@ -2292,7 +3442,7 @@ static int mip4_ts_probe(struct i2c_client *client, const struct i2c_device_id *
 	if (sysfs_create_group(&client->dev.kobj, &mip4_ts_attr_group)) {
 		dev_err(&client->dev, "%s [ERROR] sysfs_create_group\n", __func__);
 	}
-	if (sysfs_create_link(NULL, &client->dev.kobj, MIP4_TS_DEVICE_NAME)) {
+	if (sysfs_create_link(NULL, &client->dev.kobj, "touch_drv")) {
 		dev_err(&client->dev, "%s [ERROR] sysfs_create_link\n", __func__);
 	}
 
@@ -2306,7 +3456,8 @@ static int mip4_ts_probe(struct i2c_client *client, const struct i2c_device_id *
 	dev_dbg(&client->dev, "%s [DONE]\n", __func__);
 	dev_info(&client->dev, "MELFAS " CHIP_NAME " Touchscreen\n");
 	return 0;
-
+error_notifier:
+	unregister_reboot_notifier(&mip4_reboot_notifier);
 error_irq:
 	free_irq(info->irq, info);
 error_device:
@@ -2325,6 +3476,8 @@ static int mip4_ts_remove(struct i2c_client *client)
 {
 	struct mip4_ts_info *info = i2c_get_clientdata(client);
 
+	unregister_reboot_notifier(&mip4_reboot_notifier);
+
 #if USE_CMD
 	mip4_ts_sysfs_cmd_remove(info);
 #endif /* USE_CMD */
@@ -2334,7 +3487,7 @@ static int mip4_ts_remove(struct i2c_client *client)
 #endif /* USE_SYS */
 
 	sysfs_remove_group(&info->client->dev.kobj, &mip4_ts_attr_group);
-	sysfs_remove_link(NULL, MIP4_TS_DEVICE_NAME);
+	sysfs_remove_link(NULL, "touch_drv");
 
 #if USE_DEV
 	device_destroy(info->class, info->mip4_ts_dev);
@@ -2349,6 +3502,8 @@ static int mip4_ts_remove(struct i2c_client *client)
 #if USE_FB_NOTIFY
 	fb_unregister_client(&info->fb_notifier);
 #endif /* USE_FB_NOTIFY */
+
+	misc_deregister(&mip4_misc);
 
 	input_unregister_device(info->input_dev);
 
@@ -2390,7 +3545,7 @@ int mip4_ts_resume(struct device *dev)
 
 	return ret;
 }
-                  
+
 
 /*
  * PM info
@@ -2453,38 +3608,79 @@ static struct i2c_driver mip4_ts_driver = {
 	},
 };
 
-static int __init mip4_init(void){
+#ifdef CONFIG_DAUDIO_KK
+int factory_connect_for_lcd(void)
+{
+        if((!gpio_get_value(TCC_GPB(8)))&&daudio_lcd_version()==DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_LG)
+                return 1;
+        else
+                return 0;
+
+        return 0;
+}
+static int __init mip4_init(void)
+{
+        int err;
+
+        MELFAS_LCD_VER = daudio_lcd_version();
+
+        printk("%s, GPIO_B24 = %d, GPIO_B13 = %d, GPIO_B8 = %d,  daudio_lcd_version() = %d \n", __func__, gpio_get_value(TCC_GPB(24)), gpio_get_value(TCC_GPB(13)), gpio_get_value(TCC_GPB(8)), daudio_lcd_version());
+
+        if(gpio_get_value(TCC_GPB(24))) // OE
+                switch(MELFAS_LCD_VER) {
+                        case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG:
+                        case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_2_LG:
+                        case DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si_LG:
+                        case DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si_LG:
+                        case DAUDIOKK_LCD_OI_DISCONNECTED:
+                                err = i2c_add_driver(&mip4_ts_driver);
+                                if(err)
+                                        printk("mip4 touch driver i2c driver add failed (errno = %d)\n", err);
+                                return err;
+                                break;
+                        case DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_LG:
+                                if(factory_connect_for_lcd())
+                                {
+                                        err = i2c_add_driver(&mip4_ts_driver);
+                                        if(err)
+                                                printk("mip4 touch driver i2c driver add failed (errno = %d)\n", err);
+                                        return err;
+                                        break;
+                                }
+                        default:
+                                return -ENODEV;
+                                break;
+                }
+}
+module_init(mip4_init);
+
+static void __exit mip4_cleanup(void)
+{
+        i2c_del_driver(&mip4_ts_driver);
+}
+module_exit(mip4_cleanup);
+#elif defined(CONFIG_WIDE_PE_COMMON)
+int mip4_init(void)
+{
 	int err;
 
-	LCD_VER = daudio_lcd_version();
+	MELFAS_LCD_VER = daudio_lcd_version();
 
-	printk("%s, GPIO_B24 = %d, GPIO_B13 = %d,  daudio_lcd_version() = %d \n", __func__, gpio_get_value(TCC_GPB(24)), gpio_get_value(TCC_GPB(13)), daudio_lcd_version());
+	printk("%s, GPIO_B16 = %d, GPIO_C14 = %d, GPIO_B13 = %d,  daudio_lcd_version() = %d \n", __func__, get_oemtype(), get_montype(), get_factorycheck(), daudio_lcd_version());
 
-	switch(LCD_VER){
-		case 0:
-		case 3:
-		case 4:
-#ifndef CONFIG_LCD_RESOLUTION_1280_720
-		case 10:
-#endif
-			err = i2c_add_driver(&mip4_ts_driver);
-			if(err)
-				printk("mip4 touch driver i2c driver add failed (errno = %d)\n",err);
-
-			return err;
-
-			break;
-
-		default:
-			return -ENODEV;
-
-			break;
-
-	}
+	err = i2c_add_driver(&mip4_ts_driver);
+	if(err)
+		printk("mip4 touch driver i2c driver add failed (errno = %d)\n", err);
+	return err;
 }
+EXPORT_SYMBOL(mip4_init);
 
-module_init(mip4_init);
-//module_i2c_driver(mip4_ts_driver);
+void mip4_cleanup(void)
+{
+	i2c_del_driver(&mip4_ts_driver);
+}
+EXPORT_SYMBOL(mip4_cleanup);
+#endif
 
 MODULE_DESCRIPTION("MELFAS MIP4 Touchscreen");
 MODULE_VERSION("2017.05.23");

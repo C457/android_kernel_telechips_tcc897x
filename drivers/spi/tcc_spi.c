@@ -601,7 +601,7 @@ static void tcc_spi_next_message(struct spi_master *master)
 			tspi->set_bit_width(tspi, bits);
 		}
 
-		#ifdef CONFIG_TDMB
+		#if defined(INCLUDE_TDMB)
 			tspi->set_bit_width(tspi,32);
 			static bool logprint = true;
 			if(logprint)
@@ -896,7 +896,10 @@ static void tcc_spi_close(struct spi_device *spi)
         msg->status = -ESHUTDOWN;
         msg->complete(msg->context);
     }
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
 	if (tspi_ex) { kfree(tspi_ex); }
+#endif
 	
 	if(!tca_spi_is_use_gdma(tspi))	// if use dedicated DMA
 		free_irq(tspi->irq, spi->master);
@@ -921,6 +924,9 @@ static void tcc_spi_close(struct spi_device *spi)
 	}
 
 	destroy_workqueue(tspi_ex->spi_workqueue);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (tspi_ex) { kfree(tspi_ex); }
+#endif
 }
 
 static void tcc_spi_transfer_work(struct work_struct *work)
@@ -1424,7 +1430,7 @@ static struct spi_board_info spi1_board_info[] = {
         .bus_num = 1,                   // spi channel 0
         .chip_select = 0,
         // you can modify the following member variables
-#ifdef CONFIG_TDMB
+#if defined(INCLUDE_TDMB)
         .max_speed_hz = 10*1000*1000,    // default 10Mhz
 	.mode = SPI_MODE_1,
 #else
@@ -1440,7 +1446,7 @@ static struct spi_board_info spi2_board_info[] = {
         .bus_num = 2,                   // spi channel 0
         .chip_select = 0,
         // you can modify the following member variables
-#ifdef CONFIG_TDMB
+#if defined(INCLUDE_TDMB)
 	 .max_speed_hz = 10*1000*1000,    // 10Mhz
 	 .mode = SPI_MODE_1,             // default 0, you can choose [SPI_CPOL|SPI_CPHA|SPI_CS_HIGH|SPI_LSB_FIRST]
 #else

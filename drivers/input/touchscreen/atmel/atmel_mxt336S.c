@@ -36,6 +36,20 @@
 
 #include <mach/daudio_info.h>
 
+#if defined (MXT_CONFIG_RAW_FILE) || defined( MXT_CONFIG_XCFG_FILE)
+#include <linux/fs.h>
+#include <asm/uaccess.h>
+#include <linux/syscalls.h>
+
+#define TOUCH_CONFIG_FILE_DEV_641T  "/lib/modules/touch_atmel_641t_system_cfg.xcfg"
+#define TOUCH_CONFIG_FILE_DEV_641TD "/lib/modules/touch_atmel_641td_system_cfg.xcfg"
+#define TOUCH_CONFIG_FILE_DEV_RAW  "/etc/touch_atmel_641t_system_cfg.raw"
+
+#define OBP_RAW_MAGIC      "OBP_RAW V1"
+#endif
+
+
+
 #define DRIVER_NAME	"mxt336s"
 
 #ifdef CONFIG_ARCH_MXC
@@ -56,7 +70,7 @@
 #define AMPLITUDE_LIMIT 250
 
 #define RESET_DURATION			25
-#define RESET_DELAY				28
+#define RESET_DELAY			100
 
 #if defined(CONFIG_DAUDIO)
 #if defined(CONFIG_DAUDIO_20140220)
@@ -150,6 +164,9 @@ static int LCD_VER = 0;
 
 extern int daudio_lcd_version(void);
 
+#if defined (MXT_CONFIG_RAW_FILE) || defined( MXT_CONFIG_XCFG_FILE)
+int mxt_get_config_from_file(uint32_t nvm_conf_checksum, uint32_t* drv_crc);
+#endif
 
 #define ABS(x, y)		((x < y) ? (y - x) : (x - y))
 
@@ -171,6 +188,7 @@ struct {
 #define DEBUG_INFO      1
 #define DEBUG_MESSAGES  2
 #define DEBUG_TRACE     3
+#define DEBUG_INT 	4
 #define CONFIG_KERNEL_DEBUG_SEC 1
 
 // #define DEBUG_JIG
@@ -199,6 +217,67 @@ static int debug = DEBUG_NONE;
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Activate debugging output");
+
+static bool LCD_DES_RESET_NEED = 0;
+static int LCD_TOUCH_INT_CHECK = 0;
+static bool LCD_TOUCH_RESET_NEED = 0;
+
+#define SER_RETRY_SIZE_8_0 42
+#define MXT_SERDES_RESET_TIME 4000
+#define DES_ADDRESS 0x48
+#define SER_ADDRESS 0x40
+#define DES_DELAY 0x00
+
+static u16 serdes_re_try_8_0[SER_RETRY_SIZE_8_0][3] = {
+        {DES_ADDRESS, 0x01CE, 0x47},
+        {DES_ADDRESS, 0x0140, 0x20},
+	{DES_ADDRESS, 0x0002, 0x03},
+	{DES_DELAY, 0x0000, 0x01},
+        {DES_ADDRESS, 0x0002, 0x43},
+        {DES_ADDRESS, 0x0218, 0x01},
+        {DES_ADDRESS, 0x0219, 0x04},
+        {DES_ADDRESS, 0x021A, 0x04},
+        {DES_ADDRESS, 0x020C, 0x01},
+        {DES_ADDRESS, 0x020D, 0x05},
+        {DES_ADDRESS, 0x020E, 0x05},
+        {DES_ADDRESS, 0x0224, 0x01},
+        {DES_ADDRESS, 0x0225, 0x09},
+        {DES_ADDRESS, 0x0226, 0x09},
+        {DES_ADDRESS, 0x0212, 0x01},
+        {DES_ADDRESS, 0x0213, 0x02},
+        {DES_ADDRESS, 0x0214, 0x02},
+        {DES_ADDRESS, 0x0221, 0x01},
+        {DES_ADDRESS, 0x0222, 0x03},
+        {DES_ADDRESS, 0x0223, 0x03},
+        {DES_ADDRESS, 0x0215, 0x01},
+        {DES_ADDRESS, 0x0216, 0x07},
+        {DES_ADDRESS, 0x0217, 0x07},
+        {DES_ADDRESS, 0x0206, 0x01},
+        {DES_ADDRESS, 0x0207, 0x06},
+        {DES_ADDRESS, 0x0208, 0x06},
+        {DES_ADDRESS, 0x0218, 0x83},
+        {DES_ADDRESS, 0x020C, 0x83},
+        {DES_ADDRESS, 0x0224, 0x84},
+        {DES_ADDRESS, 0x0225, 0xA9},
+        {DES_ADDRESS, 0x0212, 0x84},
+        {DES_ADDRESS, 0x0213, 0xA6},
+        {DES_ADDRESS, 0x0221, 0x84},
+        {DES_ADDRESS, 0x0222, 0xA3},
+        {DES_ADDRESS, 0x0215, 0x04},
+        {DES_ADDRESS, 0x0216, 0xA7},
+        {DES_ADDRESS, 0x0206, 0x85},
+        {DES_ADDRESS, 0x0207, 0xA2},
+	{DES_ADDRESS, 0x0227, 0x80},
+	{DES_ADDRESS, 0x0221, 0x84},
+	{DES_ADDRESS, 0x0222, 0xA3},
+        {DES_ADDRESS, 0x021E, 0x90},
+};
+static u16 serdes_link_8_0 [1][2] = {
+	{SER_ADDRESS, 0x0013},
+};
+static u16 serdes_set_check_8_0 [1][2] = {
+        {DES_ADDRESS, 0x0140},
+};
 
 static void mxt_release_all_fingers(struct mxt_data *mxt);
 
@@ -520,7 +599,6 @@ static int backup_to_nv(struct mxt_data *mxt)
 
 static void hw_reset_gpio(struct mxt_data* mxt)
 {
-#if 1// !defined(INCLUDE_TOUCH_MXT_1189T)
 	unsigned RESET_GPIO = mxt->pdata->gpio_reset;
 
 	int touch_scl = mxt->pdata->gpio_scl;
@@ -545,6 +623,24 @@ static void hw_reset_gpio(struct mxt_data* mxt)
 
 	gpio_request(RESET_GPIO, NULL);
 	gpio_direction_output(RESET_GPIO, 0);
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+	{
+		u8 buf[3];
+                unsigned short addr;
+
+                addr = mxt->client->addr;
+                mxt->client->addr = 0x48;
+                buf[0] = 0x02;
+                buf[1] = 0x1E;
+                buf[2] = 0x80;
+
+                i2c_master_send(mxt->client, buf, 3);
+
+                dev_dbg(&mxt->client->dev, "%s - CE pin by I2C : 0\n", __func__);
+
+                mxt->client->addr = addr;
+	
+	}
 	msleep(RESET_DURATION);
 
 	if (gpio_enable != -1) {
@@ -560,33 +656,25 @@ static void hw_reset_gpio(struct mxt_data* mxt)
 	}
 
 	gpio_direction_output(RESET_GPIO, 1);
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+        {
+		u8 buf[3];
+                unsigned short addr;
+
+                addr = mxt->client->addr;
+                mxt->client->addr = 0x48;
+                buf[0] = 0x02;
+                buf[1] = 0x1E;
+                buf[2] = 0x90;
+
+                i2c_master_send(mxt->client, buf, 3);
+
+                dev_dbg(&mxt->client->dev, "%s - CE pin by I2C : 1\n", __func__);
+
+                mxt->client->addr = addr;
+
+        }
 	msleep(RESET_DELAY);
-#else
-
-
-#ifdef CONFIG_CURVED_TI_SERDES
-	unsigned short addr = mxt->client->addr;
-	printk(KERN_ERR "[%s:%d] TI Serdes Device(0x58), Register(0x20), Value(0x91, 0x99)!!!\r\n", __func__, __LINE__);
-	mxt->client->addr = 0x58;
-	mxt_write_onebyte_register(mxt->client, 0x20, 0x91);
-	msleep(RESET_DURATION);
-	mxt_write_onebyte_register(mxt->client, 0x20, 0x99);
-	msleep(RESET_DELAY);
-	mxt->client->addr = addr;
-
-#else  // NORMAL 1189T WIDE
-	unsigned short addr = mxt->client->addr;
-	printk(KERN_ERR "[%s:%d] TI Serdes Device(0x58), Register(0x20)!!!\r\n", __func__, __LINE__);
-	mxt->client->addr = 0x58;
-	mxt_write_onebyte_register(mxt->client, 0x20, 0x01);
-	msleep(RESET_DURATION);
-	mxt_write_onebyte_register(mxt->client, 0x20, 0x09);
-	msleep(RESET_DELAY);
-	mxt->client->addr = addr;
-
-#endif // NORMAL 1189T WIDE
-#endif
-
 }
 
 void hw_reset_chip(struct mxt_data *mxt)
@@ -862,7 +950,7 @@ static void mxt_release_all_fingers(struct mxt_data *mxt)
 		/* ADD TRACKING_ID*/
 		//REPORT_MT(id, mtouch_info[id].x, mtouch_info[id].y,
 		//		mtouch_info[id].pressure, mtouch_info[id].size);
-	if(touch_type == 5 || touch_type == 6) //1189T, 641T
+	if(touch_type == 5 || touch_type == 6 || touch_type == 8) //1189T, 641T
 	{
 		/* 160615 - release touch */
 		//input_report_key(mxt->input, BTN_TOUCH, 0);
@@ -896,7 +984,7 @@ static inline void mxt_prerun_reset(struct mxt_data *mxt, bool r_irq)
 #if TS_100S_TIMER_INTERVAL
 	ts_100ms_timer_stop(mxt);
 #endif
-	mxt_check_touch_ic_timer_stop(mxt);
+//	mxt_check_touch_ic_timer_stop(mxt);
 	mxt_supp_ops_stop(mxt);
 	mxt_release_all_fingers(mxt);
 	mxt_release_all_keys(mxt);
@@ -911,7 +999,7 @@ static inline void mxt_postrun_reset(struct mxt_data *mxt, bool r_irq)
 	* @ date 2014.06.03
 	* Add check_touch_ic_timer_start
 	**/
-	mxt_check_touch_ic_timer_start(mxt);
+//	mxt_check_touch_ic_timer_start(mxt);
 	if (r_irq)
 		enable_irq(mxt->client->irq);
 }
@@ -930,7 +1018,7 @@ static int _check_recalibration(struct mxt_data *mxt)
 			dev_info(&mxt->client->dev, "tch_ch:%d, atch_ch:%d\n",
 					 tch_ch, atch_ch);
 			ts_100ms_timer_stop(mxt);
-			mxt_check_touch_ic_timer_stop(mxt);
+//			mxt_check_touch_ic_timer_stop(mxt);
 			mxt_supp_ops_stop(mxt);
 			calibrate_chip(mxt);
 		}
@@ -1101,6 +1189,300 @@ int mxt_read_byte(struct i2c_client *client, u16 addr, u8 *value)
 * there's no need to write the address pointer: the mXT chip will
 * automatically set the address pointer back to message window start.
 */
+
+static int serdes_i2c_retry(struct i2c_client *client)
+{
+	int ret;
+	int i;
+	volatile u8 buf[3] = {0, };
+	volatile unsigned short addr=0;
+
+	addr = client->addr;
+
+	printk("-----------%s\n", __func__);
+
+	for(i = 0; i < SER_RETRY_SIZE_8_0; i++) {
+		if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24))) {
+			client->addr = serdes_re_try_8_0[i][0];
+			buf[0] = (serdes_re_try_8_0[i][1] >> 8) & 0xff;
+			buf[1] = serdes_re_try_8_0[i][1] & 0xff;
+			buf[2] = serdes_re_try_8_0[i][2];
+
+			if(client->addr == DES_DELAY)
+			{
+				mdelay(buf[2]);
+				continue;
+			}
+
+			ret =  i2c_master_send(client, buf, 3);
+		}
+
+		if(ret != 3 ) {
+			dev_err(&client->dev, "%s: i2c fail\n", __func__);
+			goto out_i2c;
+		}
+	}
+	printk("-----------%s Success\n", __func__);
+out_i2c:
+	client->addr = addr;
+	return 0;
+}
+
+static int serdes_i2c_set_check(struct i2c_client *client)
+{
+        int ret;
+        int i;
+	volatile u8 buf[2] = {0, };
+	volatile u8 buf2[3] = {0, };
+	volatile unsigned short addr=0;
+
+        addr = client->addr;
+
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24))){
+                client->addr = serdes_set_check_8_0[0][0];
+                buf[0] = (serdes_set_check_8_0[0][1] >> 8) & 0xff;
+                buf[1] = serdes_set_check_8_0[0][1] & 0xff;
+                
+		ret = i2c_master_send(client, buf, 2);
+                ret = i2c_master_recv(client, buf2, 3);
+		
+		if(buf2[0] != 0x20)
+			printk("%s buf2[0] = 0x%x\n",__func__,buf[2]);
+        }
+
+        client->addr = addr;
+	return buf2[0];
+}
+
+
+static int serdes_i2c_read(struct i2c_client *client)
+{
+	int ret;
+	int i;
+	volatile u8 buf[2] = {0, };
+	volatile u8 buf2[3] = {0, };
+	volatile unsigned short addr=0;
+
+	addr = client->addr;
+
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+	{
+		client->addr = serdes_link_8_0[0][0];
+		buf[0] = (serdes_link_8_0[0][1] >> 8) & 0xff;
+		buf[1] = serdes_link_8_0[0][1] & 0xff;
+		
+		ret = i2c_master_send(client, buf, 2);
+		ret = i2c_master_recv(client, buf2, 3);
+
+		if((buf2[0] != 0xdf)&&(buf2[0] != 0xde)) {
+			printk(KERN_ERR "---------%s: i2c read  (%d), {0x%x, 0x%x ,0x%x,0x%x}\n", __func__, ret, client->addr, buf2[0], buf2[1], buf2[2]);
+			LCD_DES_RESET_NEED = 1;
+		}
+	}
+
+	client->addr = addr;
+	return buf2[0];
+}
+
+
+static void mxt_serdes_reset(struct mxt_data *mxt)
+{
+	u8 val;
+	int ret = 0, i = 0;
+
+	mutex_lock(&mxt->serdes.lock);
+
+	val = serdes_i2c_read(mxt->client);
+
+	if(val== 0xdf || val ==0xde)
+	{
+		if(serdes_i2c_set_check(mxt->client)!=0x20)
+		{
+			LCD_DES_RESET_NEED = 1;
+		}
+	}
+
+	if(((val == 0xdf)||(val == 0xde)) && LCD_DES_RESET_NEED == 1) {
+		printk(KERN_ERR "---------%s: DISPLAY & TouchIC Recovery !!! \n", __func__);
+		printk(KERN_ERR "%s mip4_read_byte :0x[%x]!!!\r\n", __func__, val);
+		printk(KERN_ERR "%s LCD_DES_RESET_NEED value :(%d) !!!\r\n", __func__, LCD_DES_RESET_NEED);
+
+		serdes_i2c_retry(mxt->client);
+		LCD_DES_RESET_NEED = 0;
+		hw_reset_chip(mxt);
+	}
+	else {
+		if((val != 0xdf)&&(val != 0xde)) {
+			printk(KERN_ERR "---------%s: HDMI Connect ERROR !!! \n", __func__);
+		}
+
+	}
+	for(i = 0; i < 3; i++) { //serdes conn check 20180622 mhjung
+                val = serdes_i2c_read(mxt->client);
+
+                if((val != 0xdf)&&(val != 0xde)) {
+                        if (i == 2) {
+                                set_serdes_conn_check(2);
+                        }
+
+                        msleep(30);
+                }
+                else {
+                        set_serdes_conn_check(0);
+                        break;
+                }
+
+        }
+	
+	mutex_unlock(&mxt->serdes.lock);
+
+}
+
+static void mxt_touch_reset_alive(struct mxt_data *mxt)
+{
+	int ret = 0;
+
+	struct i2c_client *client;
+        client = mxt->client;
+
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+                mutex_lock(&mxt->serdes.lock);
+	
+	if(LCD_TOUCH_INT_CHECK >= 2) {
+		LCD_TOUCH_INT_CHECK = 0;
+	}
+	else {
+		LCD_TOUCH_RESET_NEED = 1;
+	}
+
+	if(LCD_TOUCH_RESET_NEED == 1) {
+		printk("%s LCD_TOUCH_RESET [START]\n", __func__);
+                
+		mxt_prerun_reset(mxt, true);
+                hw_reset_chip(mxt);
+                mxt_postrun_reset(mxt, true);	
+		
+		LCD_TOUCH_RESET_NEED = 0;
+		LCD_TOUCH_INT_CHECK = 0;
+		if (mxt_initialize_device == false) {
+			printk(KERN_ERR "[%s:%d] mxt_initialize false........ \r\n", __func__, __LINE__);
+                        mxt_initialize_device = true;
+                       	enable_irq(mxt->irq);
+		}
+
+		printk("%s LCD_TOUCH_RESET [DONE]\n", __func__);
+	}
+
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+                mutex_unlock(&mxt->serdes.lock);				
+}
+
+static void mxt_touch_reset(struct mxt_data *mxt)
+{
+        int error;
+        u8 buf[2] = {0, };
+        struct i2c_client *client;
+        client = mxt->client;
+
+        if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+                mutex_lock(&mxt->serdes.lock);
+
+#ifdef MXT_JIG_DETECT
+        error = update_jig_detection(mxt);
+        if(error == 0) { // no detect jig
+#endif
+                error = mxt_read_block(client, MXT_ADDR_INFO_BLOCK, 1, (u8 *)buf);
+
+                if (error < 0) {
+                        //exception
+                        dev_err(&mxt->client->dev, "[TSP:%d] %s() hw-reset by (%d), count (%d)\n", __LINE__, __func__, error, gtouch_ic_reset_cnt);
+                        mxt_prerun_reset(mxt, true);
+                        hw_reset_chip(mxt);
+                        mxt_postrun_reset(mxt, true);
+                        // Touch Error Logging
+                        gtouch_ic_reset_cnt++;
+                        if (gtouch_ic_reset_cnt > 10) {
+                                gtouch_ic_reset_cnt = 10;
+                                gtouch_ic_error = 1;
+                        }
+                        goto exit;
+                }
+                else {
+                        if (buf[0] == MAXTOUCH_FAMILYID||buf[0] == MAXTOUCH_FAMILYID_S) {
+                                gtouch_ic_reset_cnt = 0;
+
+                                /* 2015/08/21, YG_US 분리형 모니터 부팅시 터치 IC 연결 안된 상황 복구 코드*/
+                                if (mxt_initialize_device == false) {
+                                        printk(KERN_ERR "[%s:%d] mxt_initialize false........ \r\n", __func__, __LINE__);
+
+                                        mxt_initialize_device = true;
+
+                                        mxt_prerun_reset(mxt, true);
+                                        hw_reset_chip(mxt);
+                                        mxt_postrun_reset(mxt, true);
+
+                                        enable_irq(mxt->irq);
+                                }
+                               //printk("%s Touch IC OK !\n", __func__);
+                        }
+                        else {
+                                dev_err(&mxt->client->dev, "[TSP:%d] %s() hw-reset by (%d), count (%d)\n", __LINE__, __func__, error, gtouch_ic_reset_cnt);
+                                mxt_prerun_reset(mxt, true);
+                                hw_reset_chip(mxt);
+                                mxt_postrun_reset(mxt, true);
+                                // Touch Error Logging
+                                gtouch_ic_reset_cnt++;
+                                if (gtouch_ic_reset_cnt > 10) {
+                                        gtouch_ic_reset_cnt = 10;
+                                        gtouch_ic_error = 1;
+                                }
+                                goto exit;
+                        }
+                }
+#ifdef MXT_JIG_DETECT
+        }
+#endif
+
+exit:
+        if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+                mutex_unlock(&mxt->serdes.lock);
+        return ;
+}
+
+
+static inline void mxt_serdes_reset_dwork_stop(struct mxt_data *mxt)
+{	
+	cancel_delayed_work(&mxt->serdes.reset_dwork);
+}
+
+static inline void mxt_serdes_reset_dwork_start(struct mxt_data *mxt)
+{
+	mxt_serdes_reset_dwork_stop(mxt);
+	schedule_delayed_work(&mxt->serdes.reset_dwork,msecs_to_jiffies(MXT_SERDES_RESET_TIME));
+}
+static void mxt_serdes_reset_dwork(struct work_struct *work)
+{
+	struct mxt_data *mxt = container_of(work, struct mxt_data, serdes.reset_dwork);
+	mxt_debug_trace(mxt, "%s\n", __func__);
+	
+	LCD_VER = daudio_lcd_version();
+
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24))){
+                mxt_serdes_reset(mxt);
+
+                if(LCD_DES_RESET_NEED != 1) {
+                        mxt_touch_reset_alive(mxt);
+                }
+        }
+        else {
+		if(gpio_get_value(TCC_GPB(24)))
+			mxt_touch_reset_alive(mxt);
+		else
+	                mxt_touch_reset(mxt);
+        }
+
+	mxt_serdes_reset_dwork_start(mxt);
+}
 
 int mxt_read_no_delay_block(struct i2c_client *client,
 							u16 addr,
@@ -1428,8 +1810,11 @@ int calculate_drv_config_crc(uint32_t *crc_result, struct mxt_data *mxt)
 
 	client = mxt->client;
 
+	//printk("%s mxt->device_info.num_objs %d\n",__func__, mxt->device_info.num_objs);
+
 	for (i = 0; i < mxt->device_info.num_objs; i++) {
 		if(mxt->object_table[i].chip_addr > mxt->object_table[last_obj].chip_addr) {
+			//printk("%s 0x%x %d\n",__func__, mxt->object_table[i].chip_addr, (mxt->object_table[i].type));
 			last_obj = i;
 		}
 
@@ -1505,9 +1890,8 @@ static void process_T9_message(u8 *message, struct mxt_data *mxt)
 	xpos = message[2];
 	xpos = xpos << 4;
 	xpos = xpos | (message[4] >> 4);
-#ifndef CONFIG_LCD_RESOLUTION_1280_720
-	xpos >>= 2;
-#endif
+	if(LCD_VER == DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO && !gpio_get_value(TCC_GPB(24)))
+		xpos >>= 2;
 
 	ypos = message[3];
 	ypos = ypos << 4;
@@ -1732,7 +2116,7 @@ static void process_T100_message(u8 *message, struct mxt_data *mxt)
 			check_chip_palm(mxt);
 
 			if (palm_info.facesup_message_flag) {
-				mxt_check_touch_ic_timer_stop(mxt);
+//				mxt_check_touch_ic_timer_stop(mxt);
 				/* 100ms timer Enable */
 				ts_100ms_timer_enable(mxt);
 				mxt_debug_info(mxt,
@@ -1811,8 +2195,8 @@ static void process_T100_message(u8 *message, struct mxt_data *mxt)
 	else if (status & 0x80) {   /* case 1: detected */
 		touch_message_flag = 1;
 		mtouch_info[touch_id].pressure =
-			//message[MXT_MSG_T9_TCHAMPLITUDE];
-			10;
+			message[MXT_MSG_T9_TCHAMPLITUDE];
+			
 		mtouch_info[touch_id].x = (int16_t)xpos;
 		mtouch_info[touch_id].y = (int16_t)ypos;
 
@@ -1881,7 +2265,7 @@ static void process_T100_message(u8 *message, struct mxt_data *mxt)
 #ifdef CONFIG_KERNEL_DEBUG_SEC
 
         /* simple touch log */
-        if ((debug >= DEBUG_MESSAGES) && (debug < DEBUG_TRACE)) {
+        if ((debug >= DEBUG_INFO) && (debug < DEBUG_MESSAGES)) {
                 if ((status & MXT_MSGB_T100_SUPPRESS)==MXT_MSGB_T100_SUPPRESS) {
                         pr_info("\n[cliensoft mxt336s] Suppress\n");
                         pr_info("\n[cliensoft mxt336s] Release |x:%3d, y:%3d| No.%d |\n",
@@ -1889,18 +2273,18 @@ static void process_T100_message(u8 *message, struct mxt_data *mxt)
                 }
                 else {
 			if((status & MXT_MSGB_T100_RELEASE)==MXT_MSGB_T100_RELEASE) {
-                                pr_info("\n[cliensoft mxt336s] Release |x:%3d, y:%3d| No.%d |\n",
-                                                xpos, ypos, touch_id);
+                                pr_info("\n[cliensoft mxt336s] Release |x:%3d, y:%3d Amd:%3d| No.%d |\n",
+                                                xpos, ypos,message[MXT_MSG_T9_TCHAMPLITUDE], touch_id);
                         }
                         else if ((status & MXT_MSGB_T100_PRESS)==MXT_MSGB_T100_PRESS) {
-                                pr_info("\n[cliensoft mxt336s] Press   |x:%3d, y:%3d| No.%d |\n"
-                                                , xpos, ypos, touch_id);
+                                pr_info("\n[cliensoft mxt336s] Press   |x:%3d, y:%3d Amd:%3d| No.%d |\n"
+                                                , xpos, ypos,message[MXT_MSG_T9_TCHAMPLITUDE], touch_id);
                         }
                 }
         }
 
         /* detail touch log */
-        if (debug >= DEBUG_TRACE) {
+        if (debug >= DEBUG_MESSAGES && debug < DEBUG_INT) {
                 char msg[64] = { 0};
                 char info[64] = { 0};
                 if ((status & MXT_MSGB_T100_SUPPRESS)==MXT_MSGB_T100_SUPPRESS) {
@@ -1926,8 +2310,8 @@ static void process_T100_message(u8 *message, struct mxt_data *mxt)
                                 strcpy(msg, "[!] Unknown status -> ");
                         }
                 }
-                sprintf(info, "| id=%d | x:%3d, y:%3d ",
-                                touch_id, xpos, ypos);
+                sprintf(info, "| id=%d | x:%3d, y:%3d Amp:%3d",
+                                touch_id, xpos, ypos, message[MXT_MSG_T9_TCHAMPLITUDE]);
 
                 strcat(msg, info);
                 pr_info("\n %s \n", msg);
@@ -1937,7 +2321,8 @@ static void process_T100_message(u8 *message, struct mxt_data *mxt)
 	return;
 }
 
-#ifdef CONFIG_LCD_TOUCHKEY
+#if defined(INCLUDE_LCD_TOUCHKEY)
+
 static const struct mxt_tsp_key tsp_keys[] = {
 	{ TOUCH_9KEY_VOLUMEDOWN, KEY9_VOLUMEDOWN},
 	{ TOUCH_9KEY_VOLUMEUP, KEY9_VOLUMEUP },
@@ -2174,7 +2559,7 @@ static void process_T42_message(u8 *message, struct mxt_data *mxt)
 		check_chip_palm(mxt);
 
 		if (palm_info.facesup_message_flag) {
-			mxt_check_touch_ic_timer_stop(mxt);
+//			mxt_check_touch_ic_timer_stop(mxt);
 			/* 100ms timer Enable */
 			ts_100ms_timer_enable(mxt);
 			mxt_debug_info(mxt,
@@ -2295,7 +2680,6 @@ cfgerr:
 // #define UNKNOWN_MES_TEST
 
 static int UNKNOWN_MES = 0;
-static bool LCD_DES_RESET_NEED = 0;
 
 #ifdef UNKNOWN_MES_TEST
 int err_test_count = 0;
@@ -2315,7 +2699,8 @@ int process_message(u8 *message, u8 object, struct mxt_data *mxt)
 	client = mxt->client;
 	length = mxt->message_size;
 	report_id = message[0];
-//	printk("[TSP] process_message 0: (0x%x) 1:(0x%x) object:(%d)\n",message[0],message[1],object);
+	if(debug >= DEBUG_TRACE)
+		printk("[TSP] process_message 0: (0x%x) 1:(0x%x) object:(%d)\n",message[0],message[1],object);
 	mxt_debug_trace(mxt, "process_message 0: (0x%x) 1:(0x%x) object:(%d)",
 					message[0], message[1], object);
 #ifdef UNKNOWN_MES_TEST
@@ -2395,17 +2780,22 @@ int process_message(u8 *message, u8 object, struct mxt_data *mxt)
 			break;
 		case MXT_SPT_SELFTEST_T25:
 			UNKNOWN_MES = 0;
-			mxt_debug_msg(mxt, "[TSP] Receiving Self-Test msg\n");
+			mxt_debug_trace(mxt, "[TSP] Receiving Self-Test msg\n");
+
+			if(message[1] == 0xfe)
+			{
+				LCD_TOUCH_INT_CHECK ++;	
+			}			
 
 			if (message[MXT_MSG_T25_STATUS] == MXT_MSGR_T25_OK) {
 				sprintf(test.pinfault, "%d", MXT_SELF_TEST_SUCCESS); // GT system IM002A-321
-				mxt_debug_msg(mxt, "Pinfault Test Success :0x%x, 0x%x, 0x%x, 0x%x \n",
+				mxt_debug_trace(mxt, "Pinfault Test Success :0x%x, 0x%x, 0x%x, 0x%x \n",
 							  message[MXT_MSG_T25_STATUS], message[MXT_MSG_T25_STATUS + 1],
 							  message[MXT_MSG_T25_STATUS + 2], message[MXT_MSG_T25_STATUS + 3]);
 			}
 			else {
 				sprintf(test.pinfault, "%d", MXT_SELF_TEST_FAIL); // GT system IM002A-321
-				mxt_debug_msg(mxt, "Pinfault Test Fail :0x%x, 0x%x, 0x%x, 0x%x \n",
+				mxt_debug_trace(mxt, "Pinfault Test Fail :0x%x, 0x%x, 0x%x, 0x%x \n",
 							  message[MXT_MSG_T25_STATUS], message[MXT_MSG_T25_STATUS + 1],
 							  message[MXT_MSG_T25_STATUS + 2], message[MXT_MSG_T25_STATUS + 3]);
 			}
@@ -2469,7 +2859,7 @@ int process_message(u8 *message, u8 object, struct mxt_data *mxt)
 			dev_info(&client->dev,
 					 "[TSP] maXTouch: Unknown message! %d\n", object);
 
-#ifdef CONFIG_HDMI_1920_720_12_3
+#if 1//defined(HDMI_1920_720_12_3)
 			UNKNOWN_MES++;
 
 			if(UNKNOWN_MES == 5) {
@@ -3425,7 +3815,7 @@ static ssize_t show_debug(struct device *dev,
 {
 	return snprintf(buf, PAGE_SIZE, "CURRENT DEBUG MODE : %d\n"
 					"0:NONE\n" "1:INFO\n"
-					"2:MESSAGES\n" "3:TRACE\n", debug);
+					"2:MESSAGES\n" "3:TRACE \t4:INTURRUPT\n", debug);
 }
 
 static ssize_t set_debug(struct device *dev,
@@ -3439,11 +3829,11 @@ static ssize_t set_debug(struct device *dev,
 	mxt = i2c_get_clientdata(client);
 
 	sscanf(buf, "%d", &state);
-	if (state >= DEBUG_NONE	&& state <= DEBUG_TRACE) {
+	if (state >= DEBUG_NONE	&& state <= DEBUG_INT) {
 		debug = state;
 		pr_info("\tCURRENT DEBUG MODE : %d\n"
 				"\t0:NONE\n" "\t1:INFO\n"
-				"\t2:MESSAGES\n" "\t3:TRACE\n", debug);
+				"\t2:MESSAGES\n" "\t3:TRACE \t4:INTURRUPT\n", debug);
 	}
 	else {
 		return -EINVAL;
@@ -3451,6 +3841,86 @@ static ssize_t set_debug(struct device *dev,
 
 	return count;
 }
+
+static ssize_t reset_i2c(struct device *dev,
+                                                 struct device_attribute *attr, const char *buf, size_t count)
+{
+        int state;
+        struct i2c_client *client;
+        struct mxt_data *mxt;
+
+        client = to_i2c_client(dev);
+        mxt = i2c_get_clientdata(client);
+
+        unsigned RESET_GPIO = mxt->pdata->gpio_reset;
+
+	pr_info("\tReset I2C CON \n"
+                                "\t0:POWER_OFF\n" "\t1:POWER_ON\n"
+                                "\t2:MON_STOP\n" "\t3:MON_START\n");
+
+        sscanf(buf, "%d", &state);
+
+	if(state == 0)
+	{
+
+	        gpio_request(RESET_GPIO, NULL);
+	        gpio_direction_output(RESET_GPIO, 0);
+	        if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+	        {
+	                u8 buf[3];
+	                unsigned short addr;
+	
+	                addr = mxt->client->addr;
+	                mxt->client->addr = 0x48;
+	                buf[0] = 0x02;
+	                buf[1] = 0x1E;
+	                buf[2] = 0x80;
+	
+	                i2c_master_send(mxt->client, buf, 3);
+	
+	                dev_info(&mxt->client->dev, "%s - CE pin by I2C : 0\n", __func__);
+	
+	                mxt->client->addr = addr;
+	        }
+
+	}
+	else if(state == 1)
+	{
+
+		gpio_direction_output(RESET_GPIO, 1);
+	        if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+	        {
+	                u8 buf[3];
+	                unsigned short addr;
+	
+	                addr = mxt->client->addr;
+	                mxt->client->addr = 0x48;
+	                buf[0] = 0x02;
+	                buf[1] = 0x1E;
+	                buf[2] = 0x90;
+	
+	                i2c_master_send(mxt->client, buf, 3);
+	
+	                dev_info(&mxt->client->dev, "%s - CE pin by I2C : 1\n", __func__);
+	
+	                mxt->client->addr = addr;
+	        }
+	}
+	else if(state == 2)
+	{
+		mxt_serdes_reset_dwork_stop(mxt);	
+		dev_info(&mxt->client->dev, "%s - Stop touch_ic_timer\n", __func__);
+	}
+	else if(state == 3)
+	{
+		mxt_serdes_reset_dwork_start(mxt);
+		dev_info(&mxt->client->dev, "%s - Start touch_ic_timer\n", __func__);
+	}
+
+        return count;
+}
+
+
 
 /* \brief : clear the whole registers */
 static void mxt_clear_nvram(struct mxt_data *mxt)
@@ -4083,7 +4553,87 @@ static ssize_t store_object(struct device *dev,
 
 	return count;
 }
+static ssize_t show_power_off(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+        struct mxt_data *mxt = i2c_get_clientdata(client);
 
+	unsigned RESET_GPIO = mxt->pdata->gpio_reset;
+
+	printk("%s [Start]\n",__func__);
+
+	gpio_request(RESET_GPIO, NULL);
+	gpio_direction_output(RESET_GPIO, 0);
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+	{
+		u8 buf[3];
+	        unsigned short addr;
+
+	        addr = mxt->client->addr;
+	        mxt->client->addr = 0x48;
+	        buf[0] = 0x02;
+	        buf[1] = 0x1E;
+	        buf[2] = 0x80;
+
+	        i2c_master_send(mxt->client, buf, 3);
+
+	        dev_info(&mxt->client->dev, "%s - CE pin by I2C : 0\n", __func__);
+
+	        mxt->client->addr = addr;
+	}
+	return 0;
+}
+
+static ssize_t show_power_on(struct device *dev, struct device_attribute *attr, char *buf)
+{
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mxt_data *mxt = i2c_get_clientdata(client);
+
+        unsigned RESET_GPIO = mxt->pdata->gpio_reset;
+
+        printk("%s [Start]\n",__func__);
+
+        gpio_request(RESET_GPIO, NULL);
+        gpio_direction_output(RESET_GPIO, 0);
+        if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+        {
+                u8 buf[3];
+                unsigned short addr;
+
+                addr = mxt->client->addr;
+                mxt->client->addr = 0x48;
+                buf[0] = 0x02;
+                buf[1] = 0x1E;
+                buf[2] = 0x90;
+
+                i2c_master_send(mxt->client, buf, 3);
+
+                dev_info(&mxt->client->dev, "%s - CE pin by I2C : 0\n", __func__);
+
+                mxt->client->addr = addr;
+        }
+        return 0;
+}
+
+static ssize_t show_recovery_off(struct device *dev, struct device_attribute *attr, char *buf)
+{
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mxt_data *mxt = i2c_get_clientdata(client);
+
+	printk("%s [Start]\n",__func__);
+
+	mxt_serdes_reset_dwork_stop(mxt);
+}
+
+static ssize_t show_recovery_on(struct device *dev, struct device_attribute *attr, char *buf)
+{
+        struct i2c_client *client = to_i2c_client(dev);
+        struct mxt_data *mxt = i2c_get_clientdata(client);
+
+        printk("%s [Start]\n",__func__);
+
+        mxt_serdes_reset_dwork_start(mxt);
+}
 
 /* Register sysfs files */
 static DEVICE_ATTR(0_device_info, S_IRUGO, show_device_info, NULL);
@@ -4101,6 +4651,11 @@ static DEVICE_ATTR(8_debug,			( S_IWUSR | S_IWGRP ) | S_IRUGO, show_debug, set_d
 static DEVICE_ATTR(9_test,			( S_IWUSR | S_IWGRP ) | S_IRUGO, show_test, set_test);
 static DEVICE_ATTR(10_ic_error,		S_IRUGO, show_ic_error,		 NULL);
 static DEVICE_ATTR(object, S_IWUSR | S_IRUGO, show_object, store_object);
+static DEVICE_ATTR(reset_i2c,                     ( S_IWUSR | S_IWGRP ) | S_IRUGO, NULL, reset_i2c);
+static DEVICE_ATTR(power_off,           S_IRUGO, show_power_off, NULL);
+static DEVICE_ATTR(power_on,           S_IRUGO, show_power_on, NULL);
+static DEVICE_ATTR(recovery_off,           S_IRUGO, show_recovery_off, NULL);
+static DEVICE_ATTR(recovery_on,           S_IRUGO, show_recovery_on, NULL);
 
 static struct attribute *maxTouch_attributes[] = {
 	&dev_attr_0_device_info.attr,
@@ -4117,6 +4672,11 @@ static struct attribute *maxTouch_attributes[] = {
 	&dev_attr_9_test.attr,
 	&dev_attr_10_ic_error.attr,
 	&dev_attr_object.attr,
+	&dev_attr_reset_i2c.attr,
+	&dev_attr_power_off.attr,
+	&dev_attr_power_on.attr,
+	&dev_attr_recovery_off.attr,
+	&dev_attr_recovery_on.attr,
 	NULL,
 };
 
@@ -4183,22 +4743,8 @@ static void mxt_check_touch_ic_timer_dwork(struct work_struct *work)
 					   check_touch_ic_timer.dwork.work);
 	client = mxt->client;
 
-#if 0
-// #if defined(INCLUDE_SER_DES)
-	if(LCD_DES_RESET_NEED == 1) {
-		unsigned short addr = mxt->client->addr;
-		u8 val;
-
-		mxt->client->addr = 0x6C;
-		mxt_read_byte(mxt->client, 0x14, &val);
-		val = (val & 0xf7); //D3-> 0
-		val = (val | 0x04); //D2->1
-		printk(KERN_ERR "LCD_DES_RESET[%x]\r\n", val);
-		mxt_write_onebyte_register(mxt->client, 0x14, val);
-		mxt->client->addr = addr;
-		LCD_DES_RESET_NEED = 0;
-	}
-#endif
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+		mutex_lock(&mxt->serdes.lock);
 
 	/**
 	 * @ legolamp@cleinsoft
@@ -4217,16 +4763,14 @@ static void mxt_check_touch_ic_timer_dwork(struct work_struct *work)
 			mxt_prerun_reset(mxt, true);
 			hw_reset_chip(mxt);
 			mxt_postrun_reset(mxt, true);
-#ifdef CONFIG_HDMI_1920_720_12_3
 			LCD_DES_RESET_NEED = 1;
-#endif
 			// Touch Error Logging
 			gtouch_ic_reset_cnt++;
 			if (gtouch_ic_reset_cnt > 10) {
 				gtouch_ic_reset_cnt = 10;
 				gtouch_ic_error = 1;
 			}
-			return;
+			goto exit;
 		}
 		else {
 			if (buf[0] == MAXTOUCH_FAMILYID||buf[0] == MAXTOUCH_FAMILYID_S) {
@@ -4240,9 +4784,7 @@ static void mxt_check_touch_ic_timer_dwork(struct work_struct *work)
 
 					mxt_prerun_reset(mxt, true);
 					hw_reset_chip(mxt);
-#ifdef CONFIG_HDMI_1920_720_12_3
 					LCD_DES_RESET_NEED = 1;
-#endif
 					mxt_postrun_reset(mxt, true);
 
 					enable_irq(mxt->irq);
@@ -4253,9 +4795,7 @@ static void mxt_check_touch_ic_timer_dwork(struct work_struct *work)
 				dev_err(&mxt->client->dev, "[TSP:%d] %s() hw-reset by (%d), count (%d)\n", __LINE__, __func__, error, gtouch_ic_reset_cnt);
 				mxt_prerun_reset(mxt, true);
 				hw_reset_chip(mxt);
-#ifdef CONFIG_HDMI_1920_720_12_3
 				LCD_DES_RESET_NEED = 1;
-#endif
 				mxt_postrun_reset(mxt, true);
 				// Touch Error Logging
 				gtouch_ic_reset_cnt++;
@@ -4263,7 +4803,7 @@ static void mxt_check_touch_ic_timer_dwork(struct work_struct *work)
 					gtouch_ic_reset_cnt = 10;
 					gtouch_ic_error = 1;
 				}
-				return;
+				goto exit;
 			}
 		}
 #ifdef MXT_JIG_DETECT
@@ -4272,6 +4812,11 @@ static void mxt_check_touch_ic_timer_dwork(struct work_struct *work)
 	cancel_delayed_work(&mxt->check_touch_ic_timer.dwork);
 	schedule_delayed_work(&mxt->check_touch_ic_timer.dwork,
 						  msecs_to_jiffies(MXT_CHK_TOUCH_IC_TIME));
+
+exit:
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+		mutex_unlock(&mxt->serdes.lock);
+	return ;
 }
 static void mxt_check_touch_ic_timer_start(struct mxt_data *mxt)
 {
@@ -4852,8 +5397,8 @@ static void cal_maybe_good(struct mxt_data *mxt)
 			mxt->cal_check_flag = 0;
 			/* Disable the timer */
 			ts_100ms_timer_clear(mxt);
-			mxt_check_touch_ic_timer_stop(mxt);
-			mxt_check_touch_ic_timer_start(mxt);
+			//mxt_check_touch_ic_timer_stop(mxt);
+			//mxt_check_touch_ic_timer_start(mxt);
 
 		}
 		else {
@@ -5043,7 +5588,7 @@ static int mxt336s_initialize(struct i2c_client *client, struct mxt_data *mxt)
 	}
 
 mxt_init_out:
-#ifdef CONFIG_TOUCH_MXT_1189T
+#if defined(INCLUDE_TOUCH_MXT_1189T)
 	if (error < 0) {
 		printk("[buffalo]Touch driver is reloading...... \n");
 		return MXT_INIT_FIRM_ERR;
@@ -5137,6 +5682,13 @@ retry_i2c:
                 ((mxt->device_info.variant_id == MXT336S_FIRM_VER2_VARIANTID))) {
 		touch_type = 7;
 		printk("%s MXT336S, touch_type : %d\n",__func__,touch_type);
+                sprintf(mxt->device_info.variant, "%s[%02X]", mxt336S_variant,
+                                mxt->device_info.variant_id);
+        }
+	else if (    ((mxt->device_info.variant_id == MXT641TD_FIRM_VER1_VARIANTID)) ||
+                ((mxt->device_info.variant_id == MXT641TD_FIRM_VER2_VARIANTID))) {
+                touch_type = 8;
+                printk("%s MXT641TD, touch_type : %d\n",__func__,touch_type);
                 sprintf(mxt->device_info.variant, "%s[%02X]", mxt336S_variant,
                                 mxt->device_info.variant_id);
         }
@@ -5410,6 +5962,7 @@ static int mxt_convert_version(const char *buff)
 
 extern unsigned char cfg_1189T_T38[64];
 extern unsigned char cfg_641T_T38[64];
+extern unsigned char cfg_641TD_T38[64];
 static int mxt_get_conf_version(struct mxt_data *mxt)
 {
 	char buff[9] = {0, };
@@ -5439,6 +5992,9 @@ static int mxt_get_conf_version(struct mxt_data *mxt)
 		        buff[7] = t38_userdata7[touch_type];
 		        buff[8] = '\0';
 			break;
+		case 8 :
+                        memcpy(buff, cfg_641TD_T38, 8);
+                        break;
 		default :
 			printk("%s wrong touch type %d\n",__func__,touch_type);
 			break;
@@ -5531,12 +6087,28 @@ static int mxt_write_init_registers(struct mxt_data *mxt)
 	//VPRINTK("nvm_conf_checksum=0x%X\n", nvm_conf_checksum);
 
 	calculate_drv_config_crc(&drv_crc, mxt);
+	
+	VPRINTK("checksum:nvm=0x%X,drv=0x%X\n", nvm_conf_checksum, drv_crc);
+
+        error = mxt_get_config_from_file(nvm_conf_checksum, &drv_crc);
+	
+	if(error == 1){
+		printk("%s Skip get config from file\n",__func__);
+	}
+        else if(error < 0) {
+                dev_err(&client->dev, "config_loade_Fail!!!!!!(%d)\n", error);
+        }
+	else
+	{
+		calculate_drv_config_crc(&drv_crc, mxt);
+	}
+
 	VPRINTK("checksum:nvm=0x%X,drv=0x%X\n", nvm_conf_checksum, drv_crc);
 	VPRINTK("version:nvm=%d,drv=%d,touch_type=%d\n",
 			nvm_version, drv_version, touch_type);
 
-	//if ((drv_version != nvm_version) || (drv_crc != nvm_conf_checksum)) {
-	if (drv_version != nvm_version) {
+	if ((drv_crc != nvm_conf_checksum)) {
+//	if (drv_version != nvm_version) {
 mxt_setting_loop:
 		error = mxt_config_settings(mxt, NULL, TODEV, touch_type);
 
@@ -5883,17 +6455,18 @@ static struct mxt_platform_data *mxt336s_parse_dt(struct i2c_client *client) {
 	}
 	pdata->irq_jig_gpio = gpio;
 	pdata->irq_jig_num	= gpio_to_irq(pdata->irq_jig_gpio);
-
-#if defined(CONFIG_HDMI_1920_720_12_3)
-        pdata->max_x = 1919;
-        pdata->max_y = 719;
-#elif defined(CONFIG_LCD_RESOLUTION_1280_720)
+  
         pdata->max_x = 1279;
         pdata->max_y = 719;
-#else
+
+	if(LCD_VER == DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO && !gpio_get_value(TCC_GPB(24)))
+        {
+		pdata->max_x = 1919;
+		pdata->max_y = 719;
+	}
+#if 0
 	of_property_read_u32(np, "max-x", &pdata->max_x);
 	of_property_read_u32(np, "max-y", &pdata->max_y);
-#endif
 #endif
 
 	pdata->gpio_reset = of_get_named_gpio(np, "por-gpios", 0);
@@ -5936,6 +6509,503 @@ static struct mxt_platform_data *mxt336s_parse_dt(struct i2c_client *client) {
 }
 #endif
 
+#if defined (MXT_CONFIG_RAW_FILE) || defined( MXT_CONFIG_XCFG_FILE)
+struct file *file_open(const char *path, int flags, int rights)
+{
+    struct file *filp = NULL;
+    mm_segment_t oldfs;
+    int err = 0;
+
+    oldfs = get_fs();
+    set_fs(get_ds());
+    filp = filp_open(path, flags, rights);
+    set_fs(oldfs);
+    printk("[%s:%d:%d] \r\n",__func__,__LINE__,filp);
+    if (IS_ERR(filp)) {
+        err = PTR_ERR(filp);
+          printk("[%s:%d:%d] \r\n",__func__,__LINE__,err);
+        return NULL;
+    }
+  printk("[%s:%d:%d] \r\n",__func__,__LINE__,filp);
+    return filp;
+}
+
+void file_close(struct file *file)
+{
+    filp_close(file, NULL);
+}
+
+#if defined (MXT_CONFIG_RAW_FILE)
+static int mxt_comp_char_1(char c1,int byte)
+{
+   int charNum;
+
+   if(byte == 1)
+   {
+           if(c1 == '0')        charNum = (0);
+           else if(c1 == '1')   charNum = (16);
+           else if(c1 == '2')   charNum = (2*16);
+           else if(c1 == '3')   charNum = (3*16);
+           else if(c1 == '4')   charNum = (4*16);
+           else if(c1 == '5')   charNum = (5*16);
+           else if(c1 == '6')   charNum = (6*16);
+           else if(c1 == '7')   charNum = (7*16);
+           else if(c1 == '8')   charNum = (8*16);
+           else if(c1 == '9')   charNum = (9*16);
+           else if(c1 == 'A')   charNum = (10*16);
+           else if(c1 == 'B')   charNum = (11*16);
+           else if(c1 == 'C')   charNum = (12*16);
+           else if(c1 == 'D')   charNum = (13*16);
+           else if(c1 == 'E')   charNum = (14*16);
+           else if(c1 == 'F')   charNum = (15*16);
+   }
+   else{
+           if(c1 == 'A')        charNum = 10;
+           else if(c1 == 'B')   charNum = 11;
+           else if(c1 == 'C')   charNum = 12;
+           else if(c1 == 'D')   charNum = 13;
+           else if(c1 == 'E')   charNum = 14;
+           else if(c1 == 'F')   charNum = 15;
+           else charNum = c1 - '0';
+   }
+
+   return charNum;
+}
+#endif
+
+
+#if defined( MXT_CONFIG_XCFG_FILE)
+
+//******************************************************************************
+/// \brief  Load configuration from .xcfg file
+/// \return #mxt_rc
+static int mxt_load_xcfg_file(const char *filename, loff_t *pos, uint32_t nvm_conf_checksum, uint32_t* drv_crc)
+{
+        struct file *fp;
+        int c1;
+        char c[1]={0};
+        char object[255] = {0};
+        char tmp[255]= {0};
+        char *substr;
+        int object_id;
+        int instance;
+        int object_address;
+        int object_size;
+        int data,i,y;
+        int file_read_t = 0;
+        bool ignore_line = false;
+        int ret;
+        uint32_t config_crc;
+	int pow;
+        mm_segment_t oldfs;     //setting for sys_open
+
+        fp = file_open(filename, O_RDONLY, 0);
+
+        if ( fp == NULL  || fp == -1 || fp == -2)
+        {
+                printk("Error opening %s: ", filename);
+                printk("[TSP] Cannot open firmware file: %d\n", fp);
+                return -1;
+        }
+
+        oldfs = get_fs();               //setting for sys_open
+        set_fs(get_ds());               //setting for sys_open
+
+        while (!file_read_t) {
+                /* First character is expected to be '[' - skip empty lines and spaces  */
+                ret = vfs_read(fp, c, 1, pos);
+                c1 = c[0] ;
+
+            //printk( "1mxt_load_xcfg_file = %s \n",c1);
+
+                if(!ret)
+                break;
+
+                while ((c1 == '\n') || (c1 == '\r') || (c1 == 0x20)){
+                        ret = vfs_read(fp, c, 1, pos);
+                        c1 = c[0] ;
+                }
+
+                if (c1 != '[') {
+                if (c1 == -1)
+                break;
+
+                /* If we are ignoring the current section then look for the next section */
+                if (ignore_line) {
+                continue;
+                }
+
+                printk("[%s:%d]Parse error: expected '[', read ascii char %c! \r\n",__func__,__LINE__,c1);
+
+                ret = MXT_ERROR_FILE_FORMAT;
+                goto close;
+                }
+
+                memset(object, 0, sizeof(object));
+
+                for (i = 0; i < 50 ; i++)
+                {
+                        if(i==50)
+                        {
+                                printk( "Object parse error");
+                                return -1;
+                        }
+
+                        ret = vfs_read(fp, c, 1, pos);
+                        c1 = c[0] ;
+
+                        if (c1 == ']' || c1 ==0x20)
+                        {
+                                i=50;
+                        }
+                        else
+                        {
+                                object[i] = c[0];
+                        }
+                }
+
+           // printk( "2mxt_load_xcfg_file = %s \n",object);
+
+                /* Ignore the comments and file header sections */
+                if (!strcmp(object, "COMMENTS")
+                || !strcmp(object, "APPLICATION_INFO_HEADER")) {
+                        ignore_line = true;
+                        printk( "Skipping %s\n", object);
+
+                        continue;
+                }
+
+                ignore_line = false;
+
+                /* Extract the checksum */
+                if (!strcmp(object, "VERSION_INFO_HEADER")) {
+                        printk("!!! Parse obeject3 %s\n",object);
+                        memset(tmp, 0, sizeof(tmp));
+			memset(object, 0, sizeof(object));
+                        while (false == ignore_line) {
+                                for (i = 0; i < 50 ; i++)
+                                {
+                                        if(i==50)
+                                        {
+                                                printk("Version info header parse error\n");
+                                                return -1;
+                                        }
+
+                                        ret = vfs_read(fp, c, 1, pos);
+                                        c1 = c[0] ;
+
+                                        if (c1 != '\n')
+                                        {
+                                                tmp[i] = c[0];
+                                        }else
+                                        {
+                                                i=50;
+                                        }
+                                }
+                                if (!strncmp(tmp, "CHECKSUM", 8)) {
+
+					config_crc = 0;
+					pow = 1;
+					for(i = 5 ;i>=0;i--)
+					{
+										
+						object[i] = tmp[11+i];
+						if(65 <= object[i] && 70 >= object[i])
+						{
+							config_crc = config_crc + ((object[i]- 55) * pow);
+						}
+						else if(97 <= object[i] && 102 >= object[i])
+						{
+							config_crc = config_crc + ((object[i]- 87) * pow);
+						}
+						else if(48 <= object[i] && 57 >= object[i])
+						{
+							config_crc = config_crc + ((object[i]- 48) * pow);
+						}
+						pow *=16;
+					}
+                                        printk("Config CRC from file:obejct=%s config_crc=%X\n",object,config_crc);
+                                        ignore_line = true;
+                                }
+                                //printk( "!!! Parse tmp1 %s\n",tmp);
+
+                        }
+			/*skip the config update because already recent config*/
+	                printk("nvm_conf_checksum = %X drv_crc = %X\n",nvm_conf_checksum, *drv_crc);
+        	        if(nvm_conf_checksum==config_crc)
+                	{
+	                        printk("%s Config already recent version\n",__func__);
+	                        *drv_crc = config_crc;
+	                        return 1;
+	                }
+
+			continue;
+                }
+
+                memset(tmp, 0, sizeof(tmp));
+
+                for (i = 0; i < 50 ; i++)
+                {
+                        if(i==50)
+                        {
+                                printk( "Instance parse error\n");
+                                return -1;
+                        }
+
+                        ret = vfs_read(fp, c, 1, pos);
+                        c1 = c[0] ;
+
+                        if (c1 == '\n' || c1 == 0x20)
+                        {
+                                i=50;
+                        }
+                        else
+                        {
+                                tmp[i] = c[0];
+                        }
+                }
+
+                if (strcmp(tmp, "INSTANCE")) {
+                        printk( "Parse error, expected INSTANCE, got %s\n", tmp);
+                        ret = MXT_ERROR_FILE_FORMAT;
+                        goto close;
+                }
+
+                memset(tmp, 0, sizeof(tmp));
+
+                for (i = 0; i < 50 ; i++)
+                {
+                        if(i==50)
+                        {
+                                printk( "Instance number parse error\n");
+                                return -1;
+                        }
+
+                        ret = vfs_read(fp, c, 1, pos);
+                        c1 = c[0] ;
+
+                        if (c1 != ']')
+                        {
+                                tmp[i] = c[0];
+                        }else
+                        {
+                                i=50;
+                        }
+                }
+
+                instance = mxt_convert_version(tmp);
+
+                /* Read rest of header section */
+                while(c1 != ']') {
+                        ret = vfs_read(fp, c, 1, pos);
+                        c1 = c[0] ;
+                        if (c1 == '\n') {
+                                printk( "Parse error, expected ] before end of line\n");
+                                ret = MXT_ERROR_FILE_FORMAT;
+                                goto close;
+                        }
+                }
+
+                while(c1 != '\n'){
+                        ret = vfs_read(fp, c, 1, pos);
+                        c1 = c[0] ;
+                }
+                while ((c1 != '=') && (c1 != -1)){
+                        ret = vfs_read(fp, c, 1, pos);
+                        c1 = c[0] ;
+                }
+
+                memset(tmp, 0, sizeof(tmp));
+
+                for (i = 0; i < 50 ; i++)
+                {
+                        if(i==50)
+                        {
+                                printk( "Object address parse error\n");
+                                return -1;
+                        }
+
+                        ret = vfs_read(fp, c, 1, pos);
+                        c1 = c[0] ;
+
+                        if (c1 != '\n')
+                        {
+                                tmp[i] = c[0];
+                        }else
+                        {
+                                i=50;
+                        }
+                }
+
+                object_address = mxt_convert_version(tmp);
+                ret = vfs_read(fp, c, 1, pos);
+                c1 = c[0] ;
+
+                while((c1 != '=') && (c1 != -1)){
+                        ret = vfs_read(fp, c, 1, pos);
+                        c1 = c[0] ;
+                }
+
+                memset(tmp, 0, sizeof(tmp));
+		for (i = 0; i < 50 ; i++)
+                {
+                        if(i==50)
+                        {
+                                printk( "Object size parse error\n");
+                                return -1;
+                        }
+                        ret = vfs_read(fp, c, 1, pos);
+                        c1 = c[0] ;
+
+                        if (c1 != '\n')
+                        {
+                                tmp[i] = c[0];
+                        }else
+                        {
+                                i=50;
+                        }
+                }
+
+                object_size = mxt_convert_version(tmp);
+
+                /* Find object type ID number at end of object string */
+                substr = strrchr(object, '_');
+                if (substr == NULL || (*(substr + 1) != 'T')) {
+                        printk( "Parse error, could not find T number in %s\n", object);
+                        ret = MXT_ERROR_FILE_FORMAT;
+                        goto close;
+                }
+
+                if (sscanf(substr + 2, "%d", &object_id) != 1) {
+                        printk( "Unable to get object type ID for %s\n", object);
+                        ret = MXT_ERROR_FILE_FORMAT;
+                        goto close;
+                }
+                //printk( "%s T%u OBJECT_ADDRESS=%d OBJECT_SIZE=%d INSTANCE=%d\n",object, object_id, object_address, object_size,instance);
+
+                while (true) {
+                        int offset,width;
+
+                        memset(tmp, 0, sizeof(tmp));
+
+                        for (i = 0; i < 10 ; i++)
+                        {
+                                if(i==10)
+                                {
+                                        printk( "Address parse error\n");
+                                        return -1;
+                                }
+
+                                ret = vfs_read(fp, c, 1, pos);
+                                c1 = c[0] ;
+
+                                if (c1 == '\n' || c1== 0x20)
+                                {
+                                        i=10;
+                                }else
+                                {
+                                        tmp[i] = c[0];
+                                }
+                        }
+
+                        offset = mxt_convert_version(tmp);
+
+                        memset(tmp, 0, sizeof(tmp));
+
+                        for (i = 0; i < 10 ; i++)
+                        {
+                                if(i==10)
+                                {
+                                        printk( "Byte count parse error\n");
+                                        return -1;
+                                }
+
+                                ret = vfs_read(fp, c, 1, pos);
+                                c1 = c[0] ;
+
+                                if (c1 == '\n' || c1== 0x20)
+                                {
+                                        i=10;
+                                }else
+                                {
+                                        tmp[i] = c[0];
+                                }
+                        }
+
+                        width = mxt_convert_version(tmp);
+                        memset(tmp, 0, sizeof(tmp));
+
+                        while((c1 != '=') && (c1 != -1)) {
+                                ret = vfs_read(fp, c, 1, pos);
+                                c1 = c[0] ;
+                        }
+
+                        for (i = 0; i < 10 ; i++)
+                        {
+                                if(i==10)
+                                {
+                                        printk( "Data parse error\n");
+                                        return -1;
+                                }
+                                ret = vfs_read(fp, c, 1, pos);
+                                c1 = c[0] ;
+
+                                if (c1 == '\n' || c1== 0x20)
+                                {
+                                        i=10;
+                                }else
+                                {
+                                        tmp[i] = c[0];
+                                }
+                        }
+
+                        data = mxt_convert_version(tmp);
+
+			if(touch_type == 6)
+				mxt_set_config_file_641t(object_id,offset,width,data,instance);
+			else if(touch_type == 8)
+				mxt_set_config_file_641td(object_id,offset,width,data,instance);	
+
+                        if ((offset + width) == object_size)
+                        break;
+                }
+        }
+
+        ret = MXT_SUCCESS;
+        printk( "Configuration read from %s in XCFG format\n", filename);
+
+        close:
+        file_close(fp);
+
+        set_fs(oldfs);
+
+        return ret;
+}
+
+#endif
+
+int mxt_get_config_from_file(uint32_t nvm_conf_checksum, uint32_t* drv_crc)
+{
+
+        loff_t pos = 0;
+        int ret = 1;
+
+	if(touch_type == 6)
+	{
+		ret = mxt_load_xcfg_file(TOUCH_CONFIG_FILE_DEV_641T,&pos,nvm_conf_checksum,drv_crc);
+	}
+	else if(touch_type == 8)
+	{
+		ret = mxt_load_xcfg_file(TOUCH_CONFIG_FILE_DEV_641TD,&pos,nvm_conf_checksum,drv_crc);
+	}
+
+        return ret;
+ }
+
+#endif
+
+
+
 static int mxt336s_probe(struct i2c_client *client,
 						 const struct i2c_device_id *id)
 {
@@ -5944,6 +7014,7 @@ static int mxt336s_probe(struct i2c_client *client,
 	struct input_dev         *input;
 	int error;
 	int i;
+	u8 buf[2] = {0, };
 
 	client->dev.platform_data = dev_get_platdata(&client->dev);
 	if (!client->dev.platform_data) {
@@ -5960,6 +7031,14 @@ static int mxt336s_probe(struct i2c_client *client,
 	}
 	mxt->pdata = pdata;
 	client->irq = gpio_to_irq(pdata->irq_gpio);
+
+	error = mxt_read_block(client, MXT_ADDR_INFO_BLOCK, 1, (u8 *)buf);
+	if(buf[0] != MAXTOUCH_FAMILYID&&buf[0] != MAXTOUCH_FAMILYID_S)
+	{
+		if((LCD_VER==DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))||LCD_VER==DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si_BOE)
+			client->addr = 0x4b;
+	}
+	
 
 	VPRINTK("driver name:%s, addr:%04x, irq:%d\n", client->name, client->addr, client->irq);
 
@@ -5979,12 +7058,15 @@ static int mxt336s_probe(struct i2c_client *client,
 		error = -ENOMEM;
 		goto err_after_kmalloc;
 	}
-#ifdef CONFIG_LCD_TOUCHKEY
-	mxt->input_key = input_allocate_device();
-	if (!mxt->input_key) {
-		dev_err(&client->dev, "[TSP] insufficient memory\n");
-		error = -ENOMEM;
-		goto err_after_kmalloc;
+#if defined(INCLUDE_LCD_TOUCHKEY)
+	if(LCD_VER == DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO)
+	{
+		mxt->input_key = input_allocate_device();
+		if (!mxt->input_key) {
+			dev_err(&client->dev, "[TSP] insufficient memory\n");
+			error = -ENOMEM;
+			goto err_after_kmalloc;
+		}
 	}
 #endif
 	mxt->message_counter   = 0;
@@ -5998,7 +7080,24 @@ static int mxt336s_probe(struct i2c_client *client,
 		pdata->init_platform_hw(mxt);
 
 	/* mxt336S regulator config */
-	i2c_set_clientdata(client, mxt);
+        i2c_set_clientdata(client, mxt);
+
+	if(LCD_VER == DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE && gpio_get_value(TCC_GPB(24)))
+	{
+		if((serdes_i2c_read(client)&0xfe)==0xde)
+		{
+			if(serdes_i2c_set_check(client)!=0x20)
+                        {
+				serdes_i2c_retry(client);
+                        }
+		}
+		else
+		{
+			LCD_DES_RESET_NEED = 1;
+			printk("%s [ERROR] LCD_VER : %d Deserializer doesn't response\n ", __func__, LCD_VER);
+		}
+	}
+
 	MXT_FIRM_CLEAR(mxt->firm_status_data);
 	error = mxt336s_initialize(client, mxt);
 	if (error < 0) {
@@ -6016,7 +7115,7 @@ static int mxt336s_probe(struct i2c_client *client,
 	}
 #endif
 
-#if !defined(CONFIG_TOUCH_MXT_1189T) && defined(CONFIG_DISASSEMBLED_MONITOR)
+#if !defined(INCLUDE_TOUCH_MXT_1189T) && defined(CONFIG_DISASSEMBLED_MONITOR)
 	{
 		unsigned short addr = mxt->client->addr;
 
@@ -6045,15 +7144,18 @@ static int mxt336s_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
 
-#ifdef CONFIG_LCD_TOUCHKEY
-	snprintf(mxt->phys_name_key,
-			 sizeof(mxt->phys_name_key),
-			 "%s/input0",
-			 dev_name(&client->dev));
-	mxt->input_key->name = "mxt1189t";
-	mxt->input_key->phys = mxt->phys_name_key;
-	mxt->input_key->id.bustype = BUS_I2C;
-	mxt->input_key->dev.parent = &client->dev;
+#if defined(INCLUDE_LCD_TOUCHKEY)
+	if(LCD_VER == DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO)
+	{
+		snprintf(mxt->phys_name_key,
+				 sizeof(mxt->phys_name_key),
+				 "%s/input0",
+				 dev_name(&client->dev));
+		mxt->input_key->name = "mxt1189t";
+		mxt->input_key->phys = mxt->phys_name_key;
+		mxt->input_key->id.bustype = BUS_I2C;
+		mxt->input_key->dev.parent = &client->dev;
+	}
 #endif
 	if (debug >= DEBUG_INFO) {
 		dev_info(&client->dev,
@@ -6067,10 +7169,13 @@ static int mxt336s_probe(struct i2c_client *client,
 
 	input->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_ABS);
 	input->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
-#ifdef CONFIG_LCD_TOUCHKEY
-	mxt->input_key->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY);
-	for (i = 0; tsp_keys[i].id != TOUCH_KEY_NULL; i++) {
-		set_bit(tsp_keys[i].keycode, mxt->input_key->keybit);
+#if defined(INCLUDE_LCD_TOUCHKEY)
+	if(LCD_VER == DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO)
+	{
+		mxt->input_key->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY);
+		for (i = 0; tsp_keys[i].id != TOUCH_KEY_NULL; i++) {
+			set_bit(tsp_keys[i].keycode, mxt->input_key->keybit);
+		}
 	}
 #endif
 	/* multi touch */
@@ -6087,12 +7192,15 @@ static int mxt336s_probe(struct i2c_client *client,
 				"[TSP] Failed to register input device\n");
 		goto err_after_get_regulator;
 	}
-#ifdef CONFIG_LCD_TOUCHKEY
-	error = input_register_device(mxt->input_key);
-	if (error < 0) {
-		dev_err(&client->dev,
-				"[TSP] Failed to register input device\n");
-		goto err_after_input_register;
+#if defined(INCLUDE_LCD_TOUCHKEY)
+	if(LCD_VER == DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO)
+	{
+		error = input_register_device(mxt->input_key);
+		if (error < 0) {
+			dev_err(&client->dev,
+					"[TSP] Failed to register input device\n");
+			goto err_after_input_register;
+		}
 	}
 #endif
 
@@ -6199,7 +7307,7 @@ static int mxt336s_probe(struct i2c_client *client,
 		pr_err("[TSP] fail sysfs_create_group\n");
 		goto err_after_earlysuspend;
 	}
-	error = sysfs_create_link(NULL, &client->dev.kobj, DRIVER_NAME);
+	error = sysfs_create_link(NULL, &client->dev.kobj, "touch_drv");
 	if (error) {
                 pr_err("[TSP] fail sysfs_create_link\n");
                 goto err_after_earlysuspend;
@@ -6222,16 +7330,16 @@ static int mxt336s_probe(struct i2c_client *client,
 
 	INIT_DELAYED_WORK(&mxt->supp_ops.dwork, mxt_supp_ops_dwork);
 	INIT_DELAYED_WORK(&mxt->cal_timer.dwork, mxt_cal_timer_dwork);
-	INIT_DELAYED_WORK(&mxt->check_touch_ic_timer.dwork,
-					  mxt_check_touch_ic_timer_dwork);
 
 	VPRINTK("[%s] INIT_DELAYED_WORK 2\n", __func__);
-	mxt_check_touch_ic_timer_stop(mxt);
-	mxt_check_touch_ic_timer_start(mxt);
 
 	wake_lock_init(&mxt->wakelock, WAKE_LOCK_SUSPEND, "touch");
 	/* if (MXT_FIRM_STABLE(mxt->firm_status_data))
 		mxt->mxt_status = true; */
+
+	mutex_init(&mxt->serdes.lock);
+	INIT_DELAYED_WORK(&mxt->serdes.reset_dwork, mxt_serdes_reset_dwork);
+	mxt_serdes_reset_dwork_start(mxt);
 
 	VPRINTK("[%s] Disable Auto_cal %d\n", __func__, mxt->check_auto_cal_flag);
 	_disable_auto_cal(mxt, false);
@@ -6254,9 +7362,12 @@ err_after_misc_register:
 	misc_deregister(&mxt336S_misc);
 
 err_after_input_register:
-#ifdef CONFIG_LCD_TOUCHKEY
-	if (mxt->input_key) {
-		input_free_device(mxt->input_key);
+#if defined(INCLUDE_LCD_TOUCHKEY)
+	if(LCD_VER == DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO)
+	{
+		if (mxt->input_key) {
+			input_free_device(mxt->input_key);
+		}
 	}
 #endif
 	input_free_device(input);
@@ -6280,19 +7391,31 @@ static int mxt336s_remove(struct i2c_client *client)
 	struct platform_data* pdata;
 #endif
 
+	printk("%s [START]\n",__func__);
+
 	mxt = i2c_get_clientdata(client);
-#ifdef CONFIG_HAS_EARLYSUSPEND
 	wake_lock_destroy(&mxt->wakelock);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+//	wake_lock_destroy(&mxt->wakelock);
 	unregister_early_suspend(&mxt->early_suspend);
 #endif	/* CONFIG_HAS_EARLYSUSPEND */
 
 #if TS_100S_TIMER_INTERVAL
 	ts_100ms_timer_stop(mxt);
 #endif
-	mxt_check_touch_ic_timer_stop(mxt);
+	cancel_delayed_work(&mxt->reg_update.dwork);
+	cancel_delayed_work(&mxt->supp_ops.dwork);
+	cancel_delayed_work(&mxt->cal_timer.dwork);
+	flush_workqueue( ts_100s_tmr_workqueue );
+	destroy_workqueue( ts_100s_tmr_workqueue );
+	ts_100s_tmr_workqueue = NULL;
+
+	mxt_serdes_reset_dwork_stop(mxt);
+	mutex_destroy(&mxt->serdes.lock);
 
 	/* Close down sysfs entries */
 	sysfs_remove_group(&client->dev.kobj, &maxtouch_attr_group);
+	sysfs_remove_link(NULL, "touch_drv");
 
 	/* Release IRQ so no queue will be scheduled */
 	if (mxt->irq)
@@ -6305,8 +7428,11 @@ static int mxt336s_remove(struct i2c_client *client)
 
 	/* deregister misc device */
 	misc_deregister(&mxt336S_misc);
-#ifdef CONFIG_LCD_TOUCHKEY
-	input_unregister_device(mxt->input_key);
+#if defined(INCLUDE_LCD_TOUCHKEY)
+	if(LCD_VER == DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO)
+	{
+		input_unregister_device(mxt->input_key);
+	}
 #endif
 
 	input_unregister_device(mxt->input);
@@ -6326,6 +7452,8 @@ static int mxt336s_remove(struct i2c_client *client)
 		client->dev.platform_data = NULL;
 	}
 #endif
+
+	printk("%s [DONE]\n",__func__);
 
 	return 0;
 }
@@ -6467,26 +7595,37 @@ static int __init mxt336s_init(void)
 	touch_type = daudio_lcd_version();
 	
 	printk("%s, GPIO_B24 = %d, GPIO_B13 = %d,  daudio_lcd_version() = %d \n", __func__, gpio_get_value(TCC_GPB(24)), gpio_get_value(TCC_GPB(13)), daudio_lcd_version());
+
+	if(gpio_get_value(TCC_GPB(24)))	
+		switch(LCD_VER) {
+			case DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE: //6
+			case DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si_BOE: //8
+				err = i2c_add_driver(&mxt336s_driver);
+	                        if (err)
+	                                pr_err("Adding mXT336S-AT driver failed2 (errno = %d)\n", err);
 	
-	switch(LCD_VER) {
-		case 1:
-		case 2:
-		case 5:
-		case 6:
-	#ifdef CONFIG_LCD_RESOLUTION_1280_720
-		case 10:
-	#endif
-			err = i2c_add_driver(&mxt336s_driver);
-			if (err)
-				pr_err("Adding mXT336S-AT driver failed2 (errno = %d)\n", err);
+	                        return err;
+	                        break;
+			default:
+				return -ENODEV;
+				break;
+		}
+	else
+		switch(LCD_VER) {
+                        case DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO: //5
+                        case DAUDIOKK_LCD_PI_08_00_800_400_PIO_TRULY: //6
+			case DAUDIOKK_LCD_PI_DISCONNECTED: //10
+                                err = i2c_add_driver(&mxt336s_driver);
+                                if (err)
+                                        pr_err("Adding mXT336S-AT driver failed2 (errno = %d)\n", err);
 
-			return err;
-			break;
+                                return err;
+                                break;
+                        default:
+                                return -ENODEV;
+                                break;
+                }
 
-		default:
-			return -ENODEV;
-			break;
-	}
 
 }
 module_init(mxt336s_init);

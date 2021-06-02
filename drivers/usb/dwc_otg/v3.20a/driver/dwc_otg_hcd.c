@@ -203,11 +203,11 @@ static void del_timers(dwc_otg_hcd_t * hcd)
  */
 static void kill_urbs_in_qh_list(dwc_otg_hcd_t * hcd, dwc_list_link_t * qh_list)
 {
-	dwc_list_link_t *qh_item;
+	dwc_list_link_t *qh_item, *qh_tmp;
 	dwc_otg_qh_t *qh;
 	dwc_otg_qtd_t *qtd, *qtd_tmp;
 
-	DWC_LIST_FOREACH(qh_item, qh_list) {
+	DWC_LIST_FOREACH_SAFE(qh_item, qh_tmp, qh_list) {
 		qh = DWC_LIST_ENTRY(qh_item, dwc_otg_qh_t, qh_list_entry);
 		DWC_CIRCLEQ_FOREACH_SAFE(qtd, qtd_tmp,
 					 &qh->qtd_list, qtd_list_entry) {
@@ -217,15 +217,29 @@ static void kill_urbs_in_qh_list(dwc_otg_hcd_t * hcd, dwc_list_link_t * qh_list)
 					DWC_ERROR("urb->priv is NULL !!!!\n");
 					return;
 				}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+				if(!hcd->fops) {
+					DWC_ERROR("hcd->fops is NULL !!!!!\n");
+					return;
+				}
+				if(!hcd->fops->complete) {
+					DWC_ERROR("fops->complete is NULL !!!!\n");
+					return;
+				}
+#else
 				if(!hcd->fops)
 					DWC_ERROR("hcd->fops is NULL !!!!!\n");
 				if(!hcd->fops->complete)
 					DWC_ERROR("fops->complete is NULL !!!!\n");
+#endif
 				hcd->fops->complete(hcd, qtd->urb->priv,
 						    qtd->urb, -DWC_E_SHUTDOWN);
 				dwc_otg_hcd_qtd_remove_and_free(hcd, qtd, qh);
+				qtd = NULL;
+			} else {
+				printk("\x1b[1;33m[%s:%d]\x1b[0m\n", __func__, __LINE__);
+				return;
 			}
-
 		}
 	}
 }
@@ -717,7 +731,7 @@ static void reset_tasklet_func(void *data)
 
 static void qh_list_free(dwc_otg_hcd_t * hcd, dwc_list_link_t * qh_list)
 {
-	dwc_list_link_t *item;
+	dwc_list_link_t *item, *item2;
 	dwc_otg_qh_t *qh;
 	dwc_irqflags_t flags;
 
@@ -734,7 +748,8 @@ static void qh_list_free(dwc_otg_hcd_t * hcd, dwc_list_link_t * qh_list)
 	kill_urbs_in_qh_list(hcd, qh_list);
 	DWC_SPINUNLOCK_IRQRESTORE(hcd->lock, flags);
 
-	DWC_LIST_FOREACH(item, qh_list) {
+	//DWC_LIST_FOREACH(item, qh_list) {
+	DWC_LIST_FOREACH_SAFE(item, item2, qh_list) {
 		qh = DWC_LIST_ENTRY(item, dwc_otg_qh_t, qh_list_entry);
 		dwc_otg_hcd_qh_remove_and_free(hcd, qh);
 	}
@@ -925,6 +940,16 @@ int dwc_otg_hcd_init(struct device *dev, dwc_otg_hcd_t * hcd, dwc_otg_core_if_t 
 	/* Initialize the Connection timeout timer. */
 	hcd->conn_timer = DWC_TIMER_ALLOC("Connection timer",
 					  dwc_otg_hcd_connect_timeout, hcd);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!hcd->conn_timer) {
+		retval = -DWC_E_NO_MEMORY;
+		DWC_ERROR("%s: connection timeout timer allocation failed\n",
+			__func__);
+		dwc_otg_hcd_free(hcd);
+		goto out;
+	}
+#else
+#endif
 
 	/* Initialize reset tasklet. */
 	hcd->reset_tasklet = DWC_TASK_ALLOC("reset_tasklet", reset_tasklet_func, hcd);
@@ -3200,6 +3225,10 @@ dwc_otg_hcd_urb_t *dwc_otg_hcd_urb_alloc(dwc_otg_hcd_t * hcd,
 	else
 		dwc_otg_urb = DWC_ALLOC(size);
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!dwc_otg_urb)
+		return -ENOMEM;
+#endif
 	dwc_otg_urb->packet_count = iso_desc_count;
 
 	return dwc_otg_urb;

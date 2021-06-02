@@ -105,7 +105,7 @@ obj-$(CONFIG_TCC_BT_DEV)	+= tcc_bt_dev.o
 
 
 #//+[TCCQB] QB driver ( qb_com )
-obj-$(CONFIG_SNAPSHOT_BOOT)	+= qb_common.o
+#obj-$(CONFIG_SNAPSHOT_BOOT)	+= qb_common.o
 #//-[TCCQB]
 #//
 

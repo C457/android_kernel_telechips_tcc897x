@@ -3043,6 +3043,10 @@ void ep_xfer_timeout(void *ptr)
 
 	if (ptr)
 		xfer_info = (ep_xfer_info_t *) ptr;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	else
+		return;
+#endif
 
 	if (!xfer_info->ep) {
 		DWC_ERROR("xfer_info->ep = %p\n", xfer_info->ep);
@@ -3156,6 +3160,19 @@ void dwc_otg_hc_start_transfer(dwc_otg_core_if_t * core_if, dwc_hc_t * hc)
 	if (hc->do_split) {
 		num_packets = 1;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+		if (!hc->ep_is_in) {
+			if (hc->complete_split) {
+				/* For CSPLIT OUT Transfer, set the size to 0 so the
+				 * core doesn't expect any data written to the FIFO */
+				hc->xfer_len = 0;
+			} else if (hc->xfer_len > 188) {
+				hc->xfer_len = 188;
+			}
+		} else if (hc->xfer_len > hc->max_packet) {
+			hc->xfer_len = hc->max_packet;
+		}
+#else
 		if (hc->complete_split && !hc->ep_is_in) {
 			/* For CSPLIT OUT Transfer, set the size to 0 so the
 			 * core doesn't expect any data written to the FIFO */
@@ -3166,6 +3183,7 @@ void dwc_otg_hc_start_transfer(dwc_otg_core_if_t * core_if, dwc_hc_t * hc)
 			hc->xfer_len = 188;
 		}
 
+#endif
 		hctsiz.b.xfersize = hc->xfer_len;
 	} else {
 		/*
@@ -6654,11 +6672,15 @@ int dwc_otg_set_param_host_ls_low_power_phy_clk(dwc_otg_core_if_t * core_if,
 			    ("%d invalid for host_ls_low_power_phy_clk. Check HW configuration.\n",
 			     val);
 		}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+		val = DWC_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ;
+#else
 		val =
 		    (dwc_otg_get_param_phy_type(core_if) ==
 		     DWC_PHY_TYPE_PARAM_FS) ?
 		    DWC_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ :
 		    DWC_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ;
+#endif
 		retval = -DWC_E_INVALID;
 	}
 

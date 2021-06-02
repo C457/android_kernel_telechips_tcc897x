@@ -202,7 +202,11 @@ static int da9062_get_current_limit(struct regulator_dev *rdev)
 {
 	struct da9062_regulator *regl = rdev_get_drvdata(rdev);
 	const struct da9062_regulator_info *rinfo = regl->info;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	unsigned int sel = 0;
+#else
 	unsigned int sel;
+#endif
 	int ret;
 
 	ret = da9062_regmap_field_read(regl->ilimit, &sel);
@@ -247,12 +251,21 @@ static unsigned da9062_buck_get_mode(struct regulator_dev *rdev)
 {
 	struct da9062_regulator *regl = rdev_get_drvdata(rdev);
 	struct da9062_regmap_field *field;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	unsigned int val = 0, mode = 0;
+#else
 	unsigned int val, mode = 0;
+#endif
 	int ret;
 
 	ret = da9062_regmap_field_read(regl->mode, &val);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (ret < 0)
+		return 0;
+#else
 	if (ret < 0)
 		return ret;
+#endif
 
 	switch (val) {
 	default:
@@ -319,7 +332,11 @@ static unsigned da9062_ldo_get_mode(struct regulator_dev *rdev)
 {
 	struct da9062_regulator *regl = rdev_get_drvdata(rdev);
 	struct da9062_regmap_field *field;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	int ret, val = 0;
+#else
 	int ret, val;
+#endif
 
 	/* Detect current regulator state */
 	ret = da9062_regmap_field_read(regl->suspend, &val);

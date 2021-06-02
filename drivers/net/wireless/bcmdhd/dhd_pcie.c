@@ -1,9 +1,9 @@
 /*
  * DHD Bus Module for PCIE
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_pcie.c 665937 2017-07-19 08:48:14Z $
+ * $Id: dhd_pcie.c 707972 2018-09-20 18:53:42Z $
  */
 
 
@@ -910,6 +910,7 @@ dhdpcie_bus_release(dhd_bus_t *bus)
 		ASSERT(osh);
 
 		if (bus->dhd) {
+			dhd_detach(bus->dhd);
 			dhdpcie_advertise_bus_cleanup(bus->dhd);
 			dongle_isolation = bus->dhd->dongle_isolation;
 			dhdpcie_bus_remove_prep(bus);
@@ -919,7 +920,6 @@ dhdpcie_bus_release(dhd_bus_t *bus)
 				dhdpcie_free_irq(bus);
 			}
 			dhdpcie_bus_release_dongle(bus, osh, dongle_isolation, TRUE);
-			dhd_detach(bus->dhd);
 			dhd_free(bus->dhd);
 			bus->dhd = NULL;
 		}
@@ -1148,7 +1148,11 @@ dhd_get_memcheck_info(void)
 		DHD_ERROR(("[WIFI_SEC] %s: File [%s] doesn't exist\n", __FUNCTION__, filepath));
 		goto done;
 	} else {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0))
 		ret = kernel_read(fp, 0, (char *)&mem_val, 4);
+#else
+		ret = kernel_read(fp, (char *)&mem_val, 4, 0);
+#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)) */
 		if (ret < 0) {
 			DHD_ERROR(("[WIFI_SEC] %s: File read error, ret=%d\n", __FUNCTION__, ret));
 			filp_close(fp, NULL);
@@ -1411,7 +1415,7 @@ dhdpcie_download_nvram(struct dhd_bus *bus)
 	int bcmerror = BCME_ERROR;
 	uint len;
 	char * memblock = NULL;
-	char *bufp;
+	char *bufp = NULL;
 	char *pnv_path;
 	bool nvram_file_exists;
 	bool nvram_uefi_exists = FALSE;
@@ -1425,7 +1429,7 @@ dhdpcie_download_nvram(struct dhd_bus *bus)
 	dhd_get_download_buffer(bus->dhd, NULL, NVRAM, &memblock, &len);
 
 	/* If UEFI empty, then read from file system */
-	if ((len == 0) || (memblock[0] == '\0')) {
+	if ((len == 0) || (memblock && memblock[0] == '\0')) {
 
 		if (nvram_file_exists) {
 			len = MAX_NVRAMBUF_SIZE;
@@ -1444,15 +1448,16 @@ dhdpcie_download_nvram(struct dhd_bus *bus)
 
 	DHD_ERROR(("%s: dhd_get_download_buffer len %d\n", __FUNCTION__, len));
 
-	if (len > 0 && len <= MAX_NVRAMBUF_SIZE) {
+	if (memblock && len > 0 && len <= MAX_NVRAMBUF_SIZE) {
 		bufp = (char *) memblock;
+
 
 #ifdef CACHE_FW_IMAGES
 		if (bus->processed_nvram_params_len) {
 			len = bus->processed_nvram_params_len;
 		}
 
-		if (!bus->processed_nvram_params_len) {
+		if (bufp && !bus->processed_nvram_params_len) {
 			bufp[len] = 0;
 			if (nvram_uefi_exists || nvram_file_exists) {
 				len = process_nvram_vars(bufp, len);
@@ -1461,9 +1466,11 @@ dhdpcie_download_nvram(struct dhd_bus *bus)
 		} else
 #else
 		{
-			bufp[len] = 0;
-			if (nvram_uefi_exists || nvram_file_exists) {
-				len = process_nvram_vars(bufp, len);
+			if (bufp) {
+				bufp[len] = 0;
+				if (nvram_uefi_exists || nvram_file_exists) {
+					len = process_nvram_vars(bufp, len);
+				}
 			}
 		}
 #endif /* CACHE_FW_IMAGES */
@@ -4987,6 +4994,9 @@ dhdpcie_readshared(dhd_bus_t *bus)
 	while (((addr == 0) || (addr == bus->nvram_csm)) && !dhd_timeout_expired(&tmo)) {
 		/* Read last word in memory to determine address of pciedev_shared structure */
 		addr = LTOH32(dhdpcie_bus_rtcm32(bus, shaddr));
+#ifdef PCIE_FULL_DONGLE
+		dhd_os_readshared_sleep(bus->dhd);
+#endif /* PCIE_FULL_DONGLE */
 	}
 
 	if ((addr == 0) || (addr == bus->nvram_csm) || (addr < bus->dongle_ram_base) ||

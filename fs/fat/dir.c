@@ -145,8 +145,8 @@ static int fat__get_entry_dots(struct super_block *sb,
 
 	*bh = sb_bread(sb, phys);
 	if (*bh == NULL) {
-		printk(KERN_ERR "FAT: Directory bread(block %llu) failed\n",
-		       (llu)phys);
+		fat_msg_ratelimit(sb, KERN_ERR,
+			"Directory bread(block %llu) failed", (llu)phys);
 		/* skip this block for next */
 		*pos = (iblock + 1) << sb->s_blocksize_bits;
 		return -1;
@@ -924,8 +924,7 @@ start_filldir:
                     de_name_len = sizeof(pathnamebuf);
                 memcpy(pathnamebuf, de_name, de_name_len);
                 pathnamebuf[sizeof(pathnamebuf)- 1] = '\0';
-                pr_err("FAT: %s: invalid directory. (%s)\n",
-                        sb->s_id, pathnamebuf);
+                fat_fs_error_ratelimit(sb, "invalid directory. (%s)", pathnamebuf);
                 /* skip to next */
                 goto record_end;
             }

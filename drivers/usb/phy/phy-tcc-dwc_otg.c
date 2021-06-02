@@ -9,6 +9,12 @@
 //#include <plat/globals.h>
 //#include <linux/err.h>
 //#include <linux/of_device.h>
+#if defined(CONFIG_DAUDIO_KK)
+#include <mach/gpio.h>
+#include <mach/daudio.h>
+#include <mach/daudio_info.h>
+#endif
+
 #define ON      1
 #define OFF     0
 
@@ -69,24 +75,34 @@ static int dwc_otg_vbus_set(struct usb_phy *phy, int on_off)
 	}
 
 	retval = gpio_request(phy_dev->vbus_gpio, "vbus_gpio_phy");
-	if(retval) {
+	if (retval) {
 		dev_err(phy->dev, "can't requeest vbus gpio\n");
 		return retval;
 	}
 
+#if defined(CONFIG_DAUDIO_KK)
+	if ((daudio_main_version() >= DAUDIOKK_PLATFORM_WS7) &&
+	    (daudio_hw_version() >= DAUDIOKK_HW_3RD)) {
+		retval = gpio_direction_output(TCC_GPC(17), !on_off);
+		dev_info(phy_dev->dev, "vbus TCC_GPC(17)\n");
+	} else {
+		retval = gpio_direction_output(phy_dev->vbus_gpio, on_off);
+		dev_info(phy_dev->dev, "vbus phy_dev->vbus_gpio\n");
+	}
+#else
 	retval = gpio_direction_output(phy_dev->vbus_gpio, on_off);
-	if(retval) {
+#endif
+	if (retval) {
 		dev_err(phy_dev->dev, "can't enable vbus (gpio ctrl err)\n");
 		return retval;
-	}else
+	} else
 		printk("%s : succeed in changing vbus[%s]\n",__func__,on_off ? "ON":"OFF");
 
 	gpio_free(phy_dev->vbus_gpio);
 
 	phy_dev->vbus_status = on_off;
-	
+
 	return retval;
-	
 }
 
 #if defined (CONFIG_DYNAMIC_DC_LEVEL_ADJUSTMENT)

@@ -1,9 +1,9 @@
 /*
  * Broadcom Dongle Host Driver (DHD), common DHD core.
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_common.c 681937 2018-01-05 09:03:11Z $
+ * $Id: dhd_common.c 687926 2018-04-13 00:31:20Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -94,14 +94,7 @@ extern void htsf_update(struct dhd_info *dhd, void *data);
 #ifdef DHD_LOG_DUMP
 int dhd_msg_level = DHD_ERROR_VAL | DHD_MSGTRACE_VAL | DHD_FWLOG_VAL | DHD_EVENT_VAL;
 #else
-//###########################################################
-// FEATURE_MOBIS_WIFI
-// jaehyungkim@mobis.co.kr 2017.04.07
-// to support DTS
-//###########################################################
-int dhd_msg_level = DHD_ERROR_VAL | DHD_FWLOG_VAL;
-//int dhd_msg_level = DHD_ERROR_VAL | DHD_MSGTRACE_VAL | DHD_FWLOG_VAL;
-//###########################################################
+int dhd_msg_level = DHD_ERROR_VAL | DHD_MSGTRACE_VAL | DHD_FWLOG_VAL;
 #endif /* DHD_LOG_DUMP */
 
 
@@ -3825,6 +3818,9 @@ dhd_download_clm_blob(dhd_pub_t	*dhd, unsigned char *buf, uint32 len)
 
 	data_offset = OFFSETOF(wl_dload_data_t, data);
 	size2alloc = data_offset + MAX_CHUNK_LEN;
+
+	/* make size2alloc 8 byte aligned. */
+	size2alloc = size2alloc + 8 - (size2alloc % 8);
 
 	if ((new_buf = (unsigned char *)MALLOCZ(dhd->osh, size2alloc)) != NULL) {
 		do {

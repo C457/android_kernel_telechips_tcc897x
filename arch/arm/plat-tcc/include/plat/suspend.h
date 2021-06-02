@@ -33,6 +33,9 @@ struct tcc_suspend_ops {
 	void (*nfc_resume)(unsigned *nfc);
 	int (*wakeup_by_powerkey)(void);
 	struct tcc_remap_type	*remap;
+#ifdef CONFIG_LK_DEBUG_LOG_BUF
+	void (*lk_log_resume)(void);
+#endif
 };
 
 extern void tcc_suspend_set_ops(struct tcc_suspend_ops *ops);

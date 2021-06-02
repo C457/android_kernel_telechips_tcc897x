@@ -330,7 +330,7 @@
 //#########################################################################
 /******** only reference for JPEG (Not allocated mem) in VIQE mem ********/
 #define JPEG_HEADER_SIZE				(1*SZ_1MB)
-#define JPEG_STREAM_SIZE				(5*SZ_1MB)
+#define JPEG_STREAM_SIZE				(10*SZ_1MB)
 #define JPEG_RAW_SIZE					(10*SZ_1MB)
 //#########################################################################
 
@@ -338,8 +338,8 @@
 // VIDEO VIQE mem
 // 1920 * (1080/2) * 4 * 4 * 1.5
 //#########################################################################
-//#define VIQE_SIZE                 	(JPEG_HEADER_SIZE+JPEG_STREAM_SIZE+JPEG_RAW_SIZE)
-#define VIQE_SIZE						ARRAY_MBYTE((SUPPORT_VIDEO_MAX_WIDTH * (SUPPORT_VIDEO_MAX_HEIGHT / 2 ) * 4 * 4 * 3) / 2)
+#define VIQE_SIZE                 	(JPEG_HEADER_SIZE+JPEG_STREAM_SIZE+JPEG_RAW_SIZE)
+//#define VIQE_SIZE						ARRAY_MBYTE((SUPPORT_VIDEO_MAX_WIDTH * (SUPPORT_VIDEO_MAX_HEIGHT / 2 ) * 4 * 4 * 3) / 2)
 
 #if defined(CONFIG_USB_VIDEO_CLASS)   // for USB Camera Image
 #define EXT_CAMERA_SIZE     			(21*SZ_1MB)
@@ -429,11 +429,14 @@
 #define V4L2_VIDEO4_BASE		(V4L2_VIDEO3_BASE + V4L2_VIDEO3_SIZE)
 #define RAM_CONSOLE_BASE		(V4L2_VIDEO4_BASE + V4L2_VIDEO4_SIZE)
 #define JPEG_HEADER_BASE		(RAM_CONSOLE_BASE+RAM_CONSOLE_SIZE)
-#define VIQE_BASE				JPEG_HEADER_BASE
-//#define JPEG_STREAM_BASE		(JPEG_HEADER_BASE+JPEG_HEADER_SIZE)	// not used jpeg encoding
-//#define JPEG_RAW_BASE			(JPEG_STREAM_BASE+JPEG_STREAM_SIZE)	// not used jpeg encoding
-//#define EXT_CAMERA_BASE		(JPEG_RAW_BASE+JPEG_RAW_SIZE)		// not used jpeg encoding
+#define VIQE_BASE			(JPEG_HEADER_BASE)
+#if 1	//For Camera Capture Driver
+#define JPEG_STREAM_BASE		(JPEG_HEADER_BASE+JPEG_HEADER_SIZE)	// not used jpeg encoding
+#define JPEG_RAW_BASE			(JPEG_STREAM_BASE+JPEG_STREAM_SIZE)	// not used jpeg encoding
+#define EXT_CAMERA_BASE			(JPEG_RAW_BASE+JPEG_RAW_SIZE)		// not used jpeg encoding
+#else
 #define EXT_CAMERA_BASE			(VIQE_BASE+VIQE_SIZE)
+#endif
 #define FB_SCALE_BASE			(EXT_CAMERA_BASE+EXT_CAMERA_SIZE)
 #define FB_SCALE0_BASE			(FB_SCALE_BASE+FB_SCALE_SIZE)
 #define FB_SCALE1_BASE			(FB_SCALE0_BASE+FB_SCALE0_SIZE)

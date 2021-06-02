@@ -434,7 +434,7 @@ void tca_i2s_initoutput(void *pADMABaseAddr, unsigned int nOutputDma, unsigned i
 {
     ADMA *pStrADMABaseReg = (ADMA *)pADMABaseAddr;
     unsigned int bitSet=0x0;
-    unsigned uSize;
+    //unsigned uSize;
     unsigned int DMABuffer = 0;
 
     //DMA Channel enable of DAI Tx
@@ -443,7 +443,7 @@ void tca_i2s_initoutput(void *pADMABaseAddr, unsigned int nOutputDma, unsigned i
     DMABuffer = 0xFFFFFF00 / (((AUDIO_DMA_PAGE_SIZE*2) >> 4)<<8);
     DMABuffer = DMABuffer * (((AUDIO_DMA_PAGE_SIZE*2) >> 4)<<8);
 
-    uSize = AUDIO_DMA_PAGE_SIZE*2;
+    //uSize = AUDIO_DMA_PAGE_SIZE*2;
 
     // DAI Tx (Right) Source Address
     pStrADMABaseReg->TxDaParam = DMABuffer | 4; //(4|0xFFFFFE00);	
@@ -558,7 +558,7 @@ void tca_i2s_initinput(void *pADMABaseAddr, unsigned int nInputDma, unsigned int
 {
     ADMA *pStrADMABaseReg = (ADMA *)pADMABaseAddr;	
     unsigned int bitSet=0x0;
-    unsigned uSize;
+    //unsigned uSize;
     unsigned int DMABuffer = 0;
 
     //DMA Channel enable of DAI Rx
@@ -567,7 +567,7 @@ void tca_i2s_initinput(void *pADMABaseAddr, unsigned int nInputDma, unsigned int
     DMABuffer = 0xFFFFFF00 / (((AUDIO_DMA_IN_PAGE_SIZE*2) >> 4)<<8);
     DMABuffer = DMABuffer * (((AUDIO_DMA_IN_PAGE_SIZE*2) >> 4)<<8);
 
-    uSize = AUDIO_DMA_IN_PAGE_SIZE*2;
+    //uSize = AUDIO_DMA_IN_PAGE_SIZE*2;
 
     // DAI Rx (Right) Source Address
     pStrADMABaseReg->RxDaParam = DMABuffer | 4; //(4|0xFFFFFE00);	

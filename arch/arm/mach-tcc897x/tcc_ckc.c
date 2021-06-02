@@ -378,6 +378,9 @@ static int tcc_ckc_pll_set_rate(int id, unsigned long rate)
 
 	memset(&nPLL, 0x0, sizeof(tPMS));
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	srcfreq = XIN_CLK_RATE;
+#else
 	switch(src) {
 	case PLLSRC_XIN:
 		srcfreq = XIN_CLK_RATE;
@@ -396,6 +399,7 @@ static int tcc_ckc_pll_set_rate(int id, unsigned long rate)
 	}
 	if (srcfreq==0)
 		goto tca_ckc_setpll_failed;
+#endif
 
 	nPLL.fpll = rate;
 	if (tcc_find_pms(&nPLL, srcfreq))
@@ -797,10 +801,19 @@ static inline unsigned int tcc_ckc_pclk_divider(tPCLKCTRL *PCLKCTRL, unsigned in
 {
 	unsigned int	clk_rate1, clk_rate2, err1, err2;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (src_CLK <= PCLKCTRL->freq)
+		*div = 1;
+	else if (PCLKCTRL->freq)
+		*div = src_CLK/PCLKCTRL->freq;
+	else
+		*div = 1;
+#else
 	if (src_CLK <= PCLKCTRL->freq)
 		*div = 1;
 	else
 		*div = src_CLK/PCLKCTRL->freq;
+#endif
 
 #ifdef HDMIA_SRC_SHOULD_BE_SAME_WITH_AUDIO
 	switch (PCLKCTRL->periname) {
@@ -1868,7 +1881,10 @@ static int tcc_ckc_pmu_pwdn(int id, bool pwdn)
 			while (ckc_readl(memsts_reg)&memsts_mask);
 		if (memrst_mask)
 			ckc_writel(ckc_readl(memrst_reg) & ~(memrst_mask), memrst_reg);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
 		if (ckcrst_mask)
+#endif
 			ckc_writel(ckc_readl(ckcrst_reg) & ~(ckcrst_mask), ckcrst_reg);
 		if (pwrupdn2_reg) {
 			ckc_writel(1, pwrupdn2_reg);
@@ -1878,13 +1894,21 @@ static int tcc_ckc_pmu_pwdn(int id, bool pwdn)
 			ckc_writel(1, pwrupdn1_reg);
 			while((ckc_readl(pwrsts1_reg)&pwrsts1_mask) == 0);
 		}
-		if (pwrupdn_reg) {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
+		if (pwrupdn_reg)
+#endif
+		{
 			ckc_writel(1, pwrupdn_reg);
 			while((ckc_readl(pwrsts_reg)&pwrsts_mask) == 0);
 		}
 	}
 	else {
-		if (pwrupdn_reg) {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
+		if (pwrupdn_reg)
+#endif
+		{
 			ckc_writel(1, pwrupdn_reg);
 			while((ckc_readl(pwrsts_reg)&pwrsts_mask) == 0);
 		}
@@ -1896,7 +1920,10 @@ static int tcc_ckc_pmu_pwdn(int id, bool pwdn)
 			ckc_writel(1, pwrupdn2_reg);
 			while((ckc_readl(pwrsts2_reg)&pwrsts2_mask) == 0);
 		}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
 		if (ckcrst_mask)
+#endif
 			ckc_writel(ckc_readl(ckcrst_reg)|(ckcrst_mask), ckcrst_reg);
 		if (memrst_mask)
 			ckc_writel(ckc_readl(memrst_reg)|(memrst_mask), memrst_reg);
@@ -2071,10 +2098,11 @@ void tcc_ckc_restore_regs(void)
 	void __iomem	*clk_reg = ckc_base+CKC_CLKCTRL;
 	int i;
 
-	tcc_clkctrl_write((clk_reg+(FBUS_IO*4)), 1, 1, CLKCTRL_SEL_XIN);
-	tcc_clkctrl_write((clk_reg+(FBUS_SMU*4)), 1, 1, CLKCTRL_SEL_XIN);
-	tcc_clkctrl_write((clk_reg+(FBUS_HSIO*4)), 1, 1, CLKCTRL_SEL_XIN);
-	tcc_clkctrl_write((clk_reg+(FBUS_CMBUS*4)), 1, 1, CLKCTRL_SEL_XIN);
+	//2019.05.22 Because of GPIO_B group issue, skip clock reset and use LK setting clock value.
+	//tcc_clkctrl_write((clk_reg+(FBUS_IO*4)), 1, 1, CLKCTRL_SEL_XIN);
+	//tcc_clkctrl_write((clk_reg+(FBUS_SMU*4)), 1, 1, CLKCTRL_SEL_XIN);
+	//tcc_clkctrl_write((clk_reg+(FBUS_HSIO*4)), 1, 1, CLKCTRL_SEL_XIN);
+	//tcc_clkctrl_write((clk_reg+(FBUS_CMBUS*4)), 1, 1, CLKCTRL_SEL_XIN);
 
 	BUG_ON(!ckc_backup);
 

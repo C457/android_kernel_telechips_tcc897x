@@ -116,7 +116,8 @@ int sensor_if_change_mode(struct tcc_camera_device * vdev, unsigned char capture
 
 int sensor_if_change_mode_ex(int camera_type, int camera_encode, struct tcc_camera_device * vdev) {
 	printk("%s() - camera_type = 0x%x, camera_encode = 0x%x\n", __func__, camera_type, camera_encode);
-#ifndef CONFIG_LVDS_CAMERA
+#if defined(CONFIG_LVDS_CAMERA)||defined(INCLUDE_LVDS_CAMERA)
+#else
 	vdev->sensor_func.Set_CameraMode(camera_type, camera_encode, vdev);
 #endif
 
@@ -416,7 +417,7 @@ int sensor_if_parse_gpio_dt_data(struct tcc_camera_device * vdev)
 	
 #else
 
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS)
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK)
 		module_np = of_find_node_by_name(cam_np,LVDS_MODULE_NODE);
 	else
 		module_np = of_find_node_by_name(cam_np,MODULE_NODE);
@@ -595,6 +596,8 @@ void sensor_if_set(struct tcc_camera_device * vdev, int index)
 #else
 	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS)
 		lvds_sensor_info_init(&vdev->tcc_sensor_info);
+    else if(vdev->data.cam_info == DAUDIO_ADAS_PRK)
+        adas_sensor_info_init(&vdev->tcc_sensor_info);
 	else
 		sensor_info_init_back(&vdev->tcc_sensor_info);
 #endif

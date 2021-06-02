@@ -247,10 +247,21 @@ static void rt5028_work_func(struct work_struct *work)
 {
 	struct rt5028_data* rt5028 = container_of(work, struct rt5028_data, work);
 	unsigned char data[2];
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	int i, read_data;
+#endif
 	dbg("%s\n", __func__);
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	for (i = 0; i < 2; i++) {
+		read_data = i2c_smbus_read_byte_data(rt5028->client, RT5028_IRQ1_STATUS_REG+(i*2));
+		if (read_data >= 0)
+			data[i] = (u8)read_data;
+	}
+#else
 	data[0] = (unsigned char)i2c_smbus_read_byte_data(rt5028->client, RT5028_IRQ1_STATUS_REG);
 	data[1] = (unsigned char)i2c_smbus_read_byte_data(rt5028->client, RT5028_IRQ2_STATUS_REG);
+#endif
 	// Reset after read. 
 
 	if (data[0]&RT5028_IR_OT) {
@@ -360,7 +371,7 @@ static int rt5028_buck_set_voltage(struct regulator_dev *rdev, int min_uV, int m
 	if (i == max_num)
 		return -EINVAL;
 
-	old_value = i2c_smbus_read_byte_data(rt5028->client, reg);
+	old_value = (u8)i2c_smbus_read_byte_data(rt5028->client, reg);
 	value = (old_value & 0x3) | (value << 2);
 
 	dbg("%s: reg:0x%x value:%dmV\n", __func__, reg, buck_voltags[i].uV/1000);
@@ -429,6 +440,9 @@ static int rt5028_buck_enable(struct regulator_dev *rdev)
 	struct rt5028_data* rt5028 = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
 	u8 value, old_value, bit;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	int read_data;
+#endif
 
 	dbg("%s: id:%d\n", __func__, id);
 	switch (id) {
@@ -442,7 +456,14 @@ static int rt5028_buck_enable(struct regulator_dev *rdev)
 			return -EINVAL;
 	}
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	old_value = 0;
+	read_data = i2c_smbus_read_byte_data(rt5028->client, RT5028_BUCK_ON_OFF_REG);
+	if (read_data >= 0)
+		old_value = (u8)read_data;
+#else
 	old_value = (u8)i2c_smbus_read_byte_data(rt5028->client, RT5028_BUCK_ON_OFF_REG);
+#endif
 	value = old_value | (1 << bit);
 
 	return i2c_smbus_write_byte_data(rt5028->client, RT5028_BUCK_ON_OFF_REG, value);
@@ -453,6 +474,9 @@ static int rt5028_buck_disable(struct regulator_dev *rdev)
 	struct rt5028_data* rt5028 = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
 	u8 value, old_value, bit;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	int read_data;
+#endif
 
 	dbg("%s: id:%d\n", __func__, id);
 	switch (id) {
@@ -466,7 +490,14 @@ static int rt5028_buck_disable(struct regulator_dev *rdev)
 			return -EINVAL;
 	}
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	old_value = 0;
+	read_data = i2c_smbus_read_byte_data(rt5028->client, RT5028_BUCK_ON_OFF_REG);
+	if (read_data >= 0)
+		old_value = (u8)read_data;
+#else
 	old_value = (u8)i2c_smbus_read_byte_data(rt5028->client, RT5028_BUCK_ON_OFF_REG);
+#endif
 	value = old_value & ~(1 << bit);
 
 	return i2c_smbus_write_byte_data(rt5028->client, RT5028_BUCK_ON_OFF_REG, value);
@@ -617,6 +648,9 @@ static int rt5028_ldo_enable(struct regulator_dev *rdev)
 	struct rt5028_data* rt5028 = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
 	u8 value, old_value, bit;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	int read_data;
+#endif
 
 	dbg("%s: id:%d\n", __func__, id);
 	switch (id) {
@@ -633,7 +667,14 @@ static int rt5028_ldo_enable(struct regulator_dev *rdev)
 			return -EINVAL;
 	}
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	old_value = 0;
+	read_data = i2c_smbus_read_byte_data(rt5028->client, RT5028_LDO_ON_OFF_REG);
+	if (read_data >= 0)
+		old_value = (u8)read_data;
+#else
 	old_value = (u8)i2c_smbus_read_byte_data(rt5028->client, RT5028_LDO_ON_OFF_REG);
+#endif
 	value = old_value | (1 << bit);
 
 	return i2c_smbus_write_byte_data(rt5028->client, RT5028_LDO_ON_OFF_REG, value);
@@ -644,6 +685,9 @@ static int rt5028_ldo_disable(struct regulator_dev *rdev)
 	struct rt5028_data* rt5028 = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
 	u8 value, old_value, bit;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	int read_data;
+#endif
 
 	dbg("%s: id:%d\n", __func__, id);
 	switch (id) {
@@ -660,7 +704,14 @@ static int rt5028_ldo_disable(struct regulator_dev *rdev)
 			return -EINVAL;
 	}
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	old_value = 0;
+	read_data = i2c_smbus_read_byte_data(rt5028->client, RT5028_LDO_ON_OFF_REG);
+	if (read_data >= 0)
+		old_value = (u8)read_data;
+#else
 	old_value = (u8)i2c_smbus_read_byte_data(rt5028->client, RT5028_LDO_ON_OFF_REG);
+#endif
 	value = old_value & ~(1 << bit);
 
 	return i2c_smbus_write_byte_data(rt5028->client, RT5028_LDO_ON_OFF_REG, value);
@@ -671,7 +722,9 @@ static int rt5028_ldo_is_enabled(struct regulator_dev *rdev)
 	struct rt5028_data* rt5028 = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
 	u8 old_value, bit;
-
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	int read_data;
+#endif
 	dbg("%s: id:%d\n", __func__, id);
 	switch (id) {
 		case RT5028_ID_LDO2:
@@ -687,7 +740,14 @@ static int rt5028_ldo_is_enabled(struct regulator_dev *rdev)
 			return -EINVAL;
 	}
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	old_value = 0;
+	read_data = i2c_smbus_read_byte_data(rt5028->client, RT5028_LDO_ON_OFF_REG);
+	if (read_data >= 0)
+		old_value = (u8)read_data;
+#else
 	old_value = (u8)i2c_smbus_read_byte_data(rt5028->client, RT5028_LDO_ON_OFF_REG);
+#endif
 
 	return (old_value & (1 << bit))?1:0;
 }

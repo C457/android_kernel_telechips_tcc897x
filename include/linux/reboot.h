@@ -37,7 +37,7 @@ extern int reboot_force;
 extern int panic_factoryrst_dsp(void);
 #endif
 extern void panic_repeat_debug(void);
-extern int panic_count_check(void);
+extern int panic_count_check(int clear);
 extern void restart_reason_misc_write_with_message(uint32_t restart_reason);
 extern void restart_reason_misc_write(uint32_t restart_reason);
 extern int register_reboot_notifier(struct notifier_block *);

@@ -1,7 +1,3 @@
-# FEATURE_MOBIS_WIFI 
-# jaehyungkim@mobis.co.kr 2018.01.09
-# delete BCMDHD_PCIE to fix kconfig build error
-
 config BCMDHD
 	tristate "Broadcom FullMAC wireless cards support"
 	---help---
@@ -11,14 +7,17 @@ config BCMDHD
 	  If you choose to build a module, it'll be called dhd. Say M if
 	  unsure.
 
-config BCMDHD_SDIO
-	bool "SDIO bus interface support"
-	depends on BCMDHD && MMC && !BCMDHD_PCIE
+config BCMDHD_SDMMC
+	bool "SDMMC interface support"
+	depends on BCMDHD && MMC
 	default y
+config BCMDHD_SDIOH_STD
+	bool "SDIOH_STD bus interface support"
+	depends on BCMDHD && MMC
 
 #config BCMDHD_PCIE
 #	bool "PCIe bus interface support"
-#	depends on BCMDHD && PCI && !BCMDHD_SDIO
+#	depends on BCMDHD && PCI
 #	default n
 
 config BCM4359
@@ -40,6 +39,13 @@ config BCMDHD_NVRAM_PATH
 	---help---
 	  Path to the calibration file.
 
+config BCMDHD_CLM_PATH
+	depends on BCMDHD
+	string "CLM path"
+	default "/system/wifi/89359.clm_blob"
+	---help---
+	  Path to the clm blob file.
+
 config DHD_USE_STATIC_BUF
 	bool "Enable memory preallocation"
 	depends on BCMDHD
@@ -55,8 +61,15 @@ config DHD_USE_SCHED_SCAN
 	  Use CFG80211 sched scan
 
 config DHD_SET_RANDOM_MAC_VAL
-hex "Vendor OUI"
-depends on BCMDHD
-default 0x001A11
- ---help---
-Set vendor OUI for SoftAP
+	hex "Vendor OUI"
+	depends on BCMDHD
+	default 0x001A11
+	---help---
+	Set vendor OUI for SoftAP
+
+config BCMDHD_VENDOR_EXT
+	bool "Enable BCMDHD vendor extension"
+	depends on BCMDHD && ANDROID
+	default n
+	---help---
+	Set Vendor Extension support.

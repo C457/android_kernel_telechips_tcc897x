@@ -1,9 +1,9 @@
 /*
  * DHD PROP_TXSTATUS Module.
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_wlfc.c 674698 2017-11-02 05:43:06Z $
+ * $Id: dhd_wlfc.c 708999 2018-12-12 11:10:58Z $
  *
  */
 
@@ -1325,12 +1325,17 @@ _dhd_wlfc_deque_delayedq(athost_wl_status_info_t* ctx, int prec,
 		} else {
 			entry = ctx->active_entry_head[credit_grp];
 			/* move head to ensure fair round-robin */
-			ctx->active_entry_head[credit_grp] =
-				ctx->active_entry_head[credit_grp]->next;
+			// juho@mobis.co.kr, CASE 00554523
+			//ctx->active_entry_head[credit_grp] =
+			//	ctx->active_entry_head[credit_grp]->next;
+			if (ctx->active_entry_head[credit_grp]) {
+				ctx->active_entry_head[credit_grp] =
+					ctx->active_entry_head[credit_grp]->next;
+			}
 		}
 		ASSERT(entry);
 
-		if (entry->occupied && _dhd_wlfc_is_destination_open(ctx, entry, prec) &&
+		if (entry && entry->occupied && _dhd_wlfc_is_destination_open(ctx, entry, prec) &&
 			(entry->transit_count < WL_TXSTATUS_FREERUNCTR_MASK) &&
 			(!entry->suppressed)) {
 			*ac_credit_spent = credit_spent;

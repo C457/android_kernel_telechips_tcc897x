@@ -1,9 +1,9 @@
 /*
  * IP Packet Parser Module.
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_ip.c 612549 2016-01-14 07:39:32Z $
+ * $Id: dhd_ip.c 692601 2018-07-23 23:52:03Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -199,7 +199,7 @@ _tdata_psh_info_pool_deq(tcpack_sup_module_t *tcpack_sup_mod)
 
 	tdata_psh_info = tcpack_sup_mod->tdata_psh_info_free;
 	if (tdata_psh_info == NULL)
-		DHD_ERROR(("%s %d: Out of tdata_disc_grp\n", __FUNCTION__, __LINE__));
+		DHD_TRACE(("%s %d: Out of tdata_disc_grp\n", __FUNCTION__, __LINE__));
 	else {
 		tcpack_sup_mod->tdata_psh_info_free = tdata_psh_info->next;
 		tdata_psh_info->next = NULL;
@@ -1045,7 +1045,7 @@ dhd_tcpdata_info_get(dhd_pub_t *dhdp, void *pkt)
 #endif /* DHDTCPACK_SUP_DBG */
 
 	if (tdata_psh_info == NULL) {
-		DHD_ERROR(("%s %d: No more free tdata_psh_info!!\n", __FUNCTION__, __LINE__));
+		DHD_TRACE(("%s %d: No more free tdata_psh_info!!\n", __FUNCTION__, __LINE__));
 		ret = BCME_ERROR;
 		dhd_os_tcpackunlock(dhdp, flags);
 		goto exit;

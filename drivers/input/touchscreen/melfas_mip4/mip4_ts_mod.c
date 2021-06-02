@@ -10,7 +10,6 @@
  */
 
 #include "mip4_ts.h"
-#include <mach/daudio_info.h>
 
 /*
 * Pre-run config
@@ -167,23 +166,7 @@ int mip4_ts_power_off(struct mip4_ts_info *info)
 		gpio_direction_output(info->gpio_ce, 0);
 		dev_dbg(&info->client->dev, "%s - gpio_ce : 0\n", __func__);
 	}
-	if(daudio_lcd_version()==4)//reset pin control by I2C 12.3inch model
-        {
-		u8 buf[2];
-		unsigned short addr;
-
-		addr = info->client->addr;
-		info->client->addr = 0x48;
-		buf[0] = 0x06;
-		buf[1] = 0x00;
-
-		i2c_master_send(info->client, buf, 2);
-		
-		dev_dbg(&info->client->dev, "%s - CE pin by I2C_12.3 : 0\n", __func__);
-		
-		info->client->addr = addr;
-        }
-	else if(daudio_lcd_version()==3)//reset pin control by I2C 10.25inch model
+	if(!get_montype())
         {
                 u8 buf[3];
                 unsigned short addr;
@@ -192,11 +175,11 @@ int mip4_ts_power_off(struct mip4_ts_info *info)
                 info->client->addr = 0x48;
                 buf[0] = 0x02;
                 buf[1] = 0x1E;
-		buf[2] = 0x80;
+                buf[2] = 0x80;
 
                 i2c_master_send(info->client, buf, 3);
 
-                dev_dbg(&info->client->dev, "%s - CE pin by I2C_10.25 : 0\n", __func__);
+                dev_dbg(&info->client->dev, "%s - CE pin by I2C : 0\n", __func__);
 
                 info->client->addr = addr;
         }
@@ -271,23 +254,7 @@ int mip4_ts_power_on(struct mip4_ts_info *info)
 		gpio_direction_output(info->gpio_ce, 1);
 		dev_dbg(&info->client->dev, "%s - gpio_ce : 1\n", __func__);
 	}
-	if(daudio_lcd_version()==4)//reset pin control by I2C 12.3inch model
-        {
-                u8 buf[2];
-                unsigned short addr;
-
-                addr = info->client->addr;
-                info->client->addr = 0x48;
-                buf[0] = 0x06;
-                buf[1] = 0x08;
-
-                i2c_master_send(info->client, buf, 2);
-
-                dev_dbg(&info->client->dev, "%s - CE pin by I2C_12.3 : 1\n", __func__);
-
-                info->client->addr = addr;
-        }
-	else if(daudio_lcd_version()==3)//reset pin control by I2C 10.25inch model
+	if(!get_montype())
         {
                 u8 buf[3];
                 unsigned short addr;
@@ -296,17 +263,14 @@ int mip4_ts_power_on(struct mip4_ts_info *info)
                 info->client->addr = 0x48;
                 buf[0] = 0x02;
                 buf[1] = 0x1E;
-		buf[2] = 0x90;
+                buf[2] = 0x90;
 
                 i2c_master_send(info->client, buf, 3);
 
-                dev_dbg(&info->client->dev, "%s - CE pin by I2C_10.25 : 1\n", __func__);
+                dev_dbg(&info->client->dev, "%s - CE pin by I2C : 1\n", __func__);
 
                 info->client->addr = addr;
         }
-
-
-
 
 #endif
 
@@ -475,10 +439,9 @@ void mip4_ts_input_event_handler(struct mip4_ts_info *info, u8 sz, u8 *buf)
 				/* Press or move event*/
 				input_mt_slot(info->input_dev, id);
 				input_mt_report_slot_state(info->input_dev, MT_TOOL_FINGER, true);
-
+			
 				input_report_key(info->input_dev, BTN_TOUCH, 1);
 				//input_report_key(info->input_dev, BTN_TOOL_FINGER, 1);
-
 				input_report_abs(info->input_dev, ABS_MT_POSITION_X, x);
 				input_report_abs(info->input_dev, ABS_MT_POSITION_Y, y);
 				input_report_abs(info->input_dev, ABS_MT_PRESSURE, pressure);
@@ -494,7 +457,7 @@ void mip4_ts_input_event_handler(struct mip4_ts_info *info, u8 sz, u8 *buf)
                                 	debug_cnt++;
 
 #ifdef CONFIG_KERNEL_DEBUG_SEC
-				if(debug >= DEBUG_MESSAGE||(id==3&&debug_cnt%100 == 0))
+				if((melfas_debug >= DEBUG_MESSAGE&&melfas_debug <= DEBUG_TRACE)||(id==3&&debug_cnt%100 == 0))
 				{
 					dev_info(&info->client->dev, "%s - Screen : ID[%d] X[%d] Y[%d] Z[%d] Major[%d] Minor[%d] Size[%d] Pressure[%d] Palm[%d] Hover[%d]\n", __func__, id, x, y, pressure, touch_major, touch_minor, size, pressure, palm, hover);
 				}
@@ -512,7 +475,7 @@ void mip4_ts_input_event_handler(struct mip4_ts_info *info, u8 sz, u8 *buf)
 				info->touch_state[id] = 0;
 
 #ifdef CONFIG_KERNEL_DEBUG_SEC
-				if(debug >= DEBUG_MESSAGE||debug_cnt > 100)
+				if((melfas_debug >= DEBUG_MESSAGE&&melfas_debug <= DEBUG_TRACE)||debug_cnt > 100)
 					dev_info(&info->client->dev, "%s - Screen : ID[%d] Count[%d] Release\n", __func__, id, debug_cnt);
 #endif
 				debug_cnt = 0;
@@ -842,9 +805,9 @@ void mip4_ts_config_input(struct mip4_ts_info *info)
 
 	//input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0, MAX_FINGER_NUM, 0, 0);
 
-	if(daudio_lcd_version()==4||daudio_lcd_version()==3)
+	if(!get_montype())
 	{
-		printk("max_x : %d max_y : %d",info->max_x, info->max_y);
+		dev_info(&info->client->dev, "max_x : %d max_y : %d",info->max_x, info->max_y);
 		info->max_x = 1920;
 		info->max_y = 720;
 	}

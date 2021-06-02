@@ -435,6 +435,14 @@ static int tcc_i2c_doxfer(struct tcc_i2c *i2c, struct i2c_msg *msgs, int num)
 	int ret = 0;
 	int i;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (msgs == NULL)
+	{
+		printk("tcc_i2c_doxfer msgs is NULL\n");
+		return (-1);
+	}
+#endif /* !defined(CONFIG_TCC_CODESONAR_BLOCKED) */
+
 	for (i = 0; i < num; i++) {
 		spin_lock_irq(&i2c->lock);
 		i2c->msg		= &msgs[i];

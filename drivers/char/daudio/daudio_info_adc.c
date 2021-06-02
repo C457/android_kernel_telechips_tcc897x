@@ -96,15 +96,15 @@ static ADC_Range_t bt_ranges[] =
 static ADC_Range_t lcd_ranges[11];
 static ADC_Range_t lcd_versions_oe_int[11] =
 {
-	{DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si, 0, 0},
-	{DAUDIOKK_LCD_OI_10_25_1920_720_OGS_TEMP, 100, 270},
+	{DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG, 0, 0},
+	{DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_2_LG, 100, 270},
 	{DAUDIOKK_LCD_OI_RESERVED1, 280, 470},
 	{DAUDIOKK_LCD_OI_RESERVED2, 480, 630},
 	{DAUDIOKK_LCD_OI_RESERVED3, 640, 810},
 	{DAUDIOKK_LCD_OI_RESERVED4, 820, 980},
 	{DAUDIOKK_LCD_OI_RESERVED5, 990, 1140},
-	{DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_LTPS, 1150, 1340},
-	{DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si, 1350, 1520},
+	{DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_LTPS_LG, 1150, 1340},
+	{DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si_BOE, 1350, 1520},
 	{DAUDIOKK_LCD_OI_RESERVED6, 1530, 1710},
 	{DAUDIOKK_LCD_OI_DISCONNECTED, 1710, 1890},
 };
@@ -130,10 +130,10 @@ static ADC_Range_t lcd_versions_oe_de[11] =
 	{DAUDIOKK_LCD_OD_RESERVED1, 0, 0},
 	{DAUDIOKK_LCD_OD_RESERVED2, 100, 270},
 	{DAUDIOKK_LCD_OD_RESERVED3, 280, 470},
-	{DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si, 480, 630},
-	{DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si, 640, 810},
-	{DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS, 820, 980},
-	{DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si, 990, 1140},
+	{DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si_LG, 480, 630},
+	{DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si_LG, 640, 810},
+	{DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_LG, 820, 980},
+	{DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE, 990, 1140},
 	{DAUDIOKK_LCD_OD_RESERVED4, 1150, 1340},
 	{DAUDIOKK_LCD_OD_RESERVED5, 1350, 1520},
 	{DAUDIOKK_LCD_OD_RESERVED6, 1530, 1710},
@@ -245,8 +245,10 @@ void get_daudio_rev(void)
     bsp_version.main_version = vers[DAUDIO_VER_MAIN];
     bsp_version.bt_version = vers[DAUDIO_VER_BT];
 #if defined(CONFIG_DAUDIO_ECO) || defined(CONFIG_DAUDIO_KK)
-//    bsp_version.gps_version = 0;
+    bsp_version.gps_version = 0; // Not used just initializing variable
       bsp_version.lcd_version = vers[DAUDIO_VER_LCD];
+      bsp_version.incell_version = 0;
+      bsp_version.vendor_version = 0;  //intializing 
 #else
     bsp_version.gps_version = get_gps_version(vers[DAUDIO_VER_GPS_LCD]);
     bsp_version.lcd_version = get_lcd_version(vers[DAUDIO_VER_GPS_LCD]);
@@ -339,6 +341,25 @@ int get_serdes_conn() //serdes conn check 20180622 mhjung
 	else retval = 1;
 
 	return retval;
+}
+int get_seperated_mon()
+{
+	int retval = -1;
+	if(gpio_get_value(TCC_GPB(13)))
+		retval = 0;//integrated
+	else
+		retval = 1;//seperated
+	return retval;	
+}
+
+int get_oem()
+{
+    int retval = -1;
+    if(gpio_get_value(TCC_GPB(24)))
+        retval = 1;//oem
+    else
+        retval = 0;//peio
+    return retval;
 }
 #endif
 
@@ -466,7 +487,7 @@ static unsigned char parse_ver(unsigned long adc, int what)
     ADC_Range_t* temp_range = get_range(what);
     int size = sizeof_adc_range_t(what);
 #if defined(CONFIG_DAUDIO_ECO) || defined(CONFIG_DAUDIO_KK)
-    unsigned char default_ver[ADC_PORT_NUM] = {DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si,DAUDIOKK_PLATFORM_WS4,DAUDIOKK_HW_1ST, DAUDIOKK_BT_VER_1};
+    unsigned char default_ver[ADC_PORT_NUM] = {DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG,DAUDIOKK_PLATFORM_WS4,DAUDIOKK_HW_1ST, DAUDIOKK_BT_VER_1};
 #endif
     unsigned char ret = default_ver[what];
     unsigned long min, max;

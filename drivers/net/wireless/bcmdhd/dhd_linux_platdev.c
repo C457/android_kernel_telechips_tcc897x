@@ -1,9 +1,9 @@
 /*
  * Linux platform device for DHD WLAN adapter
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -94,6 +94,11 @@ struct wifi_platform_data dhd_wlan_control = {0};
 #endif /* CONFIG_OF && !defined(CONFIG_ARCH_MSM) */
 #endif /* !defind(CONFIG_DTS) */
 
+// FEATURE_MOBIS_WIFI
+// juho@mobis.co.kr, 2018.12.18
+// synchronize HW gpio output and wifi_stat variable 
+static  spinlock_t		wifi_set_power_lock;
+
 static int dhd_wifi_platform_load(void);
 
 extern void* wl_cfg80211_get_dhdp(void);
@@ -182,45 +187,85 @@ extern int wifi_stat;
 int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long msec)
 {
 	int err = 0;
+	int i=0;
+
+        DHD_ERROR(("wifi_reg_on_port=%d,  gpio_get_value(wifi_reg_on_port): %d\n", wifi_reg_on_port, gpio_get_value(wifi_reg_on_port)));
+
 #ifdef CONFIG_DTS
 	if (on) {
-        //=============================================================  
-        //FEATURE_MOBIS_WIFI
-        //jaehyungkim@mobis.co.kr 2016.11.15
-        //to support DTS
-        //=============================================================
-    	DHD_ERROR(("%s	WIFI ON\n", __FUNCTION__));
-    	wifi_stat = 1;		  
-    	gpio_set_value(wifi_reg_on_port, 1);		// WIFI ON
-    	OSL_SLEEP(200);
-        DHD_ERROR(("%s ON gpio_get_value(wifi_reg_on_port): %d\n", __FUNCTION__,gpio_get_value(wifi_reg_on_port)));
-        //err = regulator_enable(wifi_regulator);
-        //=============================================================
-		is_power_on = TRUE;
+		//=============================================================  
+		//FEATURE_MOBIS_WIFI
+		//jaehyungkim@mobis.co.kr 2016.11.15
+		//to support DTS
+		//=============================================================
+		DHD_ERROR(("%s	WIFI ON\n", __FUNCTION__));
+
+		gpio_set_value(wifi_reg_on_port, 0);		//wifi off
+		// juho@mobis.co.kr, min time for reset
+		OSL_SLEEP(50);
+
+		// juho@mobis.co.kr
+		// synchronize HW gpio output and wifi_stat variable 
+		spin_lock(&wifi_set_power_lock);
+		gpio_set_value(wifi_reg_on_port, 1);		// WIFI ON
+		for(i=0;i<10;i++)
+		{
+			OSL_DELAY(10);
+			if(gpio_get_value(wifi_reg_on_port) == 1){
+				is_power_on = TRUE;
+				break;
+			}
+			DHD_ERROR(("WIFI ON gpio_set_value fail... retry count =%d\n", i));
+			gpio_set_value(wifi_reg_on_port, 1);		// WIFI ON
+		}
+		wifi_stat = 1;		  
+		spin_unlock(&wifi_set_power_lock);
+		
+		OSL_SLEEP(10);
+		DHD_ERROR(("%s ON gpio_get_value(wifi_reg_on_port): %d\n", __FUNCTION__,gpio_get_value(wifi_reg_on_port)));
+		//err = regulator_enable(wifi_regulator);
+		//=============================================================
 	}
 	else {
-        //=============================================================  
-        //FEATURE_MOBIS_WIFI
-        //jaehyungkim@mobis.co.kr 2016.11.15
-        //to support DTS
-        //=============================================================        
-        DHD_ERROR(("%s  WIFI OFF\n", __FUNCTION__));
-		wifi_stat = 0;        
-		gpio_set_value(wifi_reg_on_port, 0);		// WIFI OFF
-		OSL_SLEEP(0);		
+		//=============================================================  
+		//FEATURE_MOBIS_WIFI
+		//jaehyungkim@mobis.co.kr 2016.11.15
+		//to support DTS
+		//=============================================================        
+		DHD_ERROR(("%s  WIFI OFF\n", __FUNCTION__));
 
-        DHD_ERROR(("%s OFF gpio_get_value(wifi_reg_on_port): %d\n", __FUNCTION__,gpio_get_value(wifi_reg_on_port)));        
+		// juho@mobis.co.kr
+		// synchronize HW gpio output and wifi_stat variable 
+		spin_lock(&wifi_set_power_lock);
+
+		gpio_set_value(wifi_reg_on_port, 0);		// WIFI OFF
+		for(i=0;i<10;i++)
+		{
+			OSL_DELAY(10);
+			if(gpio_get_value(wifi_reg_on_port) == 0){
+				is_power_on = FALSE;
+				break;
+			}
+			DHD_ERROR(("WIFI OFF gpio_set_value fail... retry count =%d\n", i));
+			gpio_set_value(wifi_reg_on_port, 0);		// WIFI OFF
+		}
+		wifi_stat = 0;      
+		spin_unlock(&wifi_set_power_lock);
+
+		DHD_ERROR(("%s OFF gpio_get_value(wifi_reg_on_port): %d\n", __FUNCTION__,gpio_get_value(wifi_reg_on_port)));        
 		//err = regulator_disable(wifi_regulator);
-        //============================================================= 
-		is_power_on = FALSE;
+        	//============================================================= 
 	}
+	err = (on == is_power_on ? 0 : -1);
 	if (err < 0)
 		DHD_ERROR(("%s: regulator enable/disable failed", __FUNCTION__));
 #else
 	struct wifi_platform_data *plat_data;
 
 	if (!adapter || !adapter->wifi_plat_data)
+	{
 		return -EINVAL;
+	}
 	plat_data = adapter->wifi_plat_data;
 
 	DHD_ERROR(("%s = %d\n", __FUNCTION__, on));
@@ -242,7 +287,8 @@ int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long
 	}
 
 	if (msec && !err)
-		OSL_SLEEP(msec);
+		//OSL_SLEEP(msec);
+		OSL_DELAY(msec);
 
 	if (on && !err)
 		is_power_on = TRUE;
@@ -368,6 +414,9 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 #endif /* defined(OOB_INTR_ONLY) */
 #endif /* CONFIG_DTS */
 
+	//kibum.lee@mobis.co.kr
+	spin_lock_init(&wifi_set_power_lock);
+
 	/* Android style wifi platform data device ("bcmdhd_wlan" or "bcm4329_wlan")
 	 * is kept for backward compatibility and supports only 1 adapter
 	 */
@@ -450,7 +499,8 @@ out:
         return -1;
     }    
     gpio_request(wifi_reg_on_port, "wlreg_on");
-    gpio_direction_output(wifi_reg_on_port, 1);
+    // juho@mobis.co.kr. 2019.12.11. comment this. HW issue
+    //gpio_direction_output(wifi_reg_on_port, 0);
 //=============================================================
 #endif /* CONFIG_DTS */
 

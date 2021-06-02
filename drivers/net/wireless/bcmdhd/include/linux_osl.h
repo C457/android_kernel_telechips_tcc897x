@@ -1,9 +1,9 @@
 /*
  * Linux OS Independent Layer
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: linux_osl.h 677648 2017-11-22 10:28:20Z $
+ * $Id: linux_osl.h 684024 2018-02-22 19:08:20Z $
  */
 
 #ifndef _linux_osl_h_
@@ -1011,6 +1011,18 @@ extern void bcopy(const void *src, void *dst, size_t len);
 extern int bcmp(const void *b1, const void *b2, size_t len);
 extern void bzero(void *b, size_t len);
 #endif /* ! BCMDRIVER */
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+#define iscompattask is_compat_task
+#if (defined(CONFIG_X86) && CONFIG_X86 == 1) || (defined(CONFIG_X86_64) && \
+	CONFIG_X86_64 == 1)
+#ifdef in_compat_syscall
+#undef  iscompattask
+#define iscompattask in_compat_syscall
+#endif /* in_compat_syscall */
+#endif /* (CONFIG_X86 == 1) || (CONFIG_X86_64 == 1) */
+#endif /* CONFIG_COMPAT */
 
 typedef struct sec_cma_info {
 	struct sec_mem_elem *sec_alloc_list;

@@ -34,7 +34,11 @@ struct tcc_dvfs_data {
 
 struct tcc_cluster_data {
 	unsigned cluster_num;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	struct tcc_dvfs_data	*dvfs[2];
+#else
 	struct tcc_dvfs_data	*dvfs[0];
+#endif
 };
 
 static struct tcc_cluster_data *cluster_data = NULL;
@@ -248,7 +252,11 @@ static int tcc_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np, *parent;
 	unsigned cluster;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	char buf[32];
+#else
 	char buf[15];
+#endif
 	int ret = -ENODEV;
 
 	is_suspended = false;

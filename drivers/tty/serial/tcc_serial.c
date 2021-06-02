@@ -1013,7 +1013,10 @@ static int tcc_serial_request_port(struct uart_port *port)
 
 static void tcc_serial_config_port(struct uart_port *port, int flags)
 {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
 	if (flags & UART_CONFIG_TYPE && tcc_serial_request_port(port) == 0)
+#endif
 		port->type = PORT_TCC;
 }
 
@@ -1147,8 +1150,14 @@ static int tcc_serial_remove(struct platform_device *dev)
 	struct uart_port *port = tcc_dev_to_port(&dev->dev);
 	struct tcc_uart_port *tcc_port = container_of(port, struct tcc_uart_port, port);
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!port)
+		return 0;
+	uart_remove_one_port(&tcc_uart_drv, port);
+#else
 	if (port)
 		uart_remove_one_port(&tcc_uart_drv, port);
+#endif
 
 	if(tcc_port->tx_dma_use)
 		tcc_free_dma_buf(&(tcc_port->tx_dma_buffer));
@@ -1446,7 +1455,10 @@ static int tcc_serial_resume(struct device *dev)
 	*(volatile unsigned long *)tcc_p2v(TCC_PA_UARTPORTCFG) = uartPortCFG0;
 	*(volatile unsigned long *)tcc_p2v(TCC_PA_UARTPORTCFG + 0x4) = 	uartPortCFG1;
 
-	if (port) {
+#ifdef CONFIG_TCC_CODESONAR_BLOCKED
+	if (port)
+#endif /* CONFIG_TCC_CODESONAR_BLOCKED */
+	{
 		if (port->suspended) {
 
 #if defined(CONFIG_TCC_BT_DEV)
@@ -1603,6 +1615,15 @@ static int tcc_serial_probe(struct platform_device *dev)
 	else
 		id = dev->id;
 	dbg("%s: id = %d\n", __func__, id);
+
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (id >= NR_PORTS || id < 0)
+	{
+		dev_err(&dev->dev, "%s : invalid id\n", __func__, id);
+		return -ENOMEM;
+	}
+#endif /* !defined(CONFIG_TCC_CODESONAR_BLOCKED) */
+
 
 	tcc_port = &tcc_serial_ports[id];
 	port = &tcc_port->port;

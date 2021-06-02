@@ -31,7 +31,7 @@
 #include "configfs.h"
 #include "f_iap2_ext_acc.h"
 
-#if 1//defined(CONFIG_USB_GADGET_DEBUG)
+#if 0  //defined(CONFIG_USB_GADGET_DEBUG)
 #define EA_DBG(stuff...)   printk(KERN_DEBUG "EA_DBG: " stuff)
 #else
 #define EA_DBG(stuff...)          do{}while(0)

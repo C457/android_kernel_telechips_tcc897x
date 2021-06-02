@@ -177,7 +177,11 @@ static int __init tcc_timer_register(void)
 	timecounter_init(&timecounter, &cyclecounter,
 			 (u64)timer_readl(TC32MCNT));
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	sched_clock_register((u64)tcc_update_sched_clock, 32, tcc_timer_rate);
+#else
 	sched_clock_register(tcc_update_sched_clock, 32, tcc_timer_rate);
+#endif
 	pr_info("Initialize the clocksource device.... rate[%u]\n", tcc_timer_rate);
 
 //	err = request_percpu_irq(tcc_timer_ppi, tcc_timer_handler, "tcc_timer", tcc_timer_evt);

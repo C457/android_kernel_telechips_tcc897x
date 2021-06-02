@@ -447,8 +447,8 @@ int fat_bmap_raw(struct super_block *sb, sector_t i_start, sector_t i_pos,
 	if (likely(sb->s_bdev && sb->s_bdev->bd_disk)) {
 		const int limit = (int)get_capacity(sb->s_bdev->bd_disk);
 		if (*phys > limit) {
-			pr_err("FAT: %s:requesting beyond disk (i_pos %lld, %lld > %d))\n",
-				sb->s_id, i_pos, *phys, limit);
+//			fat_fs_error_ratelimit(sb, "requesting beyond disk (i_pos %lld, %lld > %d))",
+//				i_pos, *phys, limit);
 			*phys = 0;
 			return -EINVAL;
 		}

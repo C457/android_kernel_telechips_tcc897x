@@ -390,6 +390,7 @@ static int _complete(dwc_otg_hcd_t * hcd, void *urb_handle,
 	}
 
 	DWC_FREE(dwc_otg_urb);
+	dwc_otg_urb = NULL;
 #if USB_URB_EP_LINKING // 20150722 taehun - modified
 		usb_hcd_unlink_urb_from_ep(dwc_otg_hcd_to_hcd(hcd), urb);
 #endif
@@ -399,6 +400,7 @@ static int _complete(dwc_otg_hcd_t * hcd, void *urb_handle,
 #else
 	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb, status);
 #endif
+
 	DWC_SPINLOCK(hcd->lock);
 
 	return 0;
@@ -456,6 +458,14 @@ int hcd_init(dwc_bus_dev_t *_dev)
 	 * Allocate memory for the base HCD plus the DWC OTG HCD.
 	 * Initialize the base HCD.
 	 */
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	hcd = usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev, dev_name(&_dev->dev));
+	if (!hcd) {
+		retval = -ENOMEM;
+		goto error1;
+	}
+	hcd->has_tt = 1;
+#else
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30)
 	hcd = usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev, _dev->dev.bus_id);
 #else
@@ -468,6 +478,7 @@ int hcd_init(dwc_bus_dev_t *_dev)
 		retval = -ENOMEM;
 		goto error1;
 	}
+#endif /* !CONFIG_TCC_CODESONAR_BLOCKED */
 
 	if (of_find_property(_dev->dev.of_node, "telechips,dwc_otg_phy", 0)) {
 		hcd->usb_phy = devm_usb_get_phy_by_phandle(&_dev->dev, "telechips,dwc_otg_phy", 0);
@@ -707,6 +718,14 @@ static int dwc_otg_urb_enqueue(struct usb_hcd *hcd,
 	}
 #endif
 
+	if (!dwc_otg_hcd->flags.b.port_connect_status) {
+		/* No longer connected. */
+		//DWC_ERROR("Not connected\n");
+		printk("\x1b[1;36m[%s:%d]\x1b[0m\n", __func__, __LINE__);
+
+		return -DWC_E_NO_DEVICE;
+	}
+
 	//if (!urb->transfer_buffer && urb->transfer_buffer_length)
 	//{
 	//	printk("\x1b[1;33m[%s:%d]\x1b[0murb->transfer_buffer: 0x%08X, urb->transfer_buffer_length: %d\n",
@@ -838,6 +857,10 @@ static int dwc_otg_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	dwc_otg_hcd_t *dwc_otg_hcd;
     int rc;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	int urb_status = urb->status;
+#else
+#endif
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD URB Dequeue\n");
 
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
@@ -881,11 +904,15 @@ static int dwc_otg_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 #endif
 	    if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
 		    DWC_PRINTF("Called usb_hcd_giveback_urb()\n");
+#if !defined(CONFIG_TCC_CODESONAR)
+		    DWC_PRINTF("  urb->status = %d\n", urb_status);
+#else
 		    DWC_PRINTF("  urb->status = %d\n", urb->status);
+#endif
 	    }
     } 
 
-	return 0;
+	return rc;
 }
 
 /* Frees resources in the DWC_otg controller related to a given endpoint. Also

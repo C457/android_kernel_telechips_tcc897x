@@ -1510,12 +1510,13 @@ int dwc_otg_pcd_ep_enable(dwc_otg_pcd_t * pcd,
 
 	num = UE_GET_ADDR(desc->bEndpointAddress);
 	dir = UE_GET_DIR(desc->bEndpointAddress);
-
+#ifdef CONFIG_TCC_CODESONAR_BLOCKED
 	if (!desc->wMaxPacketSize) {
 		DWC_WARN("bad maxpacketsize\n");
 		retval = -DWC_E_INVALID;
 		goto out;
 	}
+#endif
 
 	if (dir == UE_DIR_IN) {
 		epcount = pcd->core_if->dev_if->num_in_eps;
@@ -1783,6 +1784,13 @@ void dwc_otg_pcd_start_iso_ddma(dwc_otg_core_if_t * core_if, dwc_otg_pcd_ep_t * 
 	dwcep = &ep->dwc_ep;
 	dma_desc = dwcep->desc_addr;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!ep->desc) {
+		DWC_PRINTF("ISOC 0x%p, ep->desc = NULL!\n", ep);
+		return;
+	}
+#else
+#endif
 	nat = UGETW(ep->desc->wMaxPacketSize);
 	nat = (nat >> 11) & 0x03;
 	DWC_DEBUGPL(DBG_PCD, "nat=%u binterval =%02x\n",nat, dwcep->bInterval);
@@ -1842,6 +1850,12 @@ void dwc_otg_pcd_start_iso_ddma(dwc_otg_core_if_t * core_if, dwc_otg_pcd_ep_t * 
 		DWC_MODIFY_REG32(&core_if->dev_if->in_ep_regs[dwcep->num]->diepctl, 0, depctl.d32);
 	} else {
 		DWC_CIRCLEQ_FOREACH(req, &ep->queue, queue_entry) {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+			if (!req) {
+				DWC_PRINTF("ISOC 0x%p, req = NULL!\n", ep);
+				return;
+			}
+#endif /* !defined(CONFIG_TCC_CODESONAR_BLOCKED) */
 			i = i+1;
 			frame_num = (frame_num + dwcep->bInterval) & 0x3FFF;
 			/** DMA Descriptor Setup */
@@ -1911,6 +1925,13 @@ static void program_next_iso_request_ddma (dwc_otg_pcd_ep_t * ep, dwc_otg_pcd_re
 		dma_desc_addr = ep->dwc_ep.dma_desc_addr;
 		ep->dwc_ep.iso_desc_first += 1;
 	}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!ep->desc) {
+		DWC_PRINTF("ISOC 0x%p, ep->desc = NULL!\n", ep);
+		return;
+	}
+#else
+#endif
 	nat = UGETW(ep->desc->wMaxPacketSize);
 	nat = (nat >> 11) & 0x03;
 	frame_num = (ep->dwc_ep.frame_num + ep->dwc_ep.bInterval) & 0x3FFF;

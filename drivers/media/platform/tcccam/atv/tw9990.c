@@ -52,14 +52,13 @@ static int debug_tw9990 =0;
 #define VPRINTK(fmt, args...) if(debug_tw9990){ printk(KERN_CRIT TAG_DAUDIO_TW9990 fmt, ##args); }
 
 struct sensor_reg sensor_initialize[] = {
-	//james.kang@zentech.co.kr 140923
-	//cmd, value
-	{0x01, 0x78},
+    //james.kang@zentech.co.kr 140923
+    //cmd, value
+    {0x01, 0x78},
     {0x02, 0x40},
     {0x03, 0xA0},
     {0x04, 0x00},
     {0x05, 0x00},
-    {0x06, 0x00},
     {0x07, 0x02},
     {0x08, 0x12},
     {0x09, 0xF0},
@@ -68,11 +67,12 @@ struct sensor_reg sensor_initialize[] = {
     {0x0C, 0xCC},
     {0x0D, 0x00},
     {0x0F, 0x00},
-    {0x10, 0x00},
-    {0x11, 0x64},
+    //(hklee)2018.10.04 - IE set with default value
+    {0x10, (unsigned char)(DEFAULT_TW9990_CAM_BRIGHTNESS -128)},
+    {0x11, DEFAULT_TW9990_CAM_CONTRAST},
     {0x12, 0x21},
-    {0x13, 0x80},
-    {0x14, 0x80},
+    {0x13, DEFAULT_TW9990_CAM_SATURATION},
+    {0x14, DEFAULT_TW9990_CAM_SATURATION},
     {0x15, 0x00},
     {0x16, 0x00},
     {0x17, 0x30},
@@ -123,6 +123,7 @@ struct sensor_reg sensor_initialize[] = {
     {0x6F, 0x13},
     {0xAE, 0x1A},
     {0xAF, 0x80},
+    {0x06, 0x80},	//2018.08.07 - sw reset before initialization, stms178011 rearcam image shift issue.
 	{ REG_TERM, VAL_TERM }
 };
 
@@ -147,7 +148,6 @@ static struct sensor_reg TW9990_OPEN_YIN1[] = {		//CVBS INPUT, MUX0
 static struct sensor_reg TW9990_OPEN_YIN2[] = {		//S-Video Input, MUX0
 	{ 0x02, 0x50 },
 	{ 0x03, 0xA0 },
-	{ 0x06, 0x00 },
 	{ REG_TERM, VAL_TERM }
 };
 
@@ -232,12 +232,11 @@ struct sensor_reg *tw9990_sensor_reg_hue[] = {
 static struct sensor_reg tw9990_sensor_reg_backup[] = {
 	//james.kang@zentech.co.kr 140923
 	//cmd, value
-	{0x01, 0x78},
+    {0x01, 0x78},
     {0x02, 0x40},
     {0x03, 0xA0},
     {0x04, 0x00},
     {0x05, 0x00},
-    {0x06, 0x00},
     {0x07, 0x02},
     {0x08, 0x12},
     {0x09, 0xF0},
@@ -246,11 +245,12 @@ static struct sensor_reg tw9990_sensor_reg_backup[] = {
     {0x0C, 0xCC},
     {0x0D, 0x00},
     {0x0F, 0x00},
-    {0x10, 0x00},
-    {0x11, 0x64},
+    //(hklee)2018.10.04 - IE set with default value
+    {0x10, (unsigned char)(DEFAULT_TW9990_CAM_BRIGHTNESS -128)},
+    {0x11, DEFAULT_TW9990_CAM_CONTRAST},
     {0x12, 0x21},
-    {0x13, 0x80},
-    {0x14, 0x80},
+    {0x13, DEFAULT_TW9990_CAM_SATURATION},
+    {0x14, DEFAULT_TW9990_CAM_SATURATION},
     {0x15, 0x00},
     {0x16, 0x00},
     {0x17, 0x30},
@@ -301,6 +301,7 @@ static struct sensor_reg tw9990_sensor_reg_backup[] = {
     {0x6F, 0x13},
     {0xAE, 0x1A},
     {0xAF, 0x80},
+    {0x06, 0x80},	//2018.08.07 - sw reset before initialization, stms178011 rearcam image shift issue.
 	{ REG_TERM, VAL_TERM }
 };
 
@@ -342,14 +343,12 @@ struct sensor_reg *tw9990_sensor_reg_path[] = {
 static struct sensor_reg cvbs_composite[] = {
 	{0x02, 0x40},
 	{0x03, 0xA0},
-	{0x06, 0x00},
 	{0xFF, 0xFF}
 };
 
 static struct sensor_reg s_video[] = {
 	{0x02, 0x50},
 	{0x03, 0xA0},
-	{0x06, 0x00},
 	{0xFF, 0xFF}
 };
 
@@ -972,6 +971,8 @@ void sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info)
 #ifdef CONFIG_DAUDIO
 	sensor_info->preview_w				= 720;
 	sensor_info->preview_h				= 240;
+	sensor_info->capture_w				= 720;
+	sensor_info->capture_h				= 240;
 	
 	sensor_info->cam_capchg_width		= 720;
 	sensor_info->framerate				= 15;
@@ -981,7 +982,7 @@ void sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info)
 	sensor_info->de_pol 					= ACT_LOW;
 	sensor_info->field_bfield_low			= OFF;
 	sensor_info->gen_field_en				= OFF;
-#ifdef CONFIG_LVDS_CAMERA_BT601
+#if defined(CONFIG_LVDS_CAMERA_BT601) || defined(INCLUDE_LVDS_CAMERA_BT601)
 	sensor_info->conv_en				= OFF;
 	sensor_info->hsde_connect_en		= ON;
 #else
@@ -994,7 +995,7 @@ void sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info)
 	sensor_info->intl_en					= ON;
 	sensor_info->intpl_en					= OFF;	
 	sensor_info->format 					= M420_ZERO;
-	sensor_info->capture_skip_frame 		= 1;
+	sensor_info->capture_skip_frame 		= 2;
 	sensor_info->sensor_sizes				= sensor_sizes;
 
 #else

@@ -46,6 +46,7 @@ static struct _tcc_clk_data tcc_fbus_data[] = {
 };
 
 static struct _tcc_clk_data tcc_peri_data[] = {
+	{ "timerz",     NULL,           PERI_TCZ,       CLK_IGNORE_UNUSED },
 	{ "cmbus_cnt",	NULL,		PERI_CMBUS_CNT,	CLK_IGNORE_UNUSED },
 };
 

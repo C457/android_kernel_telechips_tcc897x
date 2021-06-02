@@ -21,6 +21,7 @@ Suite 330, Boston, MA 02111-1307 USA
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 
 #define CIF_MCLOCK	0
 #define VIOC_CLOCK	1

@@ -241,7 +241,7 @@ static ssize_t show_packet(struct device *dev,struct device_attribute *attr, cha
     return sprintf(buf, "gpsb[0] packet size : %d \n"
         "gpsb[0] read packet count : %d \n"
         "gpsb[0] read byte : %d \n"
-	#ifdef CONFIG_ISDB
+	#if defined(INCLUDE_ISDB)
 	"gpsb[1] packet size : %d\n"
 	"gpsb[1] packet count : %d\n"
 	"gpsb[1] read byte : %d\n"
@@ -249,7 +249,7 @@ static ssize_t show_packet(struct device *dev,struct device_attribute *attr, cha
         ,tsif_pri[0].packet_size
         ,tsif_pri[0].packet_read_count
         ,tsif_pri[0].read_byte
-	#ifdef CONFIG_ISDB
+	#if defined(INCLUDE_ISDB)
 	,tsif_pri[1].packet_size
 	,tsif_pri[1].packet_read_count
 	,tsif_pri[1].read_byte
@@ -1680,8 +1680,13 @@ static int tcc_tsif_open( struct inode *inode, struct file *filp)
 		case TSIF_MODE_HWDMX: filp->f_op = &tcc_hwdmx_tsif_fops;break;
 		default : return -ENXIO;
 	}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (filp->f_op->open)
+		return filp->f_op->open(inode,filp);
+#else
 	if (filp->f_op && filp->f_op->open)
 		return filp->f_op->open(inode,filp);
+#endif
 	return -EBADF;
 }
 
@@ -1694,7 +1699,7 @@ struct file_operations tcc_tsif_fops =
 static int __init tsif_init(void)
 {
 	int ret = 0;
-	dev_t dev;
+	dev_t dev = 0;
 
 	ret = alloc_chrdev_region(&dev, 0, TSIF_MINOR_NUMBER, "TSIF");
 	tsif_major_num = MAJOR(dev);

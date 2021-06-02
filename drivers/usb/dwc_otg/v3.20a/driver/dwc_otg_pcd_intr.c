@@ -47,6 +47,12 @@ extern void complete_xiso_ep(dwc_otg_pcd_ep_t * ep);
 #define DEBUG_EP0
 #endif
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+static inline void ep0_do_stall(dwc_otg_pcd_t * pcd, const int err_val);
+static inline void ep0_out_start(dwc_otg_core_if_t * core_if, dwc_otg_pcd_t * pcd);
+#else
+#endif
+
 /**
  * This function updates OTG.
  */
@@ -166,9 +172,17 @@ static inline dwc_otg_pcd_ep_t *get_in_ep(dwc_otg_pcd_t * pcd, uint32_t ep_num)
 {
 	int i;
 	int num_in_eps = GET_CORE_IF(pcd)->dev_if->num_in_eps;
+
 	if (ep_num == 0) {
 		return &pcd->ep0;
-	} else {
+	}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	else if (num_in_eps > (MAX_EPS_CHANNELS-1)) {
+		return 0;
+	}
+#else
+#endif
+	else {
 		for (i = 0; i < num_in_eps; ++i) {
 			if (pcd->in_ep[i].dwc_ep.num == ep_num)
 				return &pcd->in_ep[i];
@@ -184,9 +198,17 @@ static inline dwc_otg_pcd_ep_t *get_out_ep(dwc_otg_pcd_t * pcd, uint32_t ep_num)
 {
 	int i;
 	int num_out_eps = GET_CORE_IF(pcd)->dev_if->num_out_eps;
+
 	if (ep_num == 0) {
 		return &pcd->ep0;
-	} else {
+	}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	else if (num_out_eps > (MAX_EPS_CHANNELS-1)) {
+		return 0;
+	}
+#else
+#endif
+	else {
 		for (i = 0; i < num_out_eps; ++i) {
 			if (pcd->out_ep[i].dwc_ep.num == ep_num)
 				return &pcd->out_ep[i];
@@ -238,6 +260,13 @@ void start_next_request(dwc_otg_pcd_ep_t * ep)
 			ep->dwc_ep.cfi_req_len = req->length;
 			pcd->cfi->ops.build_descriptors(pcd->cfi, pcd, ep, req);
 		} else {
+#endif
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+                if (!req) {
+                        DWC_PRINTF("0x%p, req = NULL!\n", ep);
+                        return;
+                }
+#else
 #endif
 			/* Setup and start the Transfer */
 			if (req->dw_align_buf) {
@@ -368,6 +397,13 @@ int32_t dwc_otg_pcd_handle_rx_status_q_level_intr(dwc_otg_pcd_t * pcd)
 		    status.b.pktsts, status.b.fn, status.b.fn);
 	/* Get pointer to EP structure */
 	ep = get_out_ep(pcd, status.b.epnum);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (ep == 0) {
+		ep0_do_stall(pcd, -DWC_E_NOT_SUPPORTED);
+		return 0;
+	}
+#else
+#endif
 
 	switch (status.b.pktsts) {
 	case DWC_DSTS_GOUT_NAK:
@@ -463,6 +499,10 @@ static inline int get_ep_of_last_in_token(dwc_otg_core_if_t * core_if)
 
 	}
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	memset(&dtknqr1, 0, sizeof(dtknqr1));
+	memset(in_tkn_epnums, 0, sizeof(in_tkn_epnums));
+#endif
 	/* Copy the DTKNQR1 data to the bit field. */
 	dtknqr1.d32 = in_tkn_epnums[0];
 	/* Get the EP numbers */
@@ -523,6 +563,13 @@ int32_t dwc_otg_pcd_handle_np_tx_fifo_empty_intr(dwc_otg_pcd_t * pcd)
 	/* Get the epnum from the IN Token Learning Queue. */
 	epnum = get_ep_of_last_in_token(core_if);
 	ep = get_in_ep(pcd, epnum);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (ep == 0) {
+		ep0_do_stall(pcd, -DWC_E_NOT_SUPPORTED);
+		return 0;
+	}
+#else
+#endif
 
 	DWC_DEBUGPL(DBG_PCD, "NP TxFifo Empty: %d \n", epnum);
 
@@ -582,6 +629,13 @@ static int32_t write_empty_tx_fifo(dwc_otg_pcd_t * pcd, uint32_t epnum)
 	int dwords;
 
 	ep = get_in_ep(pcd, epnum);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (ep == 0) {
+		ep0_do_stall(pcd, -DWC_E_NOT_SUPPORTED);
+		return -EOPNOTSUPP;
+	}
+#else
+#endif
 
 	DWC_DEBUGPL(DBG_PCD, "Dedicated TxFifo Empty: %d \n", epnum);
 
@@ -2253,6 +2307,10 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 
 	DWC_DEBUGPL(DBG_PCD, "Requests %d\n", ep->pcd->request_pending);
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	memset(&deptsiz, 0, sizeof(deptsiz));
+#endif
+
 	if (ep->dwc_ep.is_in) {
 		deptsiz.d32 = DWC_READ_REG32(&in_ep_regs->dieptsiz);
 
@@ -3464,6 +3522,13 @@ static void restart_transfer(dwc_otg_pcd_t * pcd, const uint32_t epnum)
 	dwc_otg_pcd_ep_t *ep;
 
 	ep = get_in_ep(pcd, epnum);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (ep == 0) {
+		ep0_do_stall(pcd, -DWC_E_NOT_SUPPORTED);
+		return;
+	}
+#else
+#endif
 
 #ifdef DWC_EN_ISOC
 	if (ep->dwc_ep.type == DWC_OTG_EP_TYPE_ISOC) {
@@ -3535,6 +3600,10 @@ void predict_nextep_seq( dwc_otg_core_if_t * core_if)
 
 	DWC_DEBUGPL(DBG_PCD, "dev_token_q_depth=%d\n", TOKEN_Q_DEPTH);
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	memset(&dtknqr1, 0, sizeof(dtknqr1));
+	memset(in_tkn_epnums, 0, sizeof(in_tkn_epnums));
+#endif
 	/* Read the DTKNQ Registers */
 	for (i = 0; i < DTKNQ_REG_CNT; i++) {
 		in_tkn_epnums[i] = DWC_READ_REG32(addr);
@@ -3698,6 +3767,13 @@ static inline void handle_in_ep_disable_intr(dwc_otg_pcd_t * pcd,
 	uint32_t xfer_size;
 
 	ep = get_in_ep(pcd, epnum);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (ep == 0) {
+		ep0_do_stall(pcd, -DWC_E_NOT_SUPPORTED);
+		return;
+	}
+#else
+#endif
 	dwc_ep = &ep->dwc_ep;
 
 	if (dwc_ep->type == DWC_OTG_EP_TYPE_ISOC) {
@@ -3764,6 +3840,13 @@ static inline void handle_in_ep_disable_intr(dwc_otg_pcd_t * pcd,
 			i = core_if->first_in_nextep_seq;
 			do {
 				ep = get_in_ep(pcd, i);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+				if (ep == 0) {
+					ep0_do_stall(pcd, -DWC_E_NOT_SUPPORTED);
+					return;
+				}
+#else
+#endif
 				dieptsiz.d32 = DWC_READ_REG32(&dev_if->in_ep_regs[i]->dieptsiz);
 				xfer_size = ep->dwc_ep.total_len - ep->dwc_ep.xfer_count;
 				if (xfer_size > ep->dwc_ep.maxxfer) 
@@ -3841,6 +3924,13 @@ static inline void handle_in_ep_timeout_intr(dwc_otg_pcd_t * pcd,
 	gintmsk_data_t intr_mask = {.d32 = 0 };
 
 	ep = get_in_ep(pcd, epnum);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (ep == 0) {
+		ep0_do_stall(pcd, -DWC_E_NOT_SUPPORTED);
+		return;
+	}
+#else
+#endif
 
 	/* Disable the NP Tx Fifo Empty Interrrupt */
 	if (!core_if->dma_enable) {
@@ -4131,6 +4221,13 @@ do { \
 			uint32_t empty_msk;
 			/* Get EP pointer */
 			ep = get_in_ep(pcd, epnum);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+			if (ep == 0) {
+				ep0_do_stall(pcd, -DWC_E_NOT_SUPPORTED);
+				return 0;
+			}
+#else
+#endif
 			dwc_ep = &ep->dwc_ep;
 
 			depctl.d32 =
@@ -4421,6 +4518,13 @@ do { \
 		if (ep_intr & 0x1) {
 			/* Get EP pointer */
 			ep = get_out_ep(pcd, epnum);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+			if (ep == 0) {
+				ep0_do_stall(pcd, -DWC_E_NOT_SUPPORTED);
+				return 0;
+			}
+#else
+#endif
 			dwc_ep = &ep->dwc_ep;
 
 #ifdef VERBOSE
@@ -4850,9 +4954,18 @@ exit_xfercompl:
 #ifdef DEBUG_EP0
 				DWC_DEBUGPL(DBG_PCD, "EP%d SETUP Done\n", epnum);
 #endif
+				deptsiz0_data_t doeptsize0 = {.d32 = 0 };
+				doeptsize0.d32 = DWC_READ_REG32(&core_if->dev_if->
+							out_ep_regs[ep->dwc_ep.num]->doeptsiz);
+
+				if (doeptsize0.b.supcnt == 3) {
+					DWC_DEBUGPL(DBG_ANY, "Rolling over!!!!!!!\n");
+					ep->dwc_ep.stp_rollover = 1;
+				}
 				CLEAR_OUT_EP_INTR(core_if, epnum, setup);
 
 				handle_ep0(pcd);
+				ep->dwc_ep.stp_rollover = 0;
 			}
 
 			/** OUT EP BNA Intr */
@@ -5156,6 +5269,13 @@ int32_t dwc_otg_pcd_handle_incomplete_isoc_out_intr(dwc_otg_pcd_t * pcd)
 				break;
 		}
 	}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!dwc_ep) {
+		printk(KERN_ERR "failed to assign dwc_ep address in %s", __func__);
+		return -EADDRNOTAVAIL;
+	}
+#else
+#endif
 	dctl.d32 = DWC_READ_REG32(&core_if->dev_if->dev_global_regs->dctl);
 	gintsts.d32 = DWC_READ_REG32(&core_if->core_global_regs->gintsts);
 	intr_mask.d32 = DWC_READ_REG32(&core_if->core_global_regs->gintmsk);

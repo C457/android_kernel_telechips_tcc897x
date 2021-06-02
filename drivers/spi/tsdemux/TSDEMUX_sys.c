@@ -27,7 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include "TSDEMUX_sys.h"
-
+#include <linux/time.h>
 
 #define DTV_DEBUG(n, args...) printk(args)
 #define __ABS__(a) ((a) >= 0 ? (a) : (-(a)))
@@ -39,12 +39,22 @@ typedef struct MpegPCR
 	unsigned int uiPCR;
 	unsigned int uiSTCBase;
 	int	fUse;
-}MpegPCR; 
+}MpegPCR;
 static MpegPCR gstPCR[MAX_PCR_CNT];
 
-extern int TCCREFTIME_Open(void);
-extern int TCCREFTIME_Close(void);
-unsigned int TCCREFTIME_GetTime(void); //It return msec unint.
+//extern int TCCREFTIME_Open(void);
+//extern int TCCREFTIME_Close(void);
+//unsigned int TCCREFTIME_GetTime(void); //It return msec unint.
+
+static unsigned int TCCREFTIME_GetTime(void)
+{
+	struct timespec tspec;
+	unsigned int curTime;
+	do_posix_clock_monotonic_gettime(&tspec);
+	curTime = (tspec.tv_sec) * 1000 + (tspec.tv_nsec) / 1000000;
+
+	return curTime;
+}
 
 static int parseAdaptationField (unsigned char *p, MpegTsAdaptation * adap)
 {
@@ -163,7 +173,7 @@ int MpegSys_ParseTs (unsigned char *p, MpegTsHeader * ts, unsigned int uiCheckPI
 
 	if(ts->pid != uiCheckPID)
 		return -1;
-	
+
 	ts->scrambling_control = (*p & 0xc0) >> 6;
 	ts->adaptation_control = (MpegTsAdaptationCtrl) (*p & 0x30) >> 4;
 	ts->cc = *p++ & 0x0f;
@@ -225,23 +235,24 @@ unsigned int TSDEMUX_GetSTC(int index)
 	unsigned int uiSTC, uiCurTime;
 	if(gstPCR[index].uiPCR == 0)
 		return 0;
-		
+
 	uiCurTime = TCCREFTIME_GetTime();
 	uiSTC = gstPCR[index].uiPCR + uiCurTime - gstPCR[index].uiSTCBase;
 	return uiSTC;
-}
+}
+
 int TSDEMUX_UpdatePCR (unsigned int uiPCR, int index)
-{	
+{
 	unsigned int uiSTC;
 	if (gstPCR[index].uiPCR)
 	{
 		uiSTC = TSDEMUX_GetSTC(index);
 		if( __ABS__((int)uiPCR - (int)uiSTC) < 200 ) //200ms
-			return 0;	
+			return 0;
 		printk("%s PCR %d, STC %d, DIFF %d\n", __func__, uiPCR, uiSTC, (int)uiPCR - (int)uiSTC);
 	}
 	gstPCR[index].uiSTCBase = TCCREFTIME_GetTime();
-	gstPCR[index].uiPCR = uiPCR;	
+	gstPCR[index].uiPCR = uiPCR;
 	return 0;
 }
 
@@ -259,13 +270,13 @@ int TSDEMUX_MakeSTC (unsigned char *pucTS, unsigned int uiTSSize, unsigned int u
 		if (MpegSys_ParseTs (pucTS+i, &tsHeader, uiPCR) == 0)
 		{
 			if (tsHeader.adap.flag.PCR)
-			{	
+			{
 				uiPcr = tsHeader.adap.PCR >> 1;
 				TSDEMUX_UpdatePCR(uiPcr/45, index);
 				break;
 			}
 		}
-	}	
+	}
 	return 0;
 }
 
@@ -284,8 +295,8 @@ int TSDEMUX_Open(int index)
 	fFirst = 0;
 	for (i=0; i < MAX_PCR_CNT; i++)
 		fFirst += gstPCR[index].fUse ? 1 : 0;
-	//if (fFirst == 1)
-	TCCREFTIME_Open();
+//	if (fFirst == 1)
+//	TCCREFTIME_Open();
 	return 0;
 }
 
@@ -296,7 +307,7 @@ void TSDEMUX_Close(void)
 	for(i=0; i < MAX_PCR_CNT; i++)
 		gstPCR[i].fUse = 0;
 
-	TCCREFTIME_Close();
+//	TCCREFTIME_Close();
 }
 
 EXPORT_SYMBOL(TSDEMUX_UpdatePCR);

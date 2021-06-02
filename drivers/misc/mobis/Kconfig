@@ -1,0 +1,6 @@
+config MOBIS_NVDATA_HANDLER
+	bool "mobis nvdata handle driver"
+	default n
+	help
+		"mobis nvdata handle driver"
+

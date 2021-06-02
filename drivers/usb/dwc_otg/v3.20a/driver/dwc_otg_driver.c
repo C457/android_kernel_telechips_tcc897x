@@ -87,6 +87,12 @@
 #include "dwc_otg_cil.h"
 #include "dwc_otg_core_if.h"
 
+#if defined(CONFIG_DAUDIO_KK)
+#include <mach/gpio.h>
+#include <mach/daudio.h>
+#include <mach/daudio_info.h>
+#endif
+
 //#include <mach/tcc_board_power.h>
 //#include <linux/tcc_pwm.h>
 #include <linux/cpufreq.h>
@@ -785,6 +791,7 @@ static DEVICE_ATTR(debug_level, S_IRUGO | S_IWUSR, dwc_otg_tcc_debug_level_show,
 static ssize_t drdmode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	dwc_otg_device_t *otg_dev =	platform_get_drvdata(to_platform_device(dev));
+
 	return sprintf(buf, "Current mode is %s \n", (otg_dev->current_mode == DWC_OTG_MODE_HOST) ? "Host":"Device");
 }
 
@@ -1664,6 +1671,13 @@ static int dwc_otg_driver_probe(struct platform_device *_dev)
 	}
 #endif
 
+#if 0 /* !defined(CONFIG_TCC_CODESONAR_BLOCKED) */
+	if (!phy_base) {
+		retval = -ENOMEM;
+		goto fail;
+	}
+#else
+#endif
 	dwc_otg_device_parse_dt(_dev, dwc_otg_device);
 
 	/* clock control register */
@@ -1688,6 +1702,12 @@ static int dwc_otg_driver_probe(struct platform_device *_dev)
 
 	/* Set tcc phyconfiguration address */
 	dwc_otg_device->core_if = dwc_otg_cil_alloc();
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!dwc_otg_device->core_if) {
+		retval = -ENOMEM;
+		goto fail;
+	}
+#endif
 	dwc_otg_device->core_if->tcc_phy_config = (tcc_dwc_otg_phy_t *)dwc_otg_device->dwc_otg_phy->base;
 
 #ifdef CONFIG_TCC_DWC_OTG_HOST_MUX
@@ -1958,6 +1978,19 @@ static int dwc_otg_driver_resume(struct platform_device *pdev)
 	dwc_otg_device_t *dwc_otg_device;
 
 	dwc_otg_device = platform_get_drvdata(pdev);
+
+#if defined(CONFIG_DAUDIO_KK)
+	if ((daudio_main_version() >= DAUDIOKK_PLATFORM_WS7) &&
+	    (daudio_hw_version() >= DAUDIOKK_HW_3RD)) {
+		tcc_gpio_config(TCC_GPC(17), GPIO_FN0 | GPIO_OUTPUT | GPIO_HIGH | GPIO_PULL_DISABLE);	/* USB_VBUS_OFF */
+		tcc_gpio_config(TCC_GPC(18), GPIO_FN0 | GPIO_OUTPUT | GPIO_HIGH | GPIO_PULL_DISABLE);	/* USB_CHARGE_EN */
+		tcc_gpio_config(TCC_GPC(19), GPIO_FN0 | GPIO_OUTPUT | GPIO_LOW | GPIO_PULL_DISABLE);	/* USB_CHARGE_MODE */
+	} else {
+		tcc_gpio_config(TCC_GPC(17), GPIO_FN0 | GPIO_INPUT | GPIO_PULL_DISABLE);
+		tcc_gpio_config(TCC_GPC(18), GPIO_FN0 | GPIO_INPUT | GPIO_PULL_DISABLE);
+		tcc_gpio_config(TCC_GPC(19), GPIO_FN0 | GPIO_INPUT | GPIO_PULL_DISABLE);
+	}
+#endif
 
 	tcc_otg_vbus_init();
 

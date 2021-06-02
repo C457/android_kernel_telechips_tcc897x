@@ -73,6 +73,8 @@
 #include <linux/mmc/tcc_kpanic.h>
 #endif
 
+#include <mach/daudio_info.h>
+
 #define WIFI_POLLING -9999
 
 #undef DEBUG_SD
@@ -169,7 +171,10 @@ int make_rtc(struct device_node *np)
 		}
 	}
 
-	if (rtc_clk) {
+#ifdef CONFIG_TCC_CODESONAR_BLOCKED
+	if (rtc_clk)
+#endif
+	{
 		clk_prepare_enable(rtc_clk);
 		clk_set_rate(rtc_clk, 32.8*1000);
 		printk("rtc_clk = %d\n", (int)clk_get_rate(rtc_clk));
@@ -581,7 +586,8 @@ static void tcc_mmc_start_command(struct tcc_mmc_host *host, struct mmc_command 
 	cmdtype = 0;
 
 	mask = HwSD_STATE_NOCMD;
-	if ((cmd->data != NULL) || (cmd->flags & MMC_RSP_BUSY)) {
+	if ((cmd->data != NULL) || (cmd->flags & MMC_RSP_BUSY))
+	{
 		mask |= HwSD_STATE_NODAT;
 	}
 
@@ -627,7 +633,12 @@ static void tcc_mmc_start_command(struct tcc_mmc_host *host, struct mmc_command 
 
 	uiIntStatusEn |= HwSDINT_EN_TDONE | HwSDINT_EN_CDONE;
 
-	if (cmd->data || host->is_in_tuning_mode) {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (cmd->data)
+#else
+	if (cmd->data || host->is_in_tuning_mode)
+#endif
+	{
 		host->data = cmd->data;
 		host->data_early = 0;
 
@@ -907,17 +918,34 @@ static void tcc_hw_set_high_speed(struct mmc_host *mmc, int hs)
 
 static void tcc_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	struct tcc_mmc_host *host = NULL;
+	long dwMaxClockRate;
+#else
 	struct tcc_mmc_host *host = mmc_priv(mmc);
+	long dwMaxClockRate = host->peri_clk;
+#endif
 	uint32_t temp_reg;
 	struct pinctrl *pinctrl;
-
-	long dwMaxClockRate = host->peri_clk;
 	int i = 0; /* 2^i is the divisor value */
 	u32 clk_div = 0;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if ((mmc == NULL) || (ios == NULL))
+	{
+		return;// -EHOSTDOWN;
+	}
+
+	host = mmc_priv(mmc);
+	if (host == NULL)
+		return;// -EHOSTDOWN;
+
+	dwMaxClockRate = host->peri_clk;
+#else
 	if((mmc == NULL)||(host == NULL)||(ios == NULL)) {
 		return;// -EHOSTDOWN;
 	}
+#endif
 
 	if (ios->clock != 0) {
 		tcc_hw_set_high_speed(mmc, ios->clock > SDIO_CLOCK_FREQ_HIGH_SPD);
@@ -1180,14 +1208,31 @@ static void tcc_mmc_disable_cd_irq(int cd_irq)
 
 static void tcc_mmc_check_status(struct tcc_mmc_host *host)
 {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	int status = 0;
+#else
 	unsigned int status = 0;
+#endif
 	unsigned int irq_type = 0;
 	int ret = 0;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (host == NULL)
+	{
+		printk("[mmc:NULL] %s(host:NULL)\n", __func__);
+		return;// -EHOSTDOWN;
+	}
+	if (host->mmc == NULL)
+	{
+		printk("[mmc:NULL] %s(host:%x, host->mmc:NULL)\n", __func__, (u32)host);
+		return;// -EHOSTDOWN;
+	}
+#else
 	if((host == NULL)||(host->mmc == NULL)) {
 		printk("[mmc:NULL] %s(host:%x, host->mmc:%x)\n", __func__, (u32)host, (u32)(host->mmc));
 		return;// -EHOSTDOWN;
 	}
+#endif /* !defined(CONFIG_TCC_CODESONAR_BLOCKED) */
 
 	dev_dbg(host->dev, "cd detect\n");
 	status = tcc_mmc_get_cd(host->mmc);
@@ -1604,6 +1649,12 @@ static int tcc_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		data.sg_len = 1;
 
 		blocks = kmalloc(blksz, GFP_KERNEL);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+		if (!blocks)
+			return -ENOMEM;
+		else
+			memset(blocks, 0, blksz);
+#endif
 		sg_init_one(&sg, blocks, blksz);
 
 		mrq.cmd = &cmd;
@@ -1734,13 +1785,17 @@ static int tcc_mmc_start_signal_voltage_switch(struct mmc_host *mmc,
 	mmc_writew(host, temp_val, TCCSDHC_HOST_CONTROL);
 
 	ios->clock = 400000;
+#ifdef CONFIG_TCC_CODESONAR_BLOCKED
 	if (ios->clock != 0) 
+#endif
 	{
 		temp_reg = mmc_readl(host, TCCSDHC_CLOCK_CONTROL);
 		mmc_writew(host, temp_reg & (~HwSDCLKSEL_SCK_EN | ~HwSDCLKSEL_INCLK_EN),
 			   TCCSDHC_CLOCK_CONTROL);
 
+#ifdef CONFIG_TCC_CODESONAR_BLOCKED
 		if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180) 
+#endif
 		{
 			mmc_writel(host, get_sdr_mode(mmc->caps, mmc->caps2),
 					TCCSDHC_ACMD12_ERR);
@@ -1957,7 +2012,6 @@ static void init_mmc_host(struct tcc_mmc_host *host,
 		unsigned int clock_rate)
 {
 	unsigned int temp_val = 0;
-
 	//printk("%s : channel_pa(0x%08x) channel_va(0x%08x)\n",
 		//__func__, TCCSDMMC_PA_CHCTRL, tcc_p2v(TCCSDMMC_PA_CHCTRL));
 	if(host == NULL) {
@@ -2000,7 +2054,11 @@ static void init_mmc_host(struct tcc_mmc_host *host,
 	switch (host->controller_id % 4) 
 	{
 		case 0:
-			writel(0x0F0F0F0F, host->chctrl_base + TCCSDMMC_CHCTRL_SD0CMDDAT);
+            if(get_oem()) {     // oem : 0x00000f0f , pio & opio : 0x00000707
+                writel(0x00000F0F, host->chctrl_base + TCCSDMMC_CHCTRL_SD0CMDDAT);
+            } else
+                writel(0x00000707, host->chctrl_base + TCCSDMMC_CHCTRL_SD0CMDDAT);
+            // writel(0x0F0F0F0F, host->chctrl_base + TCCSDMMC_CHCTRL_SD0CMDDAT);
 			writel(0x2CFF9870, host->chctrl_base + TCCSDMMC_CHCTRL_SD0CAPREG0);
 			writel(0x00000007, host->chctrl_base + TCCSDMMC_CHCTRL_SD0CAPREG1);
 
@@ -2013,8 +2071,12 @@ static void init_mmc_host(struct tcc_mmc_host *host,
 			}
 			else if(host->mmc->caps & MMC_CAP_UHS_DDR50)
 			{
-				temp_val = 0x0000808F; // DDR MODE: FBEN0(1), DLYCTRL0(0), ITAPEN0(1), IPTAP0(15)
-//				printk("[pigfish_debug] %s DDR MODE: set values temp_val[%08x]\n", __func__, temp_val);
+                if(get_seperated_mon())     // seperated: 0x00008097, integrated: 0x0000809e requested by HW 20190625
+                    temp_val = 0x00008097; // DDR MODE: FBEN0(1), DLYCTRL0(0), ITAPEN0(1), IPTAP0(23) for seperated monitors , previous : 8085(IPTAP0(5))
+                else
+                    temp_val = 0x0000809E; // DDR MODE: FBEN0(1), DLYCTRL0(0), ITAPEN0(1), IPTAP0(30) for integrated monitors
+                // temp_val = 0x0000808F; // DDR MODE: FBEN0(1), DLYCTRL0(0), ITAPEN0(1), IPTAP0(15)
+				printk("[pigfish_debug] %s DDR MODE: set values temp_val[%08x]\n", __func__, temp_val);
 			}
 			writel(temp_val, host->chctrl_base + TCCSDMMC_CHCTRL_SD01DELAY);
 			temp_val = mmc_readl(host, TCCSDHC_ACMD12_ERR);
@@ -2276,8 +2338,13 @@ static int tcc_mmc_probe(struct platform_device *pdev)
 		host->adma_desc = kmalloc((128 * 2 + 1) * 4, GFP_KERNEL);
 		host->align_buffer = kmalloc(128 * 4, GFP_KERNEL);
 		if (!host->adma_desc || !host->align_buffer) {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+			if(host->adma_desc) kfree(host->adma_desc);
+			if(host->align_buffer) kfree(host->align_buffer);
+#else
 			kfree(host->adma_desc);
 			kfree(host->align_buffer);
+#endif
 			printk(KERN_WARNING "%s: Unable to allocate ADMA "
 					"buffers. Falling back to standard DMA.\n",
 					mmc_hostname(mmc));
@@ -2430,11 +2497,31 @@ static int tcc_mmc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int tcc_mmc_suspend(struct device *dev)
 {
-	int ret = 0;
+	//int ret = 0;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct tcc_mmc_host *host = platform_get_drvdata(pdev);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	struct mmc_host *mmc = NULL;
+#else
 	struct mmc_host *mmc = host->mmc;
+#endif
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (host == NULL)
+	{
+		printk("[mmc:NULL] %s(host:NULL)\n", __func__);
+		return 0;// -EHOSTDOWN;
+	}
+	if (host->suspended)
+		return 0;
+
+	mmc = host->mmc;
+	if (mmc == NULL)
+	{
+		printk("[mmc:NULL] %s(host:%x, mmc:NULL)\n", __func__, (u32)host);
+		return 0;// -EHOSTDOWN;
+	}
+#else
 	if((host == NULL)||(mmc == NULL)) {
 		printk("[mmc:NULL] %s(host:%x, mmc:%x)\n", __func__, (u32)host, (u32)mmc);
 		return 0;// -EHOSTDOWN;
@@ -2442,9 +2529,10 @@ static int tcc_mmc_suspend(struct device *dev)
 
 	if (host && host->suspended)
 		return 0;
+#endif
 
 	if (mmc->card) {
-		if (ret == 0)
+		//if (ret == 0)	// CONFIG_TCC_CODESONAR_BLOCKED
 			host->suspended = 1;
 	}
 
@@ -2457,8 +2545,24 @@ static int tcc_mmc_suspend(struct device *dev)
 static int tcc_mmc_resume(struct device *dev)
 {
 	int ret = 0;
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	struct platform_device *pdev = NULL;
+	struct tcc_mmc_host *host = NULL;
+
+	if (dev == NULL) {
+		printk("[mmc:NULL] %s(dev:NULL)\n", __func__);
+		return 0;// -EHOSTDOWN;
+	}
+	pdev = to_platform_device(dev);
+	if (pdev == NULL) {
+		printk("[mmc:NULL] %s(pdev:NULL)\n", __func__);
+		return 0;// -EHOSTDOWN;
+	}
+	host = platform_get_drvdata(pdev);
+#else
 	struct platform_device *pdev = to_platform_device(dev);
 	struct tcc_mmc_host *host = platform_get_drvdata(pdev);
+#endif
 
 	if(host == NULL) {
 		printk("[mmc:NULL] %s(host:%x)\n", __func__, (u32)host);
@@ -2468,15 +2572,24 @@ static int tcc_mmc_resume(struct device *dev)
 	//enable cd interrupt
 	tcc_mmc_enable_cd_irq(host->cd_irq);
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!host->suspended)
+		return 0;
+
+	//if (ret == 0)	// CONFIG_TCC_CODESONAR_BLOCKED
+		host->suspended = 0;
+#else
 	if (host && !host->suspended)
 	{
 		return 0;
 	}
 
 	if (host) {
-		if (ret == 0)
+		//if (ret == 0)		// CONFIG_TCC_CODESONAR_BLOCKED
 			host->suspended = 0;
 	}
+
+#endif
 
 	return ret;
 }

@@ -29,7 +29,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam4_clki &cam4_hsync &cam4_vsync &cam4_data &cam0_clki &cam0_hsync &cam0_vsync &cam0_data>;
 		clocks = <&clk_peri PERI_OUT3 &clk_ddi DDIBUS_VIOC>;
-		camera_port = <&cifport 4>;
+		camera_port = <&cifport 4>, <&cifport 0>;
 		camera_wmixer = <&vioc_wmixer 5>;
 		camera_wdma = <&vioc_wdma 5>;
 		camera_pgl = <&vioc_rdma 16>;
@@ -43,27 +43,6 @@
 		camera_gear-gpios = <&gpe 8 0>;
 		rst-gpios = <&gpg 16 0>;
 
-		lvds_camera {
-			clocks = <&clk_peri PERI_OUT3 &clk_ddi DDIBUS_VIOC>;
-			camera_port = <&cifport 0>;
-			camera_wmixer = <&vioc_wmixer 5>;
-			camera_wdma = <&vioc_wdma 5>;
-			camera_pgl = <&vioc_rdma 16>;
-			camera_videoin = <&vioc_vin 4 0>;
-			camera_scaler = <&vioc_scaler 0>;
-			camera_config = <&vioc_config 0>;
-			camera_viqe = <&vioc_viqe 0>;
-			camera_deintls = <&vioc_deintls 0>;
-			camera_fifo = <&vioc_fifo 0>;
-			camera_viqe_set = <&viqe_hidden>;
-			camera_gear-gpios = <&gpe 8 0>;
-			rst-gpios = <&gpg 16 0>;
-
-			max96706_lvds{
-				clock-frequency = <400000>;
-			};
-		};
-
 		// support image sensor module list
 		adv7182_atv{
 			clock-frequency = <245000>;
@@ -75,6 +54,10 @@
 			clock-frequency = <400000>;
 			rst-gpios = <&gpg 16 1>;
 		};	
+
+		max96706_lvds{
+			clock-frequency = <400000>;
+		};
 		/* DAUDIO END */
 	};
 

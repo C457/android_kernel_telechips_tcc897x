@@ -1,9 +1,9 @@
 /*
  * Linux OS Independent Layer
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: linux_osl.c 681267 2017-12-28 07:30:16Z $
+ * $Id: linux_osl.c 696081 2018-08-15 17:34:01Z $
  */
 
 #define LINUX_PORT
@@ -566,7 +566,7 @@ static struct sk_buff *osl_alloc_skb(osl_t *osh, unsigned int len)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
 	gfp_t flags = (in_atomic() || irqs_disabled()) ? GFP_ATOMIC : GFP_KERNEL;
 #if defined(CONFIG_SPARSEMEM) && defined(CONFIG_ZONE_DMA)
-	flags |= GFP_DMA;
+	flags |= GFP_ATOMIC;
 #endif
 #ifdef DHD_USE_ATOMIC_PKTGET
 	flags = GFP_ATOMIC;
@@ -2052,7 +2052,11 @@ osl_os_get_image_block(char *buf, int len, void *image)
 	if (!image)
 		return 0;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0))
 	rdlen = kernel_read(fp, fp->f_pos, buf, len);
+#else
+	rdlen = kernel_read(fp, buf, len, (loff_t *)fp->f_pos);
+#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)) */
 	if (rdlen > 0)
 		fp->f_pos += rdlen;
 

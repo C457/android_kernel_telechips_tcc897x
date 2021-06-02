@@ -66,6 +66,7 @@
 #include <mach/of_vioc_wmix.h>
 #include <mach/vioc_disp.h>
 #include <mach/vioc_global.h>
+#include <mach/daudio_info.h>
 #else
 #include <video/tcc/tccfb.h>
 #include <video/tcc/tcc_fb.h>
@@ -315,7 +316,11 @@ static int tcc_overlay_probe(struct platform_device *pdev)
 
 	vioc_node = of_parse_phandle(pdev->dev.of_node,"fbdisplay-overlay", 0);
 	if(vioc_node)
+	{
 		of_property_read_u32(vioc_node, "telechips,fbdisplay_num", &overlay_drv->fb_dd_num);
+
+		overlay_drv->fb_dd_num = daudio_lcd_type_lvds_check();
+	}
 	else
 		goto err_overlay_drv_init;
 

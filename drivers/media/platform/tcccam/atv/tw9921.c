@@ -1089,7 +1089,7 @@ void sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info)
 	sensor_info->de_pol 					= ACT_LOW;
 	sensor_info->field_bfield_low			= OFF;
 	sensor_info->gen_field_en				= OFF;
-#ifdef CONFIG_LVDS_CAMERA_BT601
+#if defined(CONFIG_LVDS_CAMERA_BT601) || defined(INCLUDE_LVDS_CAMERA_BT601)
 	sensor_info->conv_en				= OFF;
 	sensor_info->hsde_connect_en		= ON;
 #else
@@ -1102,7 +1102,7 @@ void sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info)
 	sensor_info->intl_en					= ON;
 	sensor_info->intpl_en					= OFF;	
 	sensor_info->format 					= M420_ZERO;
-	sensor_info->capture_skip_frame 		= 1;
+	sensor_info->capture_skip_frame 		= 2;
 	sensor_info->sensor_sizes				= sensor_sizes;
 
 #else

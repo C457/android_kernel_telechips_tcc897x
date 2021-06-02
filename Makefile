@@ -404,6 +404,78 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Wno-format-security \
 		   -DQUICKBOOT_SIG=\"$(KQUICKBOOT_SIG)\"\
 		   -std=gnu89
+		   
+ifeq ($(shell echo $(BOARD3HW_GPIO)), true)
+KBUILD_CFLAGS += -DINCLUDE_BOARD3HW_GPIO
+endif
+
+ifeq ($(shell echo $(INCLUDE_LVDS_CAMERA)), true)
+KBUILD_CFLAGS += -DINCLUDE_LVDS_CAMERA
+endif
+
+ifeq ($(shell echo $(INCLUDE_LVDS_CAMERA_BT601)), true)
+KBUILD_CFLAGS += -DINCLUDE_LVDS_CAMERA_BT601
+endif
+
+ifeq ($(shell echo $(INCLUDE_LCD_REVERSED)), true)
+KBUILD_CFLAGS += -DINCLUDE_LCD_REVERSED
+endif
+
+ifeq ($(shell echo $(INCLUDE_LCD_FACTORY)), true)
+KBUILD_CFLAGS += -DINCLUDE_LCD_FACTORY
+endif
+
+ifeq ($(shell echo $(BOARD_HAS_8LCD_WVGA_LOWCOST)), true)
+KBUILD_CFLAGS += -DBOARD_HAS_8LCD_WVGA_LOWCOST
+endif
+
+ifeq ($(shell echo $(INCLUDE_XM)), true)
+KBUILD_CFLAGS += -DINCLUDE_XM	
+endif	
+
+ifeq ($(shell echo $(INCLUDE_TDMB)), true)	
+KBUILD_CFLAGS += -DINCLUDE_TDMB	
+endif
+
+ifeq ($(shell echo $(INCLUDE_DAB)), true)
+KBUILD_CFLAGS += -DINCLUDE_DAB
+endif
+
+ifeq ($(shell echo $(INCLUDE_ISDB)), true)
+KBUILD_CFLAGS += -DINCLUDE_ISDB
+endif
+
+ifeq ($(shell echo $(INCLUDE_EXHUB)), true)
+KBUILD_CFLAGS += -DINCLUDE_EXHUB
+endif
+
+ifeq ($(shell echo $(SUPPORT_VIDEO_DECODING_MEMORY)), true)
+KBUILD_CFLAGS += -DCONFIG_VIDEO_DECODING_MEMORY
+endif
+
+ifeq ($(shell echo $(INCLUDE_PRODUCT_MODEL)), daudiopio)
+KBUILD_CFLAGS += -DINCLUDE_MODEL_PIO3_WIFI
+endif
+
+ifeq ($(PIO_WIDE_64GB_PARTITION),true)
+KBUILD_CFLAGS += -DPIO_WIDE_64GB_PARTITION
+endif
+
+ifeq ($(PIO_WIDE_128GB_PARTITION),true)
+KBUILD_CFLAGS += -DPIO_WIDE_128GB_PARTITION
+endif
+
+ifeq ($(PIO_WIDE_4GB_PARTITION),true)
+KBUILD_CFLAGS += -DPIO_WIDE_4GB_PARTITION
+endif
+
+ifeq ($(PIO_WIDE_8GB_PARTITION),true)
+KBUILD_CFLAGS += -DPIO_WIDE_8GB_PARTITION
+endif
+
+ifeq ($(PIO_WIDE_8GB_PARTITION2),true)
+KBUILD_CFLAGS += -DPIO_WIDE_8GB_PARTITION2
+endif
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=

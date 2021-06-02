@@ -494,13 +494,14 @@
 		sd5_clk: sd5_clk {
 			telechips,pins = "gpd-20";
 			telechips,pin-function = <2>;
-			telechips,drive-strength = <3>;
+            telechips,drive-strength = <2>;
+            telechips,schmitt-input;    
 		};
 
 		sd5_cmd: sd5_cmd {
 			telechips,pins = "gpd-19";
 			telechips,pin-function = <2>;
-			telechips,drive-strength = <3>;
+			telechips,drive-strength = <2>;
 		};
 
 		sd5_bus1: sd5_bus1 {
@@ -1400,6 +1401,14 @@
 			telechips,pins = "gpf-13", "gpf-14";
 			telechips,pin-function = <9>;
 		};
+		
+		sxm_uart20_data: sxm_uart20_data {
+			telechips,pins = "gpf-13", "gpf-14";
+			telechips,pin-function = <0>;
+			telechips,pull-disable;
+			telechips,output-low;
+		};
+
 
 		uart20_rtscts: uart20_rtscts {
 			telechips,pins = "gpf-11", "gpf-12";
