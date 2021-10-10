@@ -1,0 +1,13 @@
+/*
+ * Copyright (C) 2015 Telechips - http://www.telechips.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "tcc/daudiokkwide_common.dtsi"
+#include "tcc/daudiokk_2G.dtsi"
+#include "tcc/daudiokk_3rd_board.dtsi"
+#include "tcc/daudiokk_fm8802.dtsi"
+#include "tcc/daudiokk_usa.dtsi"
