@@ -1044,7 +1044,8 @@ static int scaler_drv_probe(struct platform_device *pdev)
 				scaler->sc->type = VIOC_SC4;
 				break;
 			default:
-				printk("Not support sc->id = %d\n", scaler->sc->id);
+				printk("Not support sc->id = %d\n",
+						scaler->sc->id);
 				goto err_misc_register;
 		}
 	}

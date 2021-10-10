@@ -1102,7 +1102,7 @@ void sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info)
 	sensor_info->intl_en					= ON;
 	sensor_info->intpl_en					= OFF;	
 	sensor_info->format 					= M420_ZERO;
-	sensor_info->capture_skip_frame 		= 1;
+	sensor_info->capture_skip_frame 		= 2;
 	sensor_info->sensor_sizes				= sensor_sizes;
 
 #else

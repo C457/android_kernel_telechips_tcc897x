@@ -601,6 +601,11 @@ int tca_spi_init(tca_spi_handle_t *h,
 #endif
 		memset(h, 0, sizeof(tca_spi_handle_t));
 	}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
+    else
+	    return ret;
+#endif
 
 	// Memory Copy of GPSB Port and GDMA Configuration
     memcpy(&h->port_config, port, sizeof(struct tca_spi_port_config));
@@ -755,6 +760,7 @@ EXPORT_SYMBOL(tca_spi_register_pids);
 EXPORT_SYMBOL(tca_spi_print_gdma_config);
 EXPORT_SYMBOL(tca_spi_gdma_intr_ch);
 
+#if 0
 /****************************************************************************
  * Below is SW Timer for Braodcasting.
  * It is used for calculating STC time for PCR time.
@@ -838,3 +844,4 @@ void TCCREFTIME_TestMain(void)
 EXPORT_SYMBOL(TCCREFTIME_Open);
 EXPORT_SYMBOL(TCCREFTIME_Close);
 EXPORT_SYMBOL(TCCREFTIME_GetTime);
+#endif

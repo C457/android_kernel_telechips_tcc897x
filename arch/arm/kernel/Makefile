@@ -74,7 +74,7 @@ obj-$(CONFIG_KGDB)		+= kgdb.o patch.o
 obj-$(CONFIG_ARM_UNWIND)	+= unwind.o
 obj-$(CONFIG_HAVE_TCM)		+= tcm.o
 # //+[TCCQB] To Build QuickBoot source file
-obj-$(CONFIG_HIBERNATION)       += hibernate_arch.o hibernate_asm.o # quickboot
+#obj-$(CONFIG_HIBERNATION)       += hibernate_arch.o hibernate_asm.o # quickboot
 # //-[TCCQB]
 # //
 obj-$(CONFIG_OF)		+= devtree.o

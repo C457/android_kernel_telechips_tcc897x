@@ -1,9 +1,9 @@
 /*
  * DHD Bus Module for SDIO
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_sdio.c 666440 2017-08-21 07:36:37Z $
+ * $Id: dhd_sdio.c 711056 2019-02-28 14:17:38Z $
  */
 
 #include <typedefs.h>
@@ -880,7 +880,10 @@ dhdsdio_clk_kso_enab(dhd_bus_t *bus, bool on)
 	uint8 wr_val = 0, rd_val, cmp_val, bmask;
 	int err = 0;
 	int try_cnt = 0;
-
+// FEATURE_MOBIS, MyCase 00552418
+#ifdef KSO_MIN_ATTEMPTS
+	uint32 curr_t = OSL_SYSUPTIME(), delta_t;
+#endif /* KSO_MIN_ATTEMPTS */
 	KSO_DBG(("%s> op:%s\n", __FUNCTION__, (on ? "KSO_SET" : "KSO_CLR")));
 
 	wr_val |= (on << SBSDIO_FUNC1_SLEEPCSR_KSO_SHIFT);
@@ -903,6 +906,15 @@ dhdsdio_clk_kso_enab(dhd_bus_t *bus, bool on)
 		rd_val = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SLEEPCSR, &err);
 		if (((rd_val & bmask) == cmp_val) && !err)
 			break;
+// FEATURE_MOBIS, MyCase 00552418
+#ifdef KSO_MIN_ATTEMPTS
+		delta_t = OSL_SYSUPTIME()-curr_t;
+		if (delta_t > PMU_MAX_TRANSITION_DLY/1000) {
+			DHD_ERROR(("%s> op:%s, ERROR: try_cnt:%d, rd_val:%x, delta_t:%d, ERR:%x\n",
+				__FUNCTION__, (on ? "KSO_SET" : "KSO_CLR"), try_cnt, rd_val, delta_t, err));
+			break;
+		}
+#endif /* KSO_MIN_ATTEMPTS */
 
 		KSO_DBG(("%s> KSO wr/rd retry:%d, ERR:%x \n", __FUNCTION__, try_cnt, err));
 
@@ -1630,7 +1642,7 @@ dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 {
 	int ret = BCME_ERROR;
 	osl_t *osh;
-	uint datalen, prec;
+	uint datalen, prec, prio;
 #if defined(DHD_TX_DUMP)
 	uint8 *dump_data;
 	uint16 protocol;
@@ -1683,6 +1695,15 @@ dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 #endif /* DHD_TX_DUMP && DHD_TX_FULL_DUMP */
 
 	prec = PRIO2PREC((PKTPRIO(pkt) & PRIOMASK));
+	/* Updating the precedence value if aifsn are reverse than 802.11 */
+	if (bus->dhd->aifsn_reverse) {
+		prio = PKTPRIO(pkt) & PRIOMASK;
+		if (prio == PRIO_8021D_BE) {
+			prec = PRIO2PREC((PRIO_8021D_VI & PRIOMASK));
+		} else if (prio == PRIO_8021D_VI) {
+			prec = PRIO2PREC((PRIO_8021D_BE & PRIOMASK));
+		}
+	}
 
 	/* Check for existing queue, current flow-control, pending event, or pending clock */
 	if (dhd_deferred_tx || bus->fcstate || pktq_len(&bus->txq) || bus->dpc_sched ||
@@ -7123,6 +7144,10 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 		goto fail;
 	}
 
+#ifdef WL_VIF_SUPPORT
+	if (dhd_register_vif(bus->dhd) != 0)
+		DHD_ERROR(("%s: Vif attach failed!!\n", __FUNCTION__));
+#endif
 #ifdef BCMHOST_XTAL_PU_TIME_MOD
 	bcmsdh_reg_write(bus->sdh, 0x18000620, 2, 11);
 #ifdef BCM4330_CHIP
@@ -8221,8 +8246,10 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 				(uint32 *)SI_ENUM_BASE,
 				bus->cl_devid)) {
 				/* Attempt to download binary to the dongle */
-				if (dhdsdio_probe_init(bus, bus->dhd->osh, bus->sdh) &&
-				    dhdsdio_download_firmware(bus, bus->dhd->osh, bus->sdh) >= 0) {
+				if ((bus->sih != NULL) &&
+					dhdsdio_probe_init(bus, bus->dhd->osh, bus->sdh) &&
+					dhdsdio_download_firmware(bus,
+						bus->dhd->osh, bus->sdh) >= 0) {
 
 					/* Re-init bus, enable F2 transfer */
 					bcmerror = dhd_bus_init((dhd_pub_t *) bus->dhd, FALSE);

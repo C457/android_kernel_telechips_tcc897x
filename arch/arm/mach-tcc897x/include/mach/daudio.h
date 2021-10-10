@@ -1,5 +1,5 @@
 /*
- ** When you modify this source code, 
+ ** When you modify this source code,
  ** please notify this change to the Framework Group Members
  **                                & Engineering Mode Developers.
  */
@@ -16,10 +16,10 @@
 #define TW8836_SENSOR_I2C_SLAVE_ID	0x8A
 #define TW9912_SENSOR_I2C_SLAVE_ID	0x88
 
-#if defined(CONFIG_HIBERNATION) && defined(CONFIG_SNAPSHOT_BOOT)	//if quickboot mode
+//#if defined(CONFIG_HIBERNATION) && defined(CONFIG_SNAPSHOT_BOOT)	//if quickboot mode //20.06.11 In Onebinary branches, This config should NOT be included !!
 #define SETTINGS_BLOCK				"/dev/block/mmcblk0p9"
 #define SETTINGS_NAME				"/dev/block/platform/bdm/by-name/settings"
-#endif
+//#endif
 //#define FEATURE_SUPPORT_ATV_PROGRESSIVE
 //#define FEATURE_SUPPORT_CMMB
 
@@ -40,8 +40,7 @@
 #define FAIL_NO_COMMNAD				307
 
 
-typedef enum _daudio_ie_cmds
-{
+typedef enum _daudio_ie_cmds {
 	SET_BRIGHTNESS				= 10,
 	SET_CONTRAST				,
 	SET_HUE						,
@@ -49,13 +48,13 @@ typedef enum _daudio_ie_cmds
 	SET_CAM_BRIGHTNESS			,  /*cam */ /*14*/
 	SET_CAM_CONTRAST			,
 	SET_CAM_HUE					,
-	
-/*	SET_CAM_SHARPNESS			,
-	SET_CAM_U_GAIN				,
-	SET_CAM_V_GAIN				,
-*/	
+
+	/*	SET_CAM_SHARPNESS			,
+		SET_CAM_U_GAIN				,
+		SET_CAM_V_GAIN				,
+	*/
 	SET_CAM_SATURATION			,
-	
+
 	SET_AUX_BRIGHTNESS			,  /*AUX */ /*18*/
 	SET_AUX_CONTRAST			,
 	SET_AUX_GAMMA				,
@@ -94,51 +93,56 @@ typedef enum _daudio_ie_cmds
 	SET_TCC_ISDB_GAMMA		,
 	SET_TCC_ISDB_SATURATION		,  /*49*/
 
+	SET_DVRS_BRIGHTNESS			,  /*DVRS */ /*50*/
+	SET_DVRS_CONTRAST			,
+	SET_DVRS_GAMMA				,
+	SET_DVRS_SATURATION			,
+
 	GET_BRIGHTNESS				= SET_TCC_USB_SATURATION + 10,  /* 55 */
 	GET_CONTRAST				,
 	GET_HUE						,
 	GET_SATURATION				,
 	GET_CAM_BRIGHTNESS			,
 	GET_CAM_CONTRAST			,  /* 60 */
-	
+
 	GET_CAM_HUE					,
-/*	GET_CAM_SHARPNESS			,
-	GET_CAM_U_GAIN				,
-	GET_CAM_V_GAIN				,
-*/	
+	/*	GET_CAM_SHARPNESS			,
+		GET_CAM_U_GAIN				,
+		GET_CAM_V_GAIN				,
+	*/
 	GET_CAM_SATURATION			,
 
-	GET_AUX_BRIGHTNESS			, 
+	GET_AUX_BRIGHTNESS			,
 	GET_AUX_CONTRAST			,
 	GET_AUX_GAMMA				,  /* 65 */
-	GET_AUX_SATURATION			,  
-	
+	GET_AUX_SATURATION			,
+
 	GET_TCC_BRIGHTNESS			,
 	GET_TCC_CONTRAST			,
-	GET_TCC_HUE					,  
+	GET_TCC_HUE					,
 	GET_TCC_SATURATION			,  /* 70 */
 	GET_TCC_VIDEO_BRIGHTNESS	,
 	GET_TCC_VIDEO_CONTRAST		,
 	GET_TCC_VIDEO_GAMMA			,
-	GET_TCC_VIDEO_SATURATION	,  
+	GET_TCC_VIDEO_SATURATION	,
 	GET_TCC_VIDEO_BRIGHTNESS2	,  /* 75 */
 	GET_TCC_VIDEO_CONTRAST2		,
 	GET_TCC_VIDEO_GAMMA2		,
 	GET_TCC_VIDEO_SATURATION2	,
 
-	GET_TCC_DMB_BRIGHTNESS		, 
+	GET_TCC_DMB_BRIGHTNESS		,
 	GET_TCC_DMB_CONTRAST		, /* 80 */
 	GET_TCC_DMB_GAMMA			,
 	GET_TCC_DMB_SATURATION		,
 
-	GET_TCC_CMMB_BRIGHTNESS		,  
-	GET_TCC_CMMB_CONTRAST		,  
+	GET_TCC_CMMB_BRIGHTNESS		,
+	GET_TCC_CMMB_CONTRAST		,
 	GET_TCC_CMMB_GAMMA			, /* 85 */
 	GET_TCC_CMMB_SATURATION		,
 
-	GET_TCC_USB_BRIGHTNESS		, 
+	GET_TCC_USB_BRIGHTNESS		,
 	GET_TCC_USB_CONTRAST		,
-	GET_TCC_USB_GAMMA			,  
+	GET_TCC_USB_GAMMA			,
 	GET_TCC_USB_SATURATION		, /* 90 */
 
 	GET_TCC_ISDB_BRIGHTNESS		,
@@ -146,16 +150,17 @@ typedef enum _daudio_ie_cmds
 	GET_TCC_ISDB_GAMMA		,
 	GET_TCC_ISDB_SATURATION		,  /*94*/
 
-	SET_TW9990_STRAGE	,
- 	GET_TW9990_STRAGE		, 
- 
+	GET_DVRS_BRIGHTNESS			,  /*95*/
+	GET_DVRS_CONTRAST			,
+	GET_DVRS_GAMMA				,
+	GET_DVRS_SATURATION			,
+
 } daudio_ie_cmds;
 
 /**
  * For convenience, the 4-byte aligned.
  **/
-typedef struct _ie_setting_info_t
-{
+typedef struct _ie_setting_info_t {
 	unsigned int id;
 	unsigned int version;
 
@@ -240,14 +245,12 @@ typedef struct _ie_setting_info_t
 //D-Audio pin control
 #define PINCTL_DRIVER_NAME				"daudio_pinctl"
 
-typedef struct D_Audio_pinioc_cmddata
-{
+typedef struct D_Audio_pinioc_cmddata {
 	int pin_name;	//GPIO PIN NAME
 	int pin_value;	//GPIO VALUE - LOW or HIGH
 } D_AUDIO_PINIOC_CMDDATA;
 
-typedef struct D_Audio_gpio_list
-{
+typedef struct D_Audio_gpio_list {
 	int gpio_name;
 	int gpio_number;
 	char *gpio_description;
@@ -285,7 +288,7 @@ typedef struct D_Audio_gpio_list
 #define CTL_M170_NAVI_VOICE_ON			128
 #define CTL_GPS_ANT_PWR_ON				129
 #define CTL_DRM_RESET					130
-#define CTL_I2C_CHANGE				167 
+#define CTL_I2C_CHANGE				167
 
 //4th board
 #define DET_UBS_CABLE_CHK				131
@@ -347,6 +350,7 @@ typedef struct D_Audio_gpio_list
 #endif
 
 #define DET_SERDES_CONN			171 //serdes conn check 20180622 mhjung
+#define DET_SEPERATED_MON		172
 
 #define DAUDIO_PINCTL_CTL				_IOW('p', 100, struct D_Audio_pinioc_cmddata)
 #define DAUDIO_PINCTL_DET				_IOR('p', 101, struct D_Audio_pinioc_cmddata)
@@ -362,79 +366,77 @@ typedef struct D_Audio_gpio_list
 #endif
 
 #define DAUDIO_BSP_VERSION_DET			_IO('i', 100)
-#define DAUDIO_BSP_ADC_DET				_IO('i', 101)
+#define DAUDIO_BSP_ADC_DET			_IO('i', 101)
+#define DAUDIO_BSP_LCD_COLOR_TEMPERATURE_DET	_IO('i', 102)
+#define DAUDIO_BSP_LCD_INFO_DET			_IO('i', 103)
+#define DAUDIO_BSP_BACK_LCD_INFO_DET            _IO('i', 104)
 
 #define QB_SIG_SIZE						30
 
-typedef struct D_AUDIO_BSP_VERSION
-{
+typedef struct D_AUDIO_BSP_VERSION {
 	int lk_version;
 	int kernel_version;
 	int hw_version;
 	int main_version;
 	int bt_version;
 	int gps_version;
-        int lcd_version;
+	int lcd_version;
 	int incell_version;
+	int vendor_version;
 } D_Audio_bsp_version;
 
-typedef enum daudio_ver_hw
-{
-        DAUDIOKK_HW_1ST=1,
-        DAUDIOKK_HW_2ND,	
-        DAUDIOKK_HW_3RD,	
-        DAUDIOKK_HW_4TH,	
-        DAUDIOKK_HW_5TH,	
-        DAUDIOKK_HW_6TH,	
-        DAUDIOKK_HW_7TH,	
-        DAUDIOKK_HW_8TH,	
-        DAUDIOKK_HW_9TH,	
+typedef enum daudio_ver_hw {
+	DAUDIOKK_HW_1ST = 1,
+	DAUDIOKK_HW_2ND,
+	DAUDIOKK_HW_3RD,
+	DAUDIOKK_HW_4TH,
+	DAUDIOKK_HW_5TH,
+	DAUDIOKK_HW_6TH,
+	DAUDIOKK_HW_7TH,
+	DAUDIOKK_HW_8TH,
+	DAUDIOKK_HW_9TH,
 } daudio_ver_hw_t;
 
-typedef enum daudio_board_ver_data
-{
- 	DAUDIOKK_PLATFORM_WS4 = 1,
- 	DAUDIOKK_PLATFORM_WS5,
- 	DAUDIOKK_PLATFORM_WS3,
- 	DAUDIOKK_PLATFORM_WS6,
- 	DAUDIOKK_PLATFORM_WS7,
- 	DAUDIOKK_PLATFORM_WS8,
- 	DAUDIOKK_PLATFORM_WS9,
- 	DAUDIOKK_PLATFORM_WS10,
- 	DAUDIOKK_PLATFORM_WS11,
+typedef enum daudio_board_ver_data {
+	DAUDIOKK_PLATFORM_WS4 = 1,
+	DAUDIOKK_PLATFORM_WS5,
+	DAUDIOKK_PLATFORM_WS3,
+	DAUDIOKK_PLATFORM_WS6,
+	DAUDIOKK_PLATFORM_WS7,
+	DAUDIOKK_PLATFORM_WS8,
+	DAUDIOKK_PLATFORM_WS9,
+	DAUDIOKK_PLATFORM_WS10,
+	DAUDIOKK_PLATFORM_WS11,
 } daudio_board_ver_data_t;
 
-typedef enum daudio_ver_bt
-{
-       DAUDIOKK_BT_VER_1,
-       DAUDIOKK_BT_VER_2,
-       DAUDIOKK_BT_VER_3,
-       DAUDIOKK_BT_VER_4,
-       DAUDIOKK_BT_VER_5,
-       DAUDIOKK_BT_VER_6,
-       DAUDIOKK_BT_VER_7,
-       DAUDIOKK_BT_VER_8,
-       DAUDIOKK_BT_VER_9,
-       DAUDIOKK_BT_RESERVED,
+typedef enum daudio_ver_bt {
+	DAUDIOKK_BT_VER_1,
+	DAUDIOKK_BT_VER_2,
+	DAUDIOKK_BT_VER_3,
+	DAUDIOKK_BT_VER_4,
+	DAUDIOKK_BT_VER_5,
+	DAUDIOKK_BT_VER_6,
+	DAUDIOKK_BT_VER_7,
+	DAUDIOKK_BT_VER_8,
+	DAUDIOKK_BT_VER_9,
+	DAUDIOKK_BT_RESERVED,
 } daudio_ver_bt_t;
 
-typedef enum daudio_lcd_versions_oe_int
-{
-	DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si,
-	DAUDIOKK_LCD_OI_10_25_1920_720_OGS_TEMP,
+typedef enum daudio_lcd_versions_oe_int {
+	DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG,
+	DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_2_LG,
 	DAUDIOKK_LCD_OI_RESERVED1,
 	DAUDIOKK_LCD_OI_RESERVED2,
 	DAUDIOKK_LCD_OI_RESERVED3,
 	DAUDIOKK_LCD_OI_RESERVED4,
 	DAUDIOKK_LCD_OI_RESERVED5,
-	DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_LTPS,
-	DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si,
+	DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_LTPS_LG,
+	DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si_BOE,
 	DAUDIOKK_LCD_OI_RESERVED6,
 	DAUDIOKK_LCD_OI_DISCONNECTED,
-}daudio_ver_lcd_oi;
+} daudio_ver_lcd_oi;
 
-typedef enum daudio_lcd_versions_pio_int
-{
+typedef enum daudio_lcd_versions_pio_int {
 	DAUDIOKK_LCD_PI_RESERVED1,
 	DAUDIOKK_LCD_PI_RESERVED2,
 	DAUDIOKK_LCD_PI_RESERVED3,
@@ -446,26 +448,24 @@ typedef enum daudio_lcd_versions_pio_int
 	DAUDIOKK_LCD_PI_RESERVED7,
 	DAUDIOKK_LCD_PI_RESERVED8,
 	DAUDIOKK_LCD_PI_DISCONNECTED,
-}daudio_ver_lcd_pi;
+} daudio_ver_lcd_pi;
 
 
-typedef enum daudio_lcd_versions_oe_de
-{
+typedef enum daudio_lcd_versions_oe_de {
 	DAUDIOKK_LCD_OD_RESERVED1,
 	DAUDIOKK_LCD_OD_RESERVED2,
 	DAUDIOKK_LCD_OD_RESERVED3,
-	DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si,
-	DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si,
-	DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS,
-	DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si,
+	DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si_LG,
+	DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si_LG,
+	DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_LG,
+	DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE,
 	DAUDIOKK_LCD_OD_RESERVED4,
 	DAUDIOKK_LCD_OD_RESERVED5,
 	DAUDIOKK_LCD_OD_RESERVED6,
 	DAUDIOKK_LCD_OD_DISCONNECTED,
-}daudio_ver_lcd_od;
+} daudio_ver_lcd_od;
 
-typedef enum daudio_lcd_versions_pio_de
-{
+typedef enum daudio_lcd_versions_pio_de {
 	DAUDIOKK_LCD_PD_RESERVED1,
 	DAUDIOKK_LCD_PD_RESERVED2,
 	DAUDIOKK_LCD_PD_RESERVED3,
@@ -477,20 +477,27 @@ typedef enum daudio_lcd_versions_pio_de
 	DAUDIOKK_LCD_PD_RESERVED9,
 	DAUDIOKK_LCD_PD_RESERVED10,
 	DAUDIOKK_LCD_PD_DISCONNECTED,
-}daudio_ver_lcd_pd;
+} daudio_ver_lcd_pd;
 
 struct quickboot_info {
 	char sig[QB_SIG_SIZE];
 	unsigned int addr;
 };
 
-typedef struct D_AUDIO_BSP_ADC
-{
+typedef struct D_AUDIO_BSP_ADC {
 	int hw_adc;
 	int main_adc;
 	int bt_adc;
 	int lcd_adc;
 } D_Audio_bsp_adc;
+
+typedef struct D_AUDIO_BSP_LCD_INFO {
+        int resolution[2];
+        double size[2];
+        double pixel_pitch[2];
+	int temperature;
+	int touchkey_model;
+} D_Audio_bsp_lcd_info;
 
 //D-Audio RTC
 #define DAUDIO_RTC_DAY					1
@@ -521,64 +528,66 @@ typedef struct D_AUDIO_BSP_ADC
 
 #if defined(CONFIG_DAUDIO_20140220)
 ////////// AUDIO MULTI CHANNEL //////////
-	#if defined(CONFIG_SND_SOC_TCC_MULTICHANNEL)
-		#define DAUDIO_MULTICHANNEL_USE (CODEC_FM1288)
-	#else
-		#define DAUDIO_MULTICHANNEL_USE (CODEC_NONE)
-	#endif
+#if defined(CONFIG_SND_SOC_TCC_MULTICHANNEL)
+#define DAUDIO_MULTICHANNEL_USE (CODEC_FM1288)
+#else
+#define DAUDIO_MULTICHANNEL_USE (CODEC_NONE)
+#endif
 ////////// AUDIO CHANNEL DSP //////////
-	#define DAUDIO_AUDIO0_CODEC_NAME 		(CODEC_FM1288_NAME)
-	#define DAUDIO_AUDIO0_CODEC_DAI_NAME 	(CODEC_FM1288_DAI_NAME)
-	#define DAUDIO_AUDIO1_CODEC_NAME 		(CODEC_NXP_NAME)
-	#define DAUDIO_AUDIO1_CODEC_DAI_NAME 	(CODEC_NXP_DAI_NAME)
+#define DAUDIO_AUDIO0_CODEC_NAME 		(CODEC_FM1288_NAME)
+#define DAUDIO_AUDIO0_CODEC_DAI_NAME 	(CODEC_FM1288_DAI_NAME)
+#define DAUDIO_AUDIO1_CODEC_NAME 		(CODEC_NXP_NAME)
+#define DAUDIO_AUDIO1_CODEC_DAI_NAME 	(CODEC_NXP_DAI_NAME)
 ////////// NAVI VOICE SIGNAL CONTROL //////////
 #ifndef CONFIG_DAUDIO_KK	//NOT USED
-	#define GPIO_NAVI_VOC_ON 				TCC_GPG(4)
+#define GPIO_NAVI_VOC_ON 				TCC_GPG(4)
 #endif
-	#define DAUDIO_NAVI_VOC_CTRL 			(CODEC_AUDIO0_SPDIF)
+#define DAUDIO_NAVI_VOC_CTRL 			(CODEC_AUDIO0_SPDIF)
 #else
-	#if defined(CONFIG_SND_SOC_TCC_MULTICHANNEL)
-		#define DAUDIO_MULTICHANNEL_USE (CODEC_FM1288)
-	#else
-		#define DAUDIO_MULTICHANNEL_USE (CODEC_NONE)
-	#endif
-	#define DAUDIO_AUDIO0_CODEC_NAME 		(CODEC_FM1288_NAME)
-	#define DAUDIO_AUDIO0_CODEC_DAI_NAME 	(CODEC_FM1288_DAI_NAME)
-	#define DAUDIO_AUDIO1_CODEC_NAME 		(CODEC_NXP_NAME)
-	#define DAUDIO_AUDIO1_CODEC_DAI_NAME 	(CODEC_NXP_DAI_NAME)
-#ifndef CONFIG_DAUDIO_KK	//NOT USED
-	#define GPIO_NAVI_VOC_ON 				TCC_GPG(4)
+#if defined(CONFIG_SND_SOC_TCC_MULTICHANNEL)
+#define DAUDIO_MULTICHANNEL_USE (CODEC_FM1288)
+#else
+#define DAUDIO_MULTICHANNEL_USE (CODEC_NONE)
 #endif
-	#define DAUDIO_NAVI_VOC_CTRL 			(CODEC_AUDIO0_SPDIF)
+#define DAUDIO_AUDIO0_CODEC_NAME 		(CODEC_FM1288_NAME)
+#define DAUDIO_AUDIO0_CODEC_DAI_NAME 	(CODEC_FM1288_DAI_NAME)
+#define DAUDIO_AUDIO1_CODEC_NAME 		(CODEC_NXP_NAME)
+#define DAUDIO_AUDIO1_CODEC_DAI_NAME 	(CODEC_NXP_DAI_NAME)
+#ifndef CONFIG_DAUDIO_KK	//NOT USED
+#define GPIO_NAVI_VOC_ON 				TCC_GPG(4)
+#endif
+#define DAUDIO_NAVI_VOC_CTRL 			(CODEC_AUDIO0_SPDIF)
 #endif
 
 //DAUDIO TOUCH DRIVER
 #if defined(CONFIG_TOUCHSCREEN_ATMEL_MXT_336S_AT) || defined(CONFIG_TOUCHSCREEN_ATMEL_MXT_336S_AT_MODULE)
 
-	#define TOUCH_VERSION_BUF_SIZE 128
-	#define TOUCH_TEST_BUF_SIZE	   128
+#define TOUCH_VERSION_BUF_SIZE 128
+#define TOUCH_TEST_BUF_SIZE	   128
 
-	struct atmel_touch_version{
-		char ver[TOUCH_VERSION_BUF_SIZE];
-		char conf[TOUCH_VERSION_BUF_SIZE];
-		char firm[TOUCH_VERSION_BUF_SIZE];
-	};
+struct atmel_touch_version {
+	char ver[TOUCH_VERSION_BUF_SIZE];
+	char conf[TOUCH_VERSION_BUF_SIZE];
+	char firm[TOUCH_VERSION_BUF_SIZE];
+};
 
-	struct atmel_touch_self_test{
-		char references[TOUCH_TEST_BUF_SIZE];
-		char pinfault[TOUCH_TEST_BUF_SIZE];
-	};
-
-	#define DAUDIO_TOUCH_IOC_MAGIC_V1               'T'
-	#define DAUDIO_TOUCHIOC_S_MODE_VERSION		_IOW(DAUDIO_TOUCH_IOC_MAGIC_V1, 0, char[sizeof(struct atmel_touch_version)])
-	#define DAUDIO_TOUCHIOC_S_MODE_LOCK			_IO(DAUDIO_TOUCH_IOC_MAGIC_V1, 1)
-	#define DAUDIO_TOUCHIOC_S_MODE_UNLOCK		_IO(DAUDIO_TOUCH_IOC_MAGIC_V1, 2)
-	#define DAUDIO_TOUCHIOC_DISABLE_AUTO_CAL	_IO(DAUDIO_TOUCH_IOC_MAGIC_V1, 3)
-	#define DAUDIO_TOUCHIOC_CHECK_RE_CAL		_IO(DAUDIO_TOUCH_IOC_MAGIC_V1, 4)
-	#define DAUDIO_TOUCHIOC_SENSITIVITY			_IOW(DAUDIO_TOUCH_IOC_MAGIC_V1, 5, unsigned int)
-	#define DAUDIO_TOUCHIOC_REFERENCES_TEST		_IOW(DAUDIO_TOUCH_IOC_MAGIC_V1, 6, char[sizeof(struct atmel_touch_self_test)])
-	#define DAUDIO_TOUCHIOC_PINFAULT_TEST		_IOW(DAUDIO_TOUCH_IOC_MAGIC_V1, 7, char[sizeof(struct atmel_touch_self_test)])
+struct atmel_touch_self_test {
+	char references[TOUCH_TEST_BUF_SIZE];
+	char pinfault[TOUCH_TEST_BUF_SIZE];
+};
 #endif
+
+#define DAUDIO_TOUCH_IOC_MAGIC_V1               'T'
+#define DAUDIO_TOUCHIOC_S_MODE_VERSION		_IOW(DAUDIO_TOUCH_IOC_MAGIC_V1, 0, char[sizeof(struct atmel_touch_version)])
+#define DAUDIO_TOUCHIOC_S_MODE_LOCK			_IO(DAUDIO_TOUCH_IOC_MAGIC_V1, 1)
+#define DAUDIO_TOUCHIOC_S_MODE_UNLOCK		_IO(DAUDIO_TOUCH_IOC_MAGIC_V1, 2)
+#define DAUDIO_TOUCHIOC_DISABLE_AUTO_CAL	_IO(DAUDIO_TOUCH_IOC_MAGIC_V1, 3)
+#define DAUDIO_TOUCHIOC_CHECK_RE_CAL		_IO(DAUDIO_TOUCH_IOC_MAGIC_V1, 4)
+#define DAUDIO_TOUCHIOC_SENSITIVITY			_IOW(DAUDIO_TOUCH_IOC_MAGIC_V1, 5, unsigned int)
+#define DAUDIO_TOUCHIOC_REFERENCES_TEST		_IOW(DAUDIO_TOUCH_IOC_MAGIC_V1, 6, char[sizeof(struct atmel_touch_self_test)])
+#define DAUDIO_TOUCHIOC_PINFAULT_TEST		_IOW(DAUDIO_TOUCH_IOC_MAGIC_V1, 7, char[sizeof(struct atmel_touch_self_test)])
+#define DAUDIO_TOUCHIOC_BLU_ON                  _IO(DAUDIO_TOUCH_IOC_MAGIC_V1, 8)
+#define DAUDIO_TOUCHIOC_BLU_OFF                  _IO(DAUDIO_TOUCH_IOC_MAGIC_V1, 9)
 
 //DAUDIO CMMB
 #define DAUDIO_CMMBIOC_RESET					225
@@ -589,13 +598,14 @@ typedef struct D_AUDIO_BSP_ADC
 
 #define ENABLE_CMMB_SPI_UPDATE					227
 
-//DAUDIO DAB
+//DAUDIO DAB --> DAUDIOKK DMB
 #define ENABLE_DAB_SPI_INT				230
 #define CTL_DAB_BOOT_MODE               231
 #define CTL_DAB_RESET               	232
-#define ENABLE_TPEG_SPI_INT		233
+#define ENABLE_SATURN_SPI_INT		233
 
 #define CTL_FM1688_RESET		238
+#define CTL_FM1688_SWITCH        239
 
 
 #define DAB_SPI_INT			TCC_GPC(21)
@@ -610,18 +620,18 @@ typedef struct {
 } CMMB_RESET_INFO;
 
 //DAUDIO CAM TYPE
-typedef enum video_type{
+typedef enum video_type {
 	CVBS,
 	S_VIDEO,
 	COMPONENT,
 	LVDS,
-}VIDEO_TYPE_t;
+} VIDEO_TYPE_t;
 
-typedef enum cam_type{
+typedef enum cam_type {
 	DIRECT_CAM,
 	STEERING_CAM,
 	SVM_CAM,
 	PGS_CAM,
-}CAM_TYPE_t;
+} CAM_TYPE_t;
 
 #endif // __DAUDIO___

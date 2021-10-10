@@ -1,9 +1,9 @@
 /*
  * DHD Protocol Module for CDC and BDC.
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_cdc.c 677365 2017-11-10 05:48:14Z $
+ * $Id: dhd_cdc.c 694683 2018-08-11 07:27:23Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -298,6 +298,9 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t * ioc, void * buf, int len)
 	if (len > WLC_IOCTL_MAXLEN)
 		goto done;
 
+	if (prot == NULL)
+		goto done;
+
 	if (prot->pending == TRUE) {
 		DHD_ERROR(("CDC packet is pending!!!! cmd=0x%x (%lu) lastcmd=0x%x (%lu)\n",
 			ioc->cmd, (unsigned long)ioc->cmd, prot->lastcmd,
@@ -514,8 +517,12 @@ dhd_prot_detach(dhd_pub_t *dhd)
 #ifdef PROP_TXSTATUS
 	dhd_wlfc_deinit(dhd);
 #endif
+	dhd_os_proto_block(dhd);
+
 	DHD_OS_PREFREE(dhd, dhd->prot, sizeof(dhd_prot_t));
 	dhd->prot = NULL;
+
+	dhd_os_proto_unblock(dhd);
 }
 
 void

@@ -44,6 +44,11 @@
  */
 #include <linux/kmod.h>	// call_usermodehelper( )
 #include <linux/vmalloc.h>	// vmalloc( )
+
+#ifdef CONFIG_LK_DEBUG_LOG_BUF
+#include <mach/lk_debug_logbuf.h>
+#endif
+
 extern u32 read_usstatus(void);	// to read usstatus register ( LK boot time )
 
 
@@ -68,12 +73,9 @@ static char *qb_um_list[] = {
 	"/data",
 	"/cache",
 	"/storage/upgrade",
-	"/storage/vr1",
 	"/storage/vr2",
 	"/storage/log",
-	"/oem_data",
-	"/storage/navi",
-	"/storage/navi2"
+	"/oem_data"
 };
 #elif defined(PIO_WIDE_128GB_PARTITION)
 static char *qb_um_list[] = {
@@ -83,12 +85,9 @@ static char *qb_um_list[] = {
 	"/data",
 	"/cache",
 	"/storage/upgrade",
-	"/storage/vr1",
 	"/storage/vr2",
 	"/storage/log",
-	"/oem_data",
-	"/storage/navi",
-	"/storage/navi2"
+	"/oem_data"
 };
 #elif defined(PIO_WIDE_4GB_PARTITION)
 static char *qb_um_list[] = {
@@ -98,6 +97,7 @@ static char *qb_um_list[] = {
 	"/data",
 	"/cache",
 	"/storage/upgrade",
+	"/oem_data",
 	"/storage/log",
 };
 #elif defined(PIO_WIDE_8GB_PARTITION)
@@ -110,6 +110,18 @@ static char *qb_um_list[] = {
 	"/storage/upgrade",
 	"/oem_data",
 	"/storage/log",
+};
+#elif defined(PIO_WIDE_8GB_PARTITION2)
+static char *qb_um_list[] = {
+	"/data/tombstones",
+	"/data/system/dropbox",
+	"/data/misc/dio",
+	"/data",
+	"/cache",
+	"/storage/upgrade",
+	"/oem_data",	
+	"/storage/vr1",
+    "/storage/log",
 };
 #else
 static char *qb_um_list[] = {
@@ -1560,6 +1572,10 @@ Enable_cpus:
 	writel(usts, pmu_reg+PMU_USSTATUS);  //  Set PMU_USSTATUS to 0.
 
 	tccwdt_qb_exit();	// Exit QuickBoot WatchDog
+#ifdef CONFIG_LK_DEBUG_LOG_BUF
+	//resume time, do not print lk log
+	//lk_log_print_show();
+#endif // CONFIG_LK_DEBUG_LOG_BUF
 	return error;
 }
 

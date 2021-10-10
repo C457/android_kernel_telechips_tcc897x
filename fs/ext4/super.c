@@ -417,6 +417,7 @@ static void ext4_handle_error(struct super_block *sb)
 		smp_wmb();
 		sb->s_flags |= MS_RDONLY;
 	}
+#if 0    
 #if !defined (CONFIG_DAUDIO_KK)
 	if (test_opt(sb, ERRORS_PANIC))
 		panic("EXT4-fs (device %s): panic forced after error\n",
@@ -431,6 +432,7 @@ static void ext4_handle_error(struct super_block *sb)
 			sb->s_id);
 	}
 #endif
+#endif     
 }
 
 #define ext4_error_ratelimit(sb)					\

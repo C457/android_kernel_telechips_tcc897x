@@ -1680,8 +1680,13 @@ static int tcc_tsif_open( struct inode *inode, struct file *filp)
 		case TSIF_MODE_HWDMX: filp->f_op = &tcc_hwdmx_tsif_fops;break;
 		default : return -ENXIO;
 	}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (filp->f_op->open)
+		return filp->f_op->open(inode,filp);
+#else
 	if (filp->f_op && filp->f_op->open)
 		return filp->f_op->open(inode,filp);
+#endif
 	return -EBADF;
 }
 
@@ -1694,7 +1699,7 @@ struct file_operations tcc_tsif_fops =
 static int __init tsif_init(void)
 {
 	int ret = 0;
-	dev_t dev;
+	dev_t dev = 0;
 
 	ret = alloc_chrdev_region(&dev, 0, TSIF_MINOR_NUMBER, "TSIF");
 	tsif_major_num = MAJOR(dev);

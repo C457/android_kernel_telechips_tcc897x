@@ -45,6 +45,13 @@ typedef struct RCAM_LINE_BUFFER_UPDATE_INFO_ {
 }RCAM_LINE_BUFFER_UPDATE_INFO, *PRCAM_LINE_UFFER_UPDATE_INFO;
 #endif
 
+typedef struct {
+	int x;
+	int y;
+	int max_x;
+	int max_y;
+}pinch_info;
+
 /* Our own specific controls */
 #define V4L2_CID_ISO				V4L2_CID_PRIVATE_BASE+0
 #define V4L2_CID_EFFECT				V4L2_CID_PRIVATE_BASE+1
@@ -67,6 +74,8 @@ typedef struct RCAM_LINE_BUFFER_UPDATE_INFO_ {
 #define VIDIOC_USER_SET_CAMERA_ADDR		_IOWR ('V', BASE_VIDIOC_PRIVATE+8, struct v4l2_requestbuffers)
 #define VIDIOC_USER_INT_CHECK			_IOWR ('V', BASE_VIDIOC_PRIVATE+9, int)
 
+#define VIDEOC_USER_SET_ZOOM_RECT				_IOWR ('V', BASE_VIDIOC_PRIVATE+11, pinch_info)
+#define VIDEOC_USER_GET_ZOOM_RECT				_IOWR ('V', BASE_VIDIOC_PRIVATE+12, pinch_info)
 #define RCAM_GET_STATUS						_IOR  ('V', BASE_VIDIOC_PRIVATE+30, unsigned long)
 #if defined(CONFIG_TCC_REAR_CAMERA_DRV)
 #define RCAM_STREAMON						_IO   ('V', BASE_VIDIOC_PRIVATE+31)

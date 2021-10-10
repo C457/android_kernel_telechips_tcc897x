@@ -22,6 +22,11 @@
 
 #include <plat/platsmp.h>
 
+#ifdef CONFIG_LK_DEBUG_LOG_BUF
+#include <linux/memblock.h>
+#include <mach/lk_debug_logbuf.h>
+#endif
+
 static struct of_dev_auxdata tcc897x_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("telechips,vioc-fb", TCC_PA_VIOC,
 		       "tccfb", NULL),
@@ -54,6 +59,22 @@ static struct of_dev_auxdata tcc897x_auxdata_lookup[] __initdata = {
 	{},
 };
 
+#ifdef CONFIG_LK_DEBUG_LOG_BUF
+static void lk_debug_logbuf_init(void)
+{
+	int ret = 0;
+	ret = memblock_reserve((phys_addr_t)(PHYS_DDR_BASE + ABOOT_FORCE_UART_ADDR_OFFSET), ABOOT_FORCE_UART_SIZE);
+	printk(KERN_INFO "%s: lk log start 0x%x, size %d\n", __func__, (PHYS_DDR_BASE + ABOOT_FORCE_UART_ADDR_OFFSET), ABOOT_FORCE_UART_SIZE);
+	if (ret) {
+		memblock_free((phys_addr_t)(PHYS_DDR_BASE+ ABOOT_FORCE_UART_ADDR_OFFSET), ABOOT_FORCE_UART_SIZE);
+		printk(KERN_ERR "unable to register lk log\n");
+		return;
+	}
+	set_lk_memblock_reserved(1);
+	return;
+}
+#endif  //CONFIG_LK_DEBUG_LOG_BUF
+
 static void __init tcc897x_dt_init(void)
 {
 	platform_device_register_simple("tcc-cpufreq", -1, NULL, 0);
@@ -61,6 +82,10 @@ static void __init tcc897x_dt_init(void)
 			     tcc897x_auxdata_lookup, NULL);
 #if defined(CONFIG_DAUDIO) //set GPIO C 29 HIGH
     //tcc_gpio_config(TCC_GPC(29), GPIO_FN0|GPIO_OUTPUT|GPIO_HIGH);
+#endif
+
+#ifdef CONFIG_LK_DEBUG_LOG_BUF
+	lk_debug_logbuf_init();
 #endif
 }
 

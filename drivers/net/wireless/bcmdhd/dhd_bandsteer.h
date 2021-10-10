@@ -4,9 +4,9 @@
  * Feature by which dualband capable PEERs will be
  * forced move on 5GHz interface
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -30,7 +30,7 @@
  *
  * $ Copyright Cypress Semiconductor $
  *
- * $Id: dhd_bandsteer.h 665660 2017-06-29 16:01:46Z $
+ * $Id: dhd_bandsteer.h 710124 2019-02-20 13:15:23Z $
  */
 
 #ifndef _dhd_bandsteer_h_

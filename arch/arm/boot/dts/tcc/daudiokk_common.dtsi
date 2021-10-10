@@ -242,7 +242,7 @@
 			reg = <0x44>; /* check slave address */
 		};
 			
-        	lvds_camera@94 {
+        	camera@94 {
 			compatible = "tcc_camera,0x94";
 			reg = <0x4A>; /* check slave address */
         	};
@@ -252,103 +252,9 @@
 	/* i2c SABRE */
 	i2c@76320000 { // DAUDIO 76330000 -> 76320000
 		status = "okay";
-		/* DAUDIO BEGIN */
-		/*
 		port-mux = <24>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c24_bus>;
-		*/
-		port-mux = <24>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c24_bus>;
-		/* DAUDIO END */
-		/*
-		wm8731: wm8731@1a {
-			compatible = "wm8731";
-			reg = <0x1a>;
-		};
-		*/
-        	/* PMIC : re check pmic */
-		/*
-		pmic: rt5028@3f {
-			compatible = "Richtek,rt5028";
-			reg = <0x3f>;
-			int-gpios = <&gpe 31 0>;
-			regulators {
-				RT5028_ID_BUCK1: buck1 {
-					regulator-name = "vdd_core";
-					regulator-min-microvolt = <700000>;
-					regulator-max-microvolt = <1800000>;
-					regulator-always-on;
-				};
-				RT5028_ID_BUCK2: buck2 {
-					regulator-name = "vdd_mem";
-					regulator-min-microvolt = <700000>;
-					regulator-max-microvolt = <1800000>;
-					regulator-always-on;
-				};
-				RT5028_ID_BUCK3: buck3 {
-					regulator-name = "vdd_cpu";
-					regulator-min-microvolt = <700000>;
-					regulator-max-microvolt = <3600000>;
-					regulator-always-on;
-				};
-				RT5028_ID_BUCK4: buck4 {
-					regulator-name = "vdd_io3v3";
-					regulator-min-microvolt = <700000>;
-					regulator-max-microvolt = <3600000>;
-					regulator-always-on;
-				};
-				RT5028_ID_LDO1: ldo1 {
-					regulator-name = "vd2_core";
-					regulator-min-microvolt = <1600000>;
-					regulator-max-microvolt = <3600000>;
-					regulator-always-on;
-				};
-				RT5028_ID_LDO2: ldo2 {
-					regulator-name = "vdd_io1v8";
-					regulator-min-microvolt = <1600000>;
-					regulator-max-microvolt = <3600000>;
-					regulator-always-on;
-				};
-				RT5028_ID_LDO3: ldo3 {
-					regulator-name = "vdd_btwifi";
-					regulator-min-microvolt = <1600000>;
-					regulator-max-microvolt = <3600000>;
-					regulator-always-on;
-				};
-				RT5028_ID_LDO4: ldo4 {
-					regulator-name = "vdd_vbat";
-					regulator-min-microvolt = <3000000>;
-					regulator-max-microvolt = <3600000>;
-					regulator-always-on;
-				};
-				RT5028_ID_LDO5: ldo5 {
-					regulator-name = "vdd_gps";
-					regulator-min-microvolt = <3000000>;
-					regulator-max-microvolt = <3600000>;
-					regulator-always-on;
-				};
-				RT5028_ID_LDO6: ldo6 {
-					regulator-name = "vd1_io";
-					regulator-min-microvolt = <3000000>;
-					regulator-max-microvolt = <3600000>;
-					regulator-always-on;
-				};
-				RT5028_ID_LDO7: ldo7 {
-					regulator-name = "vd1_core";
-					regulator-min-microvolt = <1600000>;
-					regulator-max-microvolt = <3600000>;
-					regulator-always-on;
-				};
-				RT5028_ID_LDO8: ldo8 {
-					regulator-name = "vd2_io";
-					regulator-min-microvolt = <1600000>;
-					regulator-max-microvolt = <3600000>;
-					regulator-always-on;
-				};
-			}; 
-		}; */
 	};
 
 	smui2c@74500000 {
@@ -642,57 +548,29 @@
 		compatible = "telechips,dummy";
 	};
 
+	fbdisplay: fbdisplay@72000000 {
+                telechips,fbdisplay_num = <0>;
+                status ="okay";
+        };
 
-//DAUDIOKK sound +
+        panel_1920x720 {
+        status = "okay";
+        compatible = "telechips,hdmi1920x720";
+        clocks = <&clk_peri PERI_LCD0>, <&clk_peri PERI_LCD1>, <&clk_peri PERI_HDMI>, <&clk_ddi DDIBUS_HDMI>, <&clk_isoip_top ISOIP_TOP_HDMI>, <&clk_peri PERI_HDMI_PCLK>;
+        clock-names = "lcdc0-clk", "lcdc1-clk", "hdmi-lclk", "hdmi-hclk", "hdmi-phy", "hdmi-pclk";
+};
 
-	/* Audio 3 */
-	i2s@76101000 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&media_i2s3_clks &media_i2s3_dout>;
-		status = "okay";
-	};
-
-	/* Audio 1 */
-	i2s@76401000 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&micspk_i2s1_clks &mic_i2s1_din &spk_i2s1_dout>;
-		status = "okay";
-	};
-
-	/* Audio 2 */
-	i2s@76b01000 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&btmodem_i2s2_clks &bt_i2s2_din &bt_i2s2_dout &modem_i2s2_din &modem_i2s2_dout>;
-		status = "okay";
-	};
-	
-	spdif@76202000 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&mdai_spdif_tx &mdai_spdif_rx>;
-		status = "okay";
-	};
-
-	sound {
-		compatible = "telechips,snd-daudio-dummy";
-		telechips,model = "TCC Audio Card";
-		telechips,audio-routing =
-			"Headphone Jack", "HPOUTR",
-			"Headphone Jack", "HPOUTL",
-			"Int Spk", "ROP",
-			"Int Spk", "RON",
-			"Int Spk", "LOP",
-			"Int Spk", "LON",
-			"Mic Jack", "MICBIAS",
-			"IN1L", "Mic Jack";
-
-		/* DAI setting for 5th board */
-		telechips,dai-controller = <&i2s2 &spdif0 &i2s3 &i2s1 >;
-		telechips,audio-codec = <&dummy &dummy &dummy  &dummy>;
-
-		status="okay";
-	};
-
-//DAUDIOKK sound -
+        fld0800 {
+                compatible = "telechips,lvds-fld0800";
+                status = "okay";
+                lvds0 = <&lvds>;
+//              power-on-gpios  = ;                     //LCD_ON
+                display-on-gpios        = <&gpc 22 0>;          //LCD_DISP
+//              reset-gpios             = <&gpf 19 0>;          //LCD_RST
+//              lvds-stby-gpios         = <&gpb 19 0>;          //LCD_DE = LVDS_STBY in LVDS
+//              lvds-power-gpios        = ;                     //LVDS_EN
+//              lvds-power-gpios1       = ;                     //V_5V0_EN
+        };
 
 	overlaymixer:overlaymixer@72400000 {
 //		status ="okay";

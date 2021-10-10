@@ -20,6 +20,12 @@
 #include <mach/iomap.h>
 #include <asm/io.h>
 #define PMU_USSTATUS            0x1C
+static int reboot_reason=0;
+int get_reboot_reason(void)
+{
+	return reboot_reason;
+}
+EXPORT_SYMBOL(get_reboot_reason);
 
 #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
 static char tcc_kpanic_buf[__LOG_BUF_LEN];
@@ -465,3 +471,13 @@ static int tcc_mmc_get_kpanic_size(char *str)
 	return 1;
 }
 __setup("tcc_kpanic_size=", tcc_mmc_get_kpanic_size);
+static int __init reboot_reason_setup(char *str)
+{
+	if (!str)
+		reboot_reason=0;
+	else
+		sscanf(str, "%x", &reboot_reason);
+	//printk("##### reboot_reason_setup=%d", reboot_reason);
+	return 1;
+}
+__setup("androidboot.reboot.reason=", reboot_reason_setup);

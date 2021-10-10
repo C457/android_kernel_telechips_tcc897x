@@ -64,3 +64,4 @@ obj-$(CONFIG_CXL_BASE)		+= cxl/
 obj-$(CONFIG_UID_CPUTIME) += uid_cputime.o
 obj-$(CONFIG_PL131_SC) += amba-pl131.o
 obj-$(CONFIG_DAUDIO_PIN_CONTROL)	+= daudio_pinctl.o
+obj-$(CONFIG_MOBIS_NVDATA_HANDLER)	+= mobis/

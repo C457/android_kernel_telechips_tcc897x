@@ -639,7 +639,8 @@ int mip4_ts_flash_fw(struct mip4_ts_info *info, const u8 *fw_data, size_t fw_siz
 			if (mip4_ts_get_fw_version_u16(info, ver_chip)) {
 				mip4_ts_reset(info);
 			} else {
-				break;
+				if(ver_chip[3] != 0 && ver_chip[2] != 0)
+					break;
 			}
 		}
 
@@ -650,19 +651,19 @@ int mip4_ts_flash_fw(struct mip4_ts_info *info, const u8 *fw_data, size_t fw_siz
 
 			/* Compare version */
 			if (bin_type == 0) {
-			        if (ver_chip[0] == bin_info->ver_boot) {
+			        if (ver_chip[0] >= bin_info->ver_boot) {
 				        dev_info(&client->dev, "Bootloader is already up-to-date\n");
  	  	        		ret = fw_err_uptodate;
 					goto uptodate;
 				}
 			} else if (bin_type == 1) {
-				if ((ver_chip[1] == bin_info->ver_core) && (ver_chip[2] == bin_info->ver_app) && (ver_chip[3] == bin_info->ver_param)) {
+				if ((ver_chip[1] >= bin_info->ver_core) && (ver_chip[2] >= bin_info->ver_app) && (ver_chip[3] >= bin_info->ver_param)) {
 					dev_info(&client->dev, "Firmware is already up-to-date\n");
 					ret = fw_err_uptodate;
 					goto uptodate;
 				}
 			} else {
-				if ((ver_chip[0] == bin_info->ver_boot) && (ver_chip[1] == bin_info->ver_core) && (ver_chip[2] == bin_info->ver_app) && (ver_chip[3] == bin_info->ver_param)) {
+				if ((ver_chip[0] >= bin_info->ver_boot) && (ver_chip[1] >= bin_info->ver_core) && (ver_chip[2] >= bin_info->ver_app) && (ver_chip[3] >= bin_info->ver_param)) {
 					dev_info(&client->dev, "Chip firmware is already up-to-date\n");
 					ret = fw_err_uptodate;
 					goto uptodate;

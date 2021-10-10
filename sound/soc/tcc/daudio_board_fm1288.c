@@ -84,28 +84,28 @@ static int tcc_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_
 	print_func;
 
 	switch ((rate = params_rate(params))) {
-	case 8000:
-	case 16000:
-	case 48000:
-	case 96000:
-		clk = 8192000;
-		break;
-	case 11025:
-	case 22050:
-	case 32000:
-	case 44100:
-	default:
-		clk = 11289600;
-		break;
+		case 8000:
+		case 16000:
+		case 48000:
+		case 96000:
+			clk = 8192000;
+			break;
+		case 11025:
+		case 22050:
+		case 32000:
+		case 44100:
+		default:
+			clk = 11289600;
+			break;
 	}
 
 	alsa_dbg("hw params - rate : %d\n", rate );
 
-	if(params->reserved[SNDRV_PCM_HW_PARAM_EFLAG0] & SNDRV_PCM_MODE_PCMIF){
+	if(params->reserved[SNDRV_PCM_HW_PARAM_EFLAG0] & SNDRV_PCM_MODE_PCMIF) {
 		alsa_dbg("DSP mode format set\n");
 		/* set codec DAI configuration */
 		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
-				SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+								  SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 		if (ret < 0) {
 			printk("tcc_hw_params()  codec_dai: set_fmt error[%d]\n", ret);
 			return ret;
@@ -113,16 +113,17 @@ static int tcc_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_
 
 		/* set cpu DAI configuration */
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_DSP_A |
-				SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+								  SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 		if (ret < 0) {
 			printk("tcc_hw_params()  cpu_dai: set_fmt error[%d]\n", ret);
 			return ret;
 		}
-	}else{
+	}
+	else {
 		/* set codec DAI configuration */
 		alsa_dbg("IIS mode format set\n");
 		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-				SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+								  SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 		if (ret < 0) {
 			printk("tcc_hw_params()  codec_dai: set_fmt error[%d]\n", ret);
 			return ret;
@@ -130,7 +131,7 @@ static int tcc_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_
 
 		/* set cpu DAI configuration */
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-				SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+								  SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 		if (ret < 0) {
 			printk("tcc_hw_params()  cpu_dai: set_fmt error[%d]\n", ret);
 			return ret;
@@ -139,18 +140,18 @@ static int tcc_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_
 
 	/* set the codec system clock for DAC and ADC */
 	ret = snd_soc_dai_set_sysclk(codec_dai, FM1288_SYSCLK_XTAL, clk,
-		SND_SOC_CLOCK_IN);
+								 SND_SOC_CLOCK_IN);
 	if (ret < 0) {
-        printk("tcc_hw_params()  codec_dai: sysclk error[%d]\n", ret);
+		printk("tcc_hw_params()  codec_dai: sysclk error[%d]\n", ret);
 		return ret;
-    }
+	}
 
 	/* set the I2S system clock as input (unused) */
-   	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, 0, SND_SOC_CLOCK_IN);
+	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, 0, SND_SOC_CLOCK_IN);
 	if (ret < 0) {
-        printk("tcc_hw_params()  cpu_dai: sysclk error[%d]\n", ret);
+		printk("tcc_hw_params()  cpu_dai: sysclk error[%d]\n", ret);
 		return ret;
-    }
+	}
 	return 0;
 }
 
@@ -175,8 +176,9 @@ static int i2s_dummy_init(struct snd_soc_pcm_runtime *rtd)
 /* tcc digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link daudio_dai[] = {
 
-    /*  BT / MODEM  - Sub 2 */
-	{   // Audio0 I2S Capture/Player
+	/*  BT / MODEM  - Sub 2 */
+	{
+		// Audio0 I2S Capture/Player
 		.name = "Audio0",
 		.stream_name = "Audio0",
 		.codec_dai_name = "i2s-dai-dummy",
@@ -184,8 +186,9 @@ static struct snd_soc_dai_link daudio_dai[] = {
 		.ops = &tcc_ops,
 	},
 
-    /* NAVI /SOUND HOUND SPDIF */
-	{   // Audio0 SPDIF Capture/player
+	/* NAVI /SOUND HOUND SPDIF */
+	{
+		// Audio0 SPDIF Capture/player
 		.name = "Audio0-spdif",
 		.stream_name = "Audio0-spdif",
 		.codec_dai_name = "IEC958",
@@ -193,39 +196,41 @@ static struct snd_soc_dai_link daudio_dai[] = {
 		.ops = &tcc_ops,
 	},
 
-    /* CD / MEDIA - Sub 3 */
-    {	// Audio1 I2S Capture/Player
-        .name = "Audio1",
-        .stream_name = "Audio1",
+	/* CD / MEDIA - Sub 3 */
+	{
+		// Audio1 I2S Capture/Player
+		.name = "Audio1",
+		.stream_name = "Audio1",
 		.codec_dai_name = "i2s-dai-dummy",
-        .init = &i2s_dummy_init,
-        .ops = &tcc_ops,
-    },
+		.init = &i2s_dummy_init,
+		.ops = &tcc_ops,
+	},
 
-    /* MIC / SPK OUT - Sub 1 */
-    {	// Audio1 I2S Capture/Player
-        .name = "Audio2",
-        .stream_name = "Audio2",
+	/* MIC / SPK OUT - Sub 1 */
+	{
+		// Audio1 I2S Capture/Player
+		.name = "Audio2",
+		.stream_name = "Audio2",
 		.codec_dai_name = "i2s-dai-dummy",
-        .init = &i2s_dummy_init,
-        .ops = &tcc_ops,
-    }
+		.init = &i2s_dummy_init,
+		.ops = &tcc_ops,
+	}
 #if defined(CONFIG_SND_SOC_TCC_CDIF)
-    ,
-    {
-        .name = "TCC-CDIF-CH1",
-        .stream_name = "cdif-dai-dummy",
-        .codec_dai_name = "cdif-dai-dummy",
-        .init = tcc_iec958_dummy_init, //tcc_codec_dummy_init,
-        .ops = &tcc_ops,
-    }
+	,
+	{
+		.name = "TCC-CDIF-CH1",
+		.stream_name = "cdif-dai-dummy",
+		.codec_dai_name = "cdif-dai-dummy",
+		.init = tcc_iec958_dummy_init, //tcc_codec_dummy_init,
+		.ops = &tcc_ops,
+	}
 #endif
 };
 
 /* tcc audio machine driver */
 static struct snd_soc_card daudio_soc_card = {
 	.driver_name      = "D-Audio Snd Board",
-    .long_name = "D-Audio Snd Board",
+	.long_name = "D-Audio Snd Board",
 	.dai_link  = daudio_dai,
 	.num_links = ARRAY_SIZE(daudio_dai),
 };
@@ -233,9 +238,9 @@ static struct snd_soc_card daudio_soc_card = {
 static int tcc_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &daudio_soc_card;
-	struct device_node *dnode=NULL;
-	
-	int ret=0, i=0;
+	struct device_node *dnode = NULL;
+
+	int ret = 0, i = 0;
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
@@ -248,31 +253,32 @@ static int tcc_audio_probe(struct platform_device *pdev)
 //	if (ret)
 //		return ret;
 
-	i=0;
-	while(1){
+	i = 0;
+	while(1) {
 		dnode = of_parse_phandle(pdev->dev.of_node,
-				"telechips,audio-codec", i);
+								 "telechips,audio-codec", i);
 		if(!dnode)break;
 		dnode = of_parse_phandle(pdev->dev.of_node,
-				"telechips,dai-controller", i);
+								 "telechips,dai-controller", i);
 		if(!dnode)break;
 		i++;
 	}
 
-	if(i > card->num_links){
+	if(i > card->num_links) {
 		printk("==%s== The number of tcc_dai[%d] doesn't match phandle count[%d]\n", __func__, card->num_links, i);
-	}else{
+	}
+	else {
 		card->num_links = i;
 	}
 
-	for (i=0 ; i<card->num_links ; i++) {
+	for (i = 0 ; i < card->num_links ; i++) {
 		daudio_dai[i].codec_of_node = of_parse_phandle(pdev->dev.of_node,
-				"telechips,audio-codec", i);
+									  "telechips,audio-codec", i);
 		if (!daudio_dai[i].codec_of_node)
 			continue;
 		//printk("daudio_dai[%d].codec_of_node->name=%s\n", i, daudio_dai[i].codec_of_node->name);
 		daudio_dai[i].cpu_of_node = of_parse_phandle(pdev->dev.of_node,
-				"telechips,dai-controller", i);
+									"telechips,dai-controller", i);
 		//printk("daudio_dai[%d].cpu_of_node->name=%s\n", i, daudio_dai[i].cpu_of_node->name);
 		if (!daudio_dai[i].cpu_of_node)
 			continue;
@@ -286,7 +292,7 @@ static int tcc_audio_probe(struct platform_device *pdev)
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
-			ret);
+				ret);
 		return ret;
 	}
 

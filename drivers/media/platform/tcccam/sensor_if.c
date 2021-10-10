@@ -417,7 +417,7 @@ int sensor_if_parse_gpio_dt_data(struct tcc_camera_device * vdev)
 	
 #else
 
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS)
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK)
 		module_np = of_find_node_by_name(cam_np,LVDS_MODULE_NODE);
 	else
 		module_np = of_find_node_by_name(cam_np,MODULE_NODE);
@@ -596,6 +596,8 @@ void sensor_if_set(struct tcc_camera_device * vdev, int index)
 #else
 	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS)
 		lvds_sensor_info_init(&vdev->tcc_sensor_info);
+    else if(vdev->data.cam_info == DAUDIO_ADAS_PRK)
+        adas_sensor_info_init(&vdev->tcc_sensor_info);
 	else
 		sensor_info_init_back(&vdev->tcc_sensor_info);
 #endif

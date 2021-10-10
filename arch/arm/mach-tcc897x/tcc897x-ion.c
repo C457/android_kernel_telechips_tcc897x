@@ -36,6 +36,10 @@ void __init tcc_ion_set_platdata(void)
 	pdata = kzalloc(sizeof(struct ion_platform_data)
 			+ 4 * sizeof(struct ion_platform_heap), GFP_KERNEL);
 	pmap_t pmap_ump_reserved;
+
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	memset(&pmap_ump_reserved, 0, sizeof(pmap_t));
+#endif
 	pmap_get_info("ump_reserved", &pmap_ump_reserved);
 
 	if (pdata) {

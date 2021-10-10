@@ -113,6 +113,19 @@ enum vioc_wdma_intr_src {
 /* VIOC WMIX irqs */
 #define VIOC_WMIX_INT_MASK	0x1F
 
+/* VIOC VIN irqs */
+enum vioc_vin_intr_src {
+	VIOC_VIN_INTR_UPD = 0,	/* Register Update */
+	VIOC_VIN_INTR_EOF,		/* EOF signal */
+	VIOC_VIN_INTR_VS,		/* Start point in active area*/
+	VIOC_VIN_INTR_INVS,		/* Start point in blanking area*/
+	VIOC_VIN_INTR_MAX
+};
+#define VIOC_VIN_INT_MASK	((1<<VIOC_VIN_INTR_MAX)-1)
+
+#define VIOC_VIN_INT_INTEN              31
+#define VIOC_VIN_INT_MASK_OFFSET        16
+#define VIOC_VIN_INT_FS                 11
 
 
 extern int vioc_intr_enable(int id, unsigned mask);

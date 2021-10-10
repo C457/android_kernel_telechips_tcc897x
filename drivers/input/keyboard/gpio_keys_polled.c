@@ -310,7 +310,17 @@ static int gpio_keys_resume(struct device *dev)
 	struct gpio_keys_polled_dev *bdev = dev_get_drvdata(dev);
 	int i;
 
-	if (bdev->pdata && bdev) {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (bdev == NULL)
+	{
+		dev_err(dev, "dev is NULL\n");
+		return 0;
+	}
+	if (bdev->pdata)
+#else
+	if (bdev->pdata && bdev)
+#endif
+	{
 		for (i = 0; i < bdev->pdata->nbuttons; i++) {
 			struct gpio_keys_button *button = &bdev->pdata->buttons[i];
 			struct gpio_keys_button_data *bdata = &bdev->data[i];

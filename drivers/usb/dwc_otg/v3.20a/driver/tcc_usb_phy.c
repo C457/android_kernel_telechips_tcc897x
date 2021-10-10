@@ -125,6 +125,13 @@ int dwc_otg_phy_set_dc_level(dwc_otg_core_if_t *_core_if, unsigned int level)
 
 USBPHY_MODE_T USBPHY_SetMode(dwc_otg_core_if_t *_core_if, USBPHY_MODE_T mode)
 {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if(!_core_if) {
+		printk(KERN_ERR "%s error", __func__);
+		return mode;
+	}
+#else
+#endif
 	switch (mode) {
 		case USBPHY_MODE_RESET:
 		{
@@ -205,7 +212,10 @@ USBPHY_MODE_T USBPHY_SetMode(dwc_otg_core_if_t *_core_if, USBPHY_MODE_T mode)
 				pUSBPHYCFG->PCFG4,
 				pUSBPHYCFG->LCFG0);
 			#endif
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
 			if(_core_if != NULL)
+#endif
 				_core_if->phy_mode = USBPHY_MODE_RESET;
 			break;
 		}
@@ -228,7 +238,10 @@ USBPHY_MODE_T USBPHY_SetMode(dwc_otg_core_if_t *_core_if, USBPHY_MODE_T mode)
 		{
 			printk("dwc_otg PHY start\n");
 			BITCLR(_core_if->tcc_phy_config->pcfg0, (USBOTG_PCFG0_PHY_POR|USBOTG_PCFG0_SDI));
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
 			if(_core_if != NULL)
+#endif
 				_core_if->phy_mode = USBPHY_MODE_ON;
 			break;
 		}
@@ -236,7 +249,10 @@ USBPHY_MODE_T USBPHY_SetMode(dwc_otg_core_if_t *_core_if, USBPHY_MODE_T mode)
 		{
 			printk("dwc_otg PHY stop\n");
 			BITSET(_core_if->tcc_phy_config->pcfg0, (USBOTG_PCFG0_PHY_POR|USBOTG_PCFG0_SDI));
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
 			if(_core_if != NULL)
+#endif
 				_core_if->phy_mode = USBPHY_MODE_OFF;
 			break;
 		}

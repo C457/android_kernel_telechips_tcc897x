@@ -12,6 +12,9 @@ DHDCFLAGS += -Wall -Wstrict-prototypes -Dlinux -DLINUX -DBCMDRIVER            \
 	-DCUSTOMER_HW2 -DGET_CUSTOM_MAC_ENABLE			              \
 	-DSHOW_LOGTRACE -DSEC_ENHANCEMENT
 
+# Mobis, MyCase 00552418, Freeze issue about sdio interface 
+DHDCFLAGS += -DKSO_MIN_ATTEMPTS
+
 # ARP offload feature
 #DHDCFLAGS += -DARP_OFFLOAD_SUPPORT
 
@@ -24,6 +27,15 @@ DHDCFLAGS += -DDHD_VERSION_NO_DATE_TIME
 #################
 # Common feature
 #################
+## SWAUTO-1902 - disable VIF and ACS.  ##
+# Multiple virtual interface support for all
+#DHDCFLAGS += -DWL_VIF_SUPPORT
+
+# Adding Auto Channel Selection Support as default
+#DHDCFLAGS += -DWL_SUPPORT_AUTO_CHANNEL
+
+# Enabling WAPI as default for all.
+DHDCFLAGS += -DBCMWAPI_WPI -DBCMWAPI_WAI
 
 # DT-based architecture
 DHDCFLAGS += -DCONFIG_DTS
@@ -61,7 +73,6 @@ DHDCFLAGS += -DVSDB
 # For p2p connection issue
 DHDCFLAGS += -DWL_SCB_TIMEOUT=10
 
-#FEATURE_MOBIS_WIFI jaehyungkim@mobis.co.kr 18.04.11 disable TDLS
 # TDLS enable
 #DHDCFLAGS += -DWLTDLS -DWLTDLS_AUTO_ENABLE
 # For TDLS tear down inactive time 40 sec
@@ -76,7 +87,7 @@ DHDCFLAGS += -DROAM_AP_ENV_DETECTION
 DHDCFLAGS += -DROAM_ENABLE -DROAM_CHANNEL_CACHE -DROAM_API
 DHDCFLAGS += -DENABLE_FW_ROAM_SUSPEND
 # Roaming trigger
-DHDCFLAGS += -DCUSTOM_ROAM_TRIGGER_SETTING=-99
+DHDCFLAGS += -DCUSTOM_ROAM_TRIGGER_SETTING=-75
 DHDCFLAGS += -DCUSTOM_ROAM_DELTA_SETTING=10
 # Set PM 2 always regardless suspend/resume
 DHDCFLAGS += -DSUPPORT_PM2_ONLY
@@ -125,18 +136,31 @@ DHDCFLAGS += -DWL_IFACE_COMB_NUM_CHANNELS
 DHDCFLAGS += -DWL_ENABLE_P2P_IF
 #SCAN time
 DHDCFLAGS += -DCUSTOM_SET_SHORT_DWELL_TIME
-DHDCFLAGS += -DCUSTOM_FORCE_NODFS_FLAG
+
+ifeq (,$(findstring 3.10.20,$(LINUXVER)))
+  DHDCFLAGS += -DCUSTOM_FORCE_NODFS_FLAG
+endif
 
 # SoftAP
 #DHDCFLAGS += -DDISABLE_11H_SOFTAP
 DHDCFLAGS += -DSET_RANDOM_MAC_SOFTAP
 DHDCFLAGS += -DWL_CFG80211_ACL
 
+# Uncomment the below line to prioritize AGO creation.
+#DHDCFLAGS += -DWL_CFG80211_PRIORITIZE_AP_CREATING
+
+# Uncomment the below line to disable 11H
+DHDCFLAGS += -DDISABLE_11H
+
 # Disable 11ac support
 #DHDCFLAGS += -DDISABLE_11AC
 
 #Disable FRAMEBURST on VSDB
-DHDCFLAGS += -DDISABLE_FRAMEBURST_VSDB
+#Need to Remove this DEF, as it fails CERT test.
+#DHDCFLAGS += -DDISABLE_FRAMEBURST_VSDB
+
+# Uncomment the below line to disable 11K
+#DHDCFLAGS += -DDISABLE_11K
 
 # Prevent send hang event even though p2p discovery interface is not removed.
 DHDCFLAGS += -DEXPLICIT_DISCIF_CLEANUP
@@ -166,7 +190,9 @@ ifneq ($(filter y, $(CONFIG_BCM4359)),)
   DHDCFLAGS += -DMFP
 # Enable below macro for Dynamic Link Power Control
 #  DHDCFLAGS += -DDHD_ENABLE_LPC
+ifeq (,$(findstring 3.10.20,$(LINUXVER)))
   DHDCFLAGS += -DCUSTOM_COUNTRY_CODE
+endif
   DHDCFLAGS += -DSAR_SUPPORT
 # debug info
   DHDCFLAGS += -DDHD_WAKE_STATUS
@@ -186,15 +212,19 @@ ifneq ($(CONFIG_BCMDHD_PCIE),)
   DHDCFLAGS += -DDHD_LB
   DHDCFLAGS += -DDHD_LB_RXP
   DHDCFLAGS += -DDHD_LB_STATS
+# Bandsteer support
+  DHDCFLAGS += -DDHD_BANDSTEER
 endif
 
-ifneq ($(CONFIG_BCMDHD_SDIO),)
+ifneq ($(CONFIG_BCMDHD_SDMMC),)
   DHDCFLAGS += -DBDC -DDHD_BCMEVENTS -DMMC_SDIO_ABORT
 # Macros for HW-OOB
 #  DHDCFLAGS += -DOOB_INTR_ONLY -DHW_OOB
 # Enable Below macro for In-Band interrupt
-  DHDCFLAGS += -DSDIO_ISR_THREAD
+#  DHDCFLAGS += -DSDIO_ISR_THREAD
   DHDCFLAGS += -DBCMSDIO -DBCMLXSDMMC -DUSE_SDIOFIFO_IOVAR
+# Cypress Hotfix (RF Issue)
+  DHDCFLAGS += -DSISO_80M_DEFAULT_CHANSPEC
   DHDCFLAGS += -DPROP_TXSTATUS
   DHDCFLAGS += -DCUSTOM_AMPDU_MPDU=16
   DHDCFLAGS += -DCUSTOM_AMPDU_BA_WSIZE=64
@@ -212,6 +242,18 @@ ifneq ($(CONFIG_BCMDHD_SDIO),)
   DHDCFLAGS += -DCUSTOM_BCN_TIMEOUT=5
   DHDCFLAGS += -DWLFC_STATE_PREALLOC
 endif
+
+
+ifneq ($(CONFIG_BCMDHD_SDIOH_STD),)
+  DHDCFLAGS += -DPROP_TXSTATUS -DBCMSDIO -DBCMSDIOH_STD -DBCMSDIOH_TXGLOM -DRXFRAME_THREAD -DSDHOST3=1
+  DHDCFLAGS += -DBCMFILEIMAGE -DSEC_ENHANCEMENT -DDHD_VERSION_NO_DATE_TIME  -DDHD_FW_COREDUMP -DSDTEST -DDHD_IFDEBUG -DSI_ERROR_ENFORCE
+  DHDCFLAGS += -DBDC -DTOE -DDHD_BCMEVENTS -DOEM_ANDROID -DWL11ULB
+  DHDCFLAGS += -DWLAIBSS -DWLAIBSS_PS -DWL_RELMCAST -DWL_SUPPORT_AUTO_CHANNEL -DIPV6_NDO_SUPPORT
+  DHDCFLAGS += -DTSQ_MULTIPLIER=10 -DWL11U
+  DHDCFLAGS += -DWLP2P
+  DHDCFLAGS += -DHT40_GO -DWL_SDO  -DAMPDU_HOSTREORDER
+endif
+
 
 ifeq ($(CONFIG_DHD_USE_STATIC_BUF),y)
   DHDCFLAGS += -DDHD_USE_STATIC_IOCTLBUF
@@ -266,15 +308,19 @@ DHDOFILES := dhd_pno.o dhd_common.o dhd_ip.o dhd_custom_gpio.o \
 	dhd_linux.o dhd_linux_sched.o dhd_cfg80211.o dhd_linux_wq.o aiutils.o bcmevent.o \
 	bcmutils.o bcmwifi_channels.o hndpmu.o linux_osl.o sbutils.o siutils.o \
 	wl_android.o wl_roam.o wl_cfg80211.o wl_cfgp2p.o wl_cfg_btcoex.o wldev_common.o wl_linux_mon.o  \
-	dhd_linux_platdev.o dhd_pno.o dhd_linux_wq.o hnd_pktq.o hnd_pktpool.o
+	dhd_linux_platdev.o dhd_pno.o  hnd_pktq.o hnd_pktpool.o
 
 # RTT support
 #DHDCFLAGS += -DRTT_SUPPORT -DRTT_DEBUG
 #DHDOFILES += dhd_rtt.o bcmxtlv.o bcm_app_utils.o
 
-# Vendor Extension support
-#DHDCFLAGS += -DWL_VENDOR_EXT_SUPPORT
-#DHDOFILES += wl_cfgvendor.o
+# Vendor Extension support for Android
+# if the kernel has support for vendor-extension then enable this flag in kernel \
+	config.
+ifeq ($(CONFIG_BCMDHD_VENDOR_EXT),y)
+	DHDCFLAGS += -DWL_VENDOR_EXT_SUPPORT
+	DHDOFILES += wl_cfgvendor.o
+endif
 
 # Bandsteer support
 #DHDCFLAGS += -DDHD_BANDSTEER
@@ -286,14 +332,20 @@ DHDOFILES := dhd_pno.o dhd_common.o dhd_ip.o dhd_custom_gpio.o \
 ifneq ($(CONFIG_BCMDHD_PCIE),)
   DHDOFILES += dhd_pcie.o dhd_pcie_linux.o dhd_msgbuf.o dhd_flowring.o
   DHDOFILES += pcie_core.o
+# Bandsteer support
+  DHDOFILES += dhd_bandsteer.o
 endif
 
 
-ifneq ($(CONFIG_BCMDHD_SDIO),)
-  DHDOFILES += bcmsdh.o bcmsdh_linux.o bcmsdh_sdmmc.o bcmsdh_sdmmc_linux.o
-  DHDOFILES += dhd_cdc.o dhd_wlfc.o dhd_sdio.o
+ifneq ($(CONFIG_BCMDHD_SDMMC),)
+  DHDOFILES += bcmsdh.o bcmsdh_linux.o dhd_sdio.o dhd_cdc.o dhd_wlfc.o
+  DHDOFILES += bcmsdh_sdmmc.o bcmsdh_sdmmc_linux.o
 endif
 
+ifneq ($(CONFIG_BCMDHD_SDIOH_STD),)
+  DHDOFILES += bcmsdh.o bcmsdh_linux.o dhd_sdio.o dhd_cdc.o dhd_wlfc.o
+  DHDOFILES += bcmsdstd.o bcmsdstd_linux.o
+endif
 
 ifneq ($(CONFIG_BCMDHD),)
   bcmdhd-objs := $(DHDOFILES)

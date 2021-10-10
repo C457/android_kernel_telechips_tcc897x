@@ -148,6 +148,7 @@ struct tccfb_info {
 
 	bool				output_on;
 	struct mutex		output_lock;
+	spinlock_t 			spin_lockDisp;
 	
 #ifdef CONFIG_SYNC_FB
 	struct list_head	fb_update_regs_list;

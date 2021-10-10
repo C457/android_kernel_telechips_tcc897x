@@ -896,7 +896,10 @@ static void tcc_spi_close(struct spi_device *spi)
         msg->status = -ESHUTDOWN;
         msg->complete(msg->context);
     }
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
 	if (tspi_ex) { kfree(tspi_ex); }
+#endif
 	
 	if(!tca_spi_is_use_gdma(tspi))	// if use dedicated DMA
 		free_irq(tspi->irq, spi->master);
@@ -921,6 +924,9 @@ static void tcc_spi_close(struct spi_device *spi)
 	}
 
 	destroy_workqueue(tspi_ex->spi_workqueue);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (tspi_ex) { kfree(tspi_ex); }
+#endif
 }
 
 static void tcc_spi_transfer_work(struct work_struct *work)

@@ -106,7 +106,7 @@ int __CDIF_DEV_NUM__ = 5;
 int tcc_i2s_rate[4][2] = {{0, 0}, }; // to avoid sample rate re-setting.
 
 struct tcc_i2s_data {
-	unsigned int	id;
+	int	id;
 
 	void __iomem	*dai_reg;
 	struct clk	*dai_pclk;
@@ -116,7 +116,7 @@ struct tcc_i2s_data {
 	struct clk	*dam_pclk;
 	unsigned int	dai_slave;
 #endif
-	unsigned int	dai_irq;
+	int	dai_irq;
 	unsigned long	dai_clk_rate;
 #if defined(CONFIG_ARCH_TCC898X)
 	int dai_port;
@@ -159,13 +159,14 @@ static unsigned int io_ckc_get_dai_clock(unsigned int freq)
 
 static int tcc_i2s_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
+#if 0
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 	alsa_dbg("tcc_i2s_startup() \n");
 	if (!cpu_dai->active) {
 	}
-
+#endif
 	return 0;
 }
 
@@ -278,6 +279,8 @@ static int tcc_i2s_hw_params(struct snd_pcm_substream *substream,
 			dma_data = &tcc_i2s_pcm_stereo_out;
 		else if(substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 			dma_data = &tcc_i2s_pcm_stereo_in;
+		else return -EINVAL;
+
 		snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
 		reg_value = i2s_readl(tcc_i2s->dai_reg + I2S_DAMR);
@@ -309,10 +312,18 @@ static int tcc_i2s_hw_params(struct snd_pcm_substream *substream,
 			reg_value |= (Hw18 | Hw19);
 			reg_value |= (Hw20 | Hw21);
 
-			reg_value &= (~Hw4);
-			reg_value &= (~Hw5);
-			reg_value &= (~Hw6);
-			reg_value |= (Hw7);
+			if(params_rate(params) == 8000) {
+				reg_value &= (~Hw4);
+				reg_value &= (~Hw7);
+				reg_value &= (~Hw6);
+				reg_value |= (Hw5);
+			}
+			else {
+				reg_value &= (~Hw4);
+				reg_value &= (~Hw5);
+				reg_value &= (~Hw6);
+				reg_value |= (Hw7);
+			}
 
 			alsa_dbg("%s %d SNDRV_PCM_FORMAT_S16_LE reg 0x%x\n", __func__, tcc_i2s->id, reg_value);
 		}
@@ -615,7 +626,7 @@ static const struct snd_soc_component_driver tcc_i2s_component = {
 static int soc_tcc_i2s_probe(struct platform_device *pdev)
 {
 	struct tcc_i2s_data *tcc_i2s;
-	u32 clk_rate;
+	u32 clk_rate = 44100 * 256;
 #if defined(CONFIG_ARCH_TCC898X)
 	int port_mux = 0;
 #endif

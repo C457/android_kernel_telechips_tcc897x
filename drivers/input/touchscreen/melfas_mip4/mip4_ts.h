@@ -55,6 +55,22 @@
 #include <linux/wakelock.h>
 #endif
 
+#ifdef CONFIG_DAUDIO_KK
+#include <mach/daudio.h>
+#include <mach/daudio_info.h>
+#include <mach/daudio_pinctl.h>
+#include <mach/gpio.h>
+#include "serdes.h"
+#elif defined(CONFIG_WIDE_PE_COMMON)
+#include <mobis/daudio.h>
+#include <mobis/daudio_info.h>
+#include <mobis/daudio_pinctl.h>
+#include <mobis/serdes/serdes.h>
+#endif
+#include <linux/gpio.h>
+#include <linux/reboot.h>
+
+
 /* Include platform data */
 #if (!defined(CONFIG_OF) && !defined(CONFIG_ACPI))
 #include <linux/input/melfas_mip4_ts.h>
@@ -235,6 +251,7 @@
 #define DEBUG_INFO 1
 #define DEBUG_MESSAGE 2
 #define DEBUG_TRACE 3
+#define DEBUG_INT 4
 #define CONFIG_KERNEL_DEBUG_SEC 1
 
 
@@ -244,6 +261,8 @@
 #define FW_PATH_INTERNAL_12_3 "melfas/melfas_mip4_ts_12_3.fw"
 #define FW_PATH_INTERNAL_10_25_plastic "melfas/melfas_mip4_ts_10_25_plastic.fw"
 #define FW_PATH_EXTERNAL "/sdcard/melfas_mip4_ts.fw" /* path of firmware in the external storage */
+#define FW_PATH_EXTERNAL_10_25 "/storage/usb0/melfas_10_25.bin"
+#define FW_PATH_EXTERNAL_12_3 "/storage/usb0/melfas_12_3.bin"
 #define BL_PATH_INTERNAL "melfas/melfas_mip4_ts_bl.fw"  /* path of bootloader included in the kernel image (/firmware) */
 #define BL_PATH_EXTERNAL "/sdcard/melfas_mip4_ts_bl.fw" /* path of bootloader in the external storage */
 #define FW_MAX_SECT_NUM         4
@@ -427,7 +446,7 @@ int mip4_ts_config(struct mip4_ts_info *info);
 int mip4_ts_fw_restore_critical_section(struct mip4_ts_info *info);
 int mip4_ts_fw_restore_from_kernel(struct mip4_ts_info *info, u8 *sections, int retry);
 #endif /* USE_FW_RECOVERY */
-int mip4_ts_fw_update_from_kernel(struct mip4_ts_info *info);
+int mip4_ts_fw_update_from_kernel(struct mip4_ts_info *info, bool force);
 int mip4_ts_fw_update_from_storage(struct mip4_ts_info *info, char *path, bool force);
 int mip4_ts_suspend(struct device *dev);
 int mip4_ts_resume(struct device *dev);
@@ -494,4 +513,8 @@ int mip4_ts_lpwg_event_handler(struct mip4_ts_info *info, u8 *rbuf, u8 size);
 
 #endif
 
-extern int debug;
+extern int melfas_debug;
+#ifdef CONFIG_WIDE_PE_COMMON
+int mip4_init(void);
+void mip4_cleanup(void);
+#endif

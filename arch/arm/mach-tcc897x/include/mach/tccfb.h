@@ -148,7 +148,8 @@ struct tccfb_info {
 
 	bool				output_on;
 	struct mutex		output_lock;
-	
+	spinlock_t          spin_lockDisp;
+
 #ifdef CONFIG_SYNC_FB
 	struct list_head	fb_update_regs_list;
 	struct mutex		fb_timeline_lock;	
@@ -166,7 +167,7 @@ struct tccfb_info {
 	struct kthread_worker	ext_update_regs_worker;
 	struct task_struct	*ext_update_regs_thread;
 	struct kthread_work	ext_update_regs_work;
-	
+
 	struct sw_sync_timeline *ext_timeline;
 	int ext_timeline_max;
 #endif//

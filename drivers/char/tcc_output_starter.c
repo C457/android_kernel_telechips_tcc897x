@@ -60,6 +60,7 @@ Suite 330, Boston, MA 02111-1307 USA
 #include <mach/tcc_composite_ioctl.h>
 #include <mach/tcc_component_ioctl.h>
 #include <mach/tcc_scaler_ctrl.h>
+#include <mach/daudio_info.h>
 #else
 #include <video/tcc/gpio.h>
 #include <video/tcc/tcc_types.h>
@@ -2341,6 +2342,8 @@ static int tcc_output_starter_parse_dt(struct device_node *np)
 		pr_err("%s, could not find fbdisplay_num\n", __func__);
 		ret = -ENODEV;
 	}
+
+	Output_Starter_LCDC_Num = daudio_lcd_type_lvds_check();
 
 	if(Output_Starter_LCDC_Num) {
 		np_fb_1st = of_find_node_by_name(np_fb, "fbdisplay1");

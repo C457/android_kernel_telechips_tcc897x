@@ -1,0 +1,55 @@
+
+//DAUDIOKK sound +
+
+	/* Audio 3 */
+	i2s@76101000 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&media_i2s3_clks &media_i2s3_dout>;
+		status = "okay";
+	};
+
+	/* Audio 1 */
+	i2s@76401000 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&micspk_i2s1_clks &mic_i2s1_din &spk_i2s1_dout>;
+		status = "okay";
+	};
+
+	/* Audio 2 */
+	i2s@76b01000 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&btmodem_i2s2_clks &bt_i2s2_din &bt_i2s2_dout &modem_i2s2_din &modem_i2s2_dout>;
+		status = "okay";
+	};
+	
+	spdif@76202000 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&mdai_spdif_tx &mdai_spdif_rx>;
+		status = "okay";
+	};
+
+	sound {
+		compatible = "telechips,snd-daudio-dummy";
+		telechips,model = "TCC Audio Card";
+		telechips,audio-routing =
+			"Headphone Jack", "HPOUTR",
+			"Headphone Jack", "HPOUTL",
+			"Int Spk", "ROP",
+			"Int Spk", "RON",
+			"Int Spk", "LOP",
+			"Int Spk", "LON",
+			"Mic Jack", "MICBIAS",
+			"IN1L", "Mic Jack";
+
+		/* DAI setting for 5th board */
+		telechips,dai-controller = <&i2s2 &spdif0 &i2s3 &i2s1 >;
+		telechips,audio-codec = <&dummy &dummy &dummy  &dummy>;
+
+		status="okay";
+	};
+
+//DAUDIOKK sound-
+
+
+
+

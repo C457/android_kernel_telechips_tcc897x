@@ -17,6 +17,13 @@ Suite 330, Boston, MA 02111-1307 USA
 
 
 //#define ATAG_CAMERA     0x5441000c
+//
+typedef struct {
+	int x;
+	int y;
+	int max_x;
+	int max_y;
+}pinch_info;
 
 /* Our own specific controls */
 #define V4L2_CID_ISO 								V4L2_CID_PRIVATE_BASE+0
@@ -39,6 +46,9 @@ Suite 330, Boston, MA 02111-1307 USA
 #define VIDIOC_USER_GET_ZOOM_SUPPORT			_IOWR ('V', BASE_VIDIOC_PRIVATE+7, int)
 #define VIDIOC_USER_SET_CAMERA_ADDR				_IOWR ('V', BASE_VIDIOC_PRIVATE+8, struct v4l2_requestbuffers)
 #define VIDIOC_USER_INT_CHECK					_IOWR ('V', BASE_VIDIOC_PRIVATE+9, int) // 20131018 swhwang, for check video frame interrupt
+
+#define VIDEOC_USER_SET_ZOOM_RECT				_IOWR ('V', BASE_VIDIOC_PRIVATE+11, pinch_info)
+#define VIDEOC_USER_GET_ZOOM_RECT				_IOWR ('V', BASE_VIDIOC_PRIVATE+12, pinch_info)
 
 #if defined(CONFIG_PLATFORM_AVN)
 

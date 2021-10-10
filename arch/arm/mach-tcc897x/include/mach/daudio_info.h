@@ -26,17 +26,27 @@ typedef struct GPS_LCD_Version
     int lcd_ver;
 } GPS_LCD_Version_t;
 
+typedef enum lcd_vendor
+{
+	VENDOR_LG=0,
+	VENDOR_AUO,
+	VENDOR_TRULY,
+	VENDOR_TIANMA,
+	VENDOR_BOE,
+} D_Audio_lcd_vendor;
+
+
 static char *daudio_lcd_versions_oe_int_label[11] =
 {
-	"DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si",
-	"DAUDIOKK_LCD_OI_10_25_1920_720_OGS_TEMP",
+	"DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG",
+	"DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_2_LG",
 	"DAUDIOKK_LCD_OI_RESERVED1",
 	"DAUDIOKK_LCD_OI_RESERVED2",
 	"DAUDIOKK_LCD_OI_RESERVED3",
 	"DAUDIOKK_LCD_OI_RESERVED4",
 	"DAUDIOKK_LCD_OI_RESERVED5",
-	"DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_LTPS",
-	"DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si",
+	"DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_LTPS_LG",
+	"DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si_BOE",
 	"DAUDIOKK_LCD_OI_RESERVED6",
 	"DAUDIOKK_LCD_OI_DISCONNECTED",
 };
@@ -62,10 +72,10 @@ static char *daudio_lcd_versions_oe_de_label[11] =
 	"DAUDIOKK_LCD_OD_RESERVED1",
 	"DAUDIOKK_LCD_OD_RESERVED2",
 	"DAUDIOKK_LCD_OD_RESERVED3",
-	"DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si",
-	"DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si",
-	"DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS",
-	"DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si",
+	"DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si_LG",
+	"DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si_LG",
+	"DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_LG",
+	"DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE",
 	"DAUDIOKK_LCD_OD_RESERVED4",
 	"DAUDIOKK_LCD_OD_RESERVED5",
 	"DAUDIOKK_LCD_OD_RESERVED6",
@@ -92,6 +102,8 @@ int daudio_main_version(void);
 //int daudio_bt_version(void);
 //int daudio_gps_version(void);
 int daudio_lcd_version(void);
+int daudio_lcd_type_lvds_check(void);
+int daudio_lcd_inch_check(void);
 //int get_gps_rtc_det(void);
 unsigned long get_ant_diag_adc(unsigned int ch);
 void get_daudio_rev(void);
@@ -101,5 +113,8 @@ int get_gps_diag_short(void);
 int get_gps_diag_open(void);
 int get_serdes_conn(void); //serdes conn check 20180622 mhjung
 extern int set_serdes_conn_check(int value); //serdes conn check 20180622 mhjung
-
+int get_seperated_mon(void);
+int get_oem(void);
+unsigned char get_vehicle_info(void);
+unsigned char get_country_info(void);
 #endif

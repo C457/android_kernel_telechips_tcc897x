@@ -186,8 +186,10 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	int i, ret;
 
 	buffer = kzalloc(sizeof(struct ion_buffer), GFP_KERNEL);
-	if (!buffer)
+	if (!buffer) {
+		printk("func=%s, line=%d, Not enough ion memory!!!, size(ion_buffer)=%d\n", __func__, __LINE__, sizeof(struct ion_buffer));
 		return ERR_PTR(-ENOMEM);
+	}
 
 	buffer->heap = heap;
 	buffer->flags = flags;
@@ -226,6 +228,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 
 		buffer->pages = vmalloc(sizeof(struct page *) * num_pages);
 		if (!buffer->pages) {
+			printk("func=%s, line=%d, Not enough ion memory!!!, size(page*n)=%d\n", __func__, __LINE__, sizeof(struct page *) * num_pages);
 			ret = -ENOMEM;
 			goto err1;
 		}
@@ -345,8 +348,10 @@ static struct ion_handle *ion_handle_create(struct ion_client *client,
 	struct ion_handle *handle;
 
 	handle = kzalloc(sizeof(struct ion_handle), GFP_KERNEL);
-	if (!handle)
+	if (!handle) {
+		printk("func=%s, line=%d, Not enough ion memory!!!, size(ion_handle)=%d\n", __func__, __LINE__, sizeof(struct ion_handle));
 		return ERR_PTR(-ENOMEM);
+	}
 	kref_init(&handle->ref);
 	RB_CLEAR_NODE(&handle->node);
 	handle->client = client;
@@ -823,6 +828,8 @@ err_free_client:
 err_put_task_struct:
 	if (task)
 		put_task_struct(current->group_leader);
+
+	printk("func=%s, line=%d, Not enough ion memory!!!, size(ion_client)=%d\n", __func__, __LINE__, sizeof(struct ion_client));
 	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL(ion_client_create);
@@ -1573,8 +1580,10 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 	int ret;
 
 	idev = kzalloc(sizeof(struct ion_device), GFP_KERNEL);
-	if (!idev)
+	if (!idev) {
+		printk("func=%s, line=%d, Not enough ion memory!!!, size(ion_device)=%d\n", __func__, __LINE__, sizeof(struct ion_device));
 		return ERR_PTR(-ENOMEM);
+	}
 
 	idev->dev.minor = MISC_DYNAMIC_MINOR;
 	idev->dev.name = "ion";

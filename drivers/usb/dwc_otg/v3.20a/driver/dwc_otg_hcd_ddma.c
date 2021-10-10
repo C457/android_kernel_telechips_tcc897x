@@ -84,6 +84,10 @@ static int desc_list_alloc(dwc_otg_qh_t * qh)
 	if (!qh->desc_list) {
 		retval = -DWC_E_NO_MEMORY;
 		DWC_ERROR("%s: DMA descriptor list allocation failed\n", __func__);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+		return retval;
+#else
+#endif
 		
 	}
 
@@ -129,6 +133,10 @@ static int frame_list_alloc(dwc_otg_hcd_t * hcd)
 	if (!hcd->frame_list) {
 		retval = -DWC_E_NO_MEMORY;
 		DWC_ERROR("%s: Frame List allocation failed\n", __func__);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+		return retval;
+#else
+#endif
 	}
 
 	dwc_memset(hcd->frame_list, 0x00, 4 * MAX_FRLIST_EN_NUM);
@@ -981,10 +989,16 @@ static void complete_non_isoc_xfer_ddma(dwc_otg_hcd_t * hcd,
 
 				hcd->fops->complete(hcd, urb->priv, urb,
 						    urb->status);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+				DWC_ERROR("failed : %d, xfer_done : %d, urb->status %d", failed, xfer_done, urb->status);
+				if (!failed)
+					failed = 1;
+				goto stop_scan;
+#else
 				dwc_otg_hcd_qtd_remove_and_free(hcd, qtd, qh);
-
 				if (failed)
 					goto stop_scan;
+#endif
 			} else if (qh->ep_type == UE_CONTROL) {
 				if (qtd->control_phase == DWC_OTG_CONTROL_SETUP) {
 					if (urb->length > 0) {
@@ -1024,6 +1038,11 @@ stop_scan:
 		else
 			dwc_otg_hcd_save_data_toggle(hc, hc_regs, qtd);
 	}
+
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (failed)
+		dwc_otg_hcd_qtd_remove_and_free(hcd, qtd, qh);
+#endif /* !defined(CONFIG_TCC_CODESONAR_BLOCKED) */
 
 	if (halt_status == DWC_OTG_HC_XFER_COMPLETE) {
 		hcint_data_t hcint;

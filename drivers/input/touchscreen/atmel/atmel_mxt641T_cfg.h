@@ -2,7 +2,7 @@
 #define __ATMEL_MXT641T_CFG_H
 
 //[SPT_USERDATA_T38 INSTANCE 0]
-unsigned char cfg_641T_T38[64] = {'1', '8', '0', '6', '0', '8', '0', '4', 0, 0, };
+unsigned char cfg_641T_T38[64] = {'1', '8', '1', '1', '1', '4', '0', '4', 0, 0, };
 
 //[GEN_POWERCONFIG_T7 INSTANCE 0]
 unsigned char cfg_641T_T7[5] = {60, 10, 50, 66, 0};
@@ -28,7 +28,7 @@ unsigned char cfg_641T_T27[7] = {3, 1, 0, 224, 2, 0x0A, 0};
 #endif
 
 //[DEBUG_DIAGNOSTIC_T37 INSTANCE 0]
-unsigned char cfg_641T_T37[130] = {17, 9, 212, 90, 253, 89, 0, 0, 0, 0,
+unsigned char cfg_641T_T37[130] = {243,1};/*17, 9, 212, 90, 253, 89, 0, 0, 0, 0,
 								   218, 85, 34, 88, 71, 88, 8, 88, 119, 88,
 								   10, 88, 129, 88, 162, 88, 170, 88, 174, 88,
 								   5, 89, 39, 89, 62, 89, 152, 89, 19, 90,
@@ -41,7 +41,7 @@ unsigned char cfg_641T_T37[130] = {17, 9, 212, 90, 253, 89, 0, 0, 0, 0,
 								   11, 88, 131, 88, 156, 88, 133, 88, 138, 88,
 								   219, 88, 237, 88, 21, 89, 104, 89, 171, 89,
 								   252, 89, 219, 90, 69, 90, 0, 0, 0, 0};
-
+*/
 //[PROCI_TOUCHSUPPRESSION_T42 INSTANCE 0]
 unsigned char cfg_641T_T42[13] = {67, 0, 30, 30, 120, 2, 0, 10, 0, 0,
  			 					  0, 3, 0};
@@ -57,7 +57,7 @@ unsigned char cfg_641T_T56[36] = {1, 0, 1, 30, 3, 3, 3, 3, 3, 3,
 								  3, 3, 3, 3, 3, 3};
 
 //[PROCI_LENSBENDING_T65 INSTANCE 0]
-unsigned char cfg_641T_T65[23] = {129, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+unsigned char cfg_641T_T65[3][23] = {129, 1, 0, 0, 0, 0, 0, 0, 0, 0,
 								  1, 0, 0, 0, 0, 0, 0, 18, 0, 0,
 								  0, 0, 0};
 
@@ -73,10 +73,8 @@ unsigned char cfg_641T_T72[85] = {253, 0, 0, 1, 0, 5, 10, 5, 5, 5,
 								  0, 0, 0, 0, 0};
 
 //[PROCI_GLOVEDETECTION_T78 INSTANCE 0]
-#if 0
-unsigned char cfg_641T_T78[12] = {129, 6, 1, 0, 20, 0, 24, 0, 0, 12,
-			 					  3, 2};
-#endif
+
+unsigned char cfg_641T_T78[12] = {0};
 
 //[PROCI_RETRANSMISSIONCOMPENSATION_T80 INSTANCE 0]
 #if 0
@@ -85,7 +83,7 @@ unsigned char cfg_641T_T80[12] = {1, 1, 200, 150, 15, 197, 0, 140, 1, 5,
 #endif
 
 //[TOUCH_MULTITOUCHSCREEN_T100 INSTANCE 0]
-unsigned char cfg_641T_T100[60] = {139, 0, 7, 6, 0, 0, 5, 136, 0, 32,
+unsigned char cfg_641T_T100[60] = {139, 0, 0, 6, 0, 0, 5, 136, 0, 32,
 								   42, 0, 0, 0xFF, 0x04, 15, 25, 0, 0, 0,   // 799 -> 1F 03 1279 -> FF 04
 								   18, 42, 5, 5, 0xCF, 0x2, 30, 40, 9, 5,  // 479 -> DF 01 719 -> CF 02
 								   62, 20, 30, 0, 0, 0, 0, 0, 0, 2,

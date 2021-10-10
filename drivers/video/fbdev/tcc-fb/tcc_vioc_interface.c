@@ -540,7 +540,7 @@ irqreturn_t tca_main_display_handler(int irq, void *dev_id)
 #if defined(CONFIG_VIOC_FIFO_UNDER_RUN_COMPENSATION)
 		if(VIOC_DISP_Get_TurnOnOff(fbdev->pdata.Mdp_data.ddc_info.virt_addr)) {
 			if(dispblock_state & (1<<VIOC_DISP_INTR_FU)) {
-//				pr_err("%s FIFO UNDERUN STATUS:0x%x \n",__func__, dispblock_state);
+				pr_err("%s FIFO UNDERUN STATUS:0x%x \n",__func__, dispblock_state);
 				vioc_intr_clear(fbdev->pdata.lcdc_number, (1<<VIOC_DISP_INTR_FU));
 			}
 		} else {

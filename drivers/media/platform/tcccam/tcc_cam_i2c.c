@@ -33,6 +33,8 @@ Suite 330, Boston, MA 02111-1307 USA
 
 #include <mach/gpio.h>
 
+#include <tcc_cam_cm_control.h>
+
 #define 		I2C_WR		0
 #define 		I2C_RD		1
 
@@ -45,6 +47,8 @@ static int debug	= 0;
 
 static int camera_type = 0;
 static const int LVDS_SVM = 4;
+static const int ADAS_PRK = 7;
+static unsigned char camic_error = 0;
 
 struct cam_i2c_chip_info {
 	unsigned gpio_start;
@@ -54,6 +58,26 @@ struct cam_i2c_chip_info {
 	struct i2c_client *client;
 	struct gpio_chip gpio_chip;
 };
+
+static int gpio_get_camera_variant(void)
+{
+	int mode0, mode1, mode2;
+
+	mode0 = gpio_get_value(TCC_GPB(22));
+	mode1 = gpio_get_value(TCC_GPB(19));
+	mode2 = gpio_get_value(TCC_GPB(23));
+
+	dprintk("mode0(0x%x), mode1(0x%x), mode2(0x%x), camera_type(0x%x) \n", \
+		mode0, mode1, mode2, camera_type);	
+
+	return (mode0<<2)|(mode1<<1)|mode2;
+}
+
+int get_camera_type(void)
+{
+	return camera_type;
+}
+EXPORT_SYMBOL(get_camera_type);
 
 #if defined(CONFIG_VIDEO_DUAL_CAMERA_SUPPORT)
 
@@ -201,6 +225,7 @@ static int atohex (const char *name)
 		}
 	}
 }
+
 static ssize_t show_sensor(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
 {
 	int len = 0;
@@ -309,6 +334,44 @@ static const struct file_operations sensor_file_fops = {
 	.write = store_sensor,
 	.llseek = default_llseek,
 };
+
+static ssize_t show_camic_error(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+	int len = 0;
+	unsigned char data = 0;
+	unsigned int camic_read;
+	const struct sensor_reg *next = sensor_initialize;
+	char* buf = 0;
+
+	if(!cam_i2c_client)
+		return -ENOMEM;
+
+	if(!(buf = kmalloc(count, GFP_KERNEL)))
+		return -ENOMEM;
+
+	memset(buf, 0x0, count);
+
+	camic_error = DDI_I2C_Read(0x00, 1, &camic_read, 1, NULL);
+    	printk(KERN_INFO "%s() : Camera IC Error Status - (%s)\n", __func__, (camic_error==0)?"NORMAL":"ERROR");
+
+	data = (camic_error==0)?1:0;
+
+	len = sprintf(buf,"%u\n", data);
+
+	if(len >= 0)
+		len = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	kfree(buf);
+
+	return len;
+}
+
+
+static const struct file_operations camic_err_file_fops = {
+	.open = simple_open,
+	.read = show_camic_error,
+	.llseek = default_llseek,
+};
 #endif
 
 #define MAX96706_ID	0x94
@@ -317,14 +380,10 @@ static const struct file_operations sensor_file_fops = {
 static int cam_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct cam_i2c_chip_info 		*chip;
-	int mode0, mode1, mode2;
 
-	mode0 = gpio_get_value(TCC_GPB(22));
-	mode1 = gpio_get_value(TCC_GPB(19));
-	mode2 = gpio_get_value(TCC_GPB(23));
-	camera_type = (mode0<<2)|(mode1<<1)|mode2;
+	camera_type = gpio_get_camera_variant();
 
-	if(camera_type == LVDS_SVM || camera_type == 6) {
+	if(camera_type == LVDS_SVM || camera_type == 6 || camera_type == ADAS_PRK) {
 		client->addr = (MAX96706_ID >> 1);
 	}
 	else {
@@ -342,11 +401,9 @@ static int cam_i2c_probe(struct i2c_client *client, const struct i2c_device_id *
 	i2c_set_clientdata(client, chip);
 	cam_i2c_client = client;
 	client->flags &= ~(I2C_M_NO_STOP);
-
 	printk(KERN_INFO "%s() : camera type : %d, addr = 0x%x , client = 0x%p \n", \
 					__func__, camera_type, \
 					(client->addr)<<1, cam_i2c_client);
-
 #if defined(CONFIG_VIDEO_ATV_SENSOR)
 	sensor_debugfs_dir = debugfs_create_dir("camera", NULL);
 	if(IS_ERR(sensor_debugfs_dir))
@@ -356,6 +413,9 @@ static int cam_i2c_probe(struct i2c_client *client, const struct i2c_device_id *
 		return err;
 	}
 	if(debugfs_create_file("sensor", 0664, sensor_debugfs_dir, NULL, &sensor_file_fops))
+		debugfs_remove(sensor_debugfs_dir);
+
+	if(debugfs_create_file("camic_error", 0664, sensor_debugfs_dir, NULL, &camic_err_file_fops))
 		debugfs_remove(sensor_debugfs_dir);
 #endif
 
@@ -383,27 +443,17 @@ static int cam_i2c_suspend(struct i2c_client *client)
 
 static int cam_i2c_resume(struct i2c_client *client)
 {
-	int mode0, mode1, mode2;
+	camera_type = gpio_get_camera_variant();
 
-	mode0 = gpio_get_value(TCC_GPB(22));
-	mode1 = gpio_get_value(TCC_GPB(19));
-	mode2 = gpio_get_value(TCC_GPB(23));
-	camera_type = (mode0<<2)|(mode1<<1)|mode2;
-
-	dprintk("mode0(0x%x), mode1(0x%x), mode2(0x%x), camera_type(0x%x) \n", \
-			mode0, mode1, mode2, camera_type);
-
-	if(camera_type == LVDS_SVM || camera_type == 6) {
+	if(camera_type == LVDS_SVM || camera_type == 6 || camera_type == ADAS_PRK) {
 		client->addr = (MAX96706_ID >> 1);
 	}
 	else {
 		client->addr = (TW9990_ID >> 1);
 	}
-
-	printk(KERN_INFO "%s() : camera type : %s, addr = 0x%x , client = 0x%p \n", \
-					__func__, (camera_type == LVDS_SVM) ? "LVDS" : "CVBS", \
+	printk(KERN_INFO "%s() : camera type : %d, addr = 0x%x , client = 0x%p \n", \
+					__func__, camera_type, \
 					(client->addr)<<1, cam_i2c_client);
-
 	return 0;
 }
 
@@ -435,32 +485,36 @@ int DDI_I2C_Write(unsigned char* data, unsigned short reg_bytes, unsigned short 
 {
 	unsigned short bytes = reg_bytes + data_bytes;
 
-	#if defined(USING_HW_I2C)
-	{
-		#if defined(CONFIG_VIDEO_DUAL_CAMERA_SUPPORT)
+	if(!tcc_cm_ctrl_knock()) {
+		#if defined(USING_HW_I2C)
 		{
-			if(i2c_master_send(cam_i2c_client[vdev->CameraID], data, bytes) != bytes)
+			#if defined(CONFIG_VIDEO_DUAL_CAMERA_SUPPORT)
 			{
-				printk("write error!!!! \n");
-				return -EIO; 
+				if(i2c_master_send(cam_i2c_client[vdev->CameraID], data, bytes) != bytes)
+				{
+					printk("write error!!!! \n");
+					return -EIO; 
+				}
 			}
-		}
-		#else // CONFIG_VIDEO_DUAL_CAMERA_SUPPORT
-		{
-			if(!cam_i2c_client) {
-				printk("%s() cam_i2c_client is null !! \n");
-				return -ENODEV;
-			}
+			#else // CONFIG_VIDEO_DUAL_CAMERA_SUPPORT
+			{
+				if(!cam_i2c_client) {
+					printk("%s() cam_i2c_client is null !! \n");
+					return -ENODEV;
+				}
 
-			if(i2c_master_send(cam_i2c_client, data, bytes) != bytes)
-			{
-				printk("write error!!!! \n");
-				return -EIO; 
+				if(i2c_master_send(cam_i2c_client, data, bytes) != bytes)
+				{
+					printk("write error!!!! \n");
+					return -EIO; 
+				}
 			}
+			#endif // CONFIG_VIDEO_DUAL_CAMERA_SUPPORT
 		}
-		#endif // CONFIG_VIDEO_DUAL_CAMERA_SUPPORT
+		#endif // USING_HW_I2C
 	}
-	#endif // USING_HW_I2C
+	else
+		printk("%s() CM4 is running. Ignore sensor I2C!!!!\n",__func__);
 
 	return 0;
 }
@@ -469,54 +523,58 @@ int DDI_I2C_Read(unsigned short reg, unsigned char reg_bytes, unsigned char *val
 {
 	unsigned char data[2];
 	
-	if(reg_bytes == 2)
-	{
-		data[0]= reg>>8;
-		data[1]= (u8)reg&0xff;
+	if(!tcc_cm_ctrl_knock()) {
+		if(reg_bytes == 2)
+		{
+			data[0]= reg>>8;
+			data[1]= (u8)reg&0xff;
+		}
+		else
+		{
+			data[0]= (u8)reg&0xff;
+		}
+
+		#ifdef USING_HW_I2C	
+		{
+			#if defined(CONFIG_VIDEO_DUAL_CAMERA_SUPPORT)
+			{
+				if(i2c_master_send(cam_i2c_client[vdev->CameraID], data, reg_bytes) != reg_bytes)
+				{
+					printk("write error for read!!!! \n");			
+					return -EIO; 
+				}
+
+				if(i2c_master_recv(cam_i2c_client[vdev->CameraID], val, val_bytes) != val_bytes)
+				{
+					printk("read error!!!! \n");
+					return -EIO; 
+				}
+			}
+			#else // CONFIG_VIDEO_DUAL_CAMERA_SUPPORT
+			{
+				if(!cam_i2c_client) {
+					printk("%s() cam_i2c_client is null !! \n");
+					return -ENODEV;
+				}
+
+				if(i2c_master_send(cam_i2c_client, data, reg_bytes) != reg_bytes)
+				{
+					printk("write error for read!!!! \n");			
+					return -EIO; 
+				}
+
+				if(i2c_master_recv(cam_i2c_client, val, val_bytes) != val_bytes)
+				{
+					printk("read error!!!! \n");
+					return -EIO; 
+				}
+			}
+			#endif // CONFIG_VIDEO_DUAL_CAMERA_SUPPORT
+		}
+		#endif
 	}
 	else
-	{
-		data[0]= (u8)reg&0xff;
-	}
-	
-	#ifdef USING_HW_I2C	
-	{
-		#if defined(CONFIG_VIDEO_DUAL_CAMERA_SUPPORT)
-		{
-			if(i2c_master_send(cam_i2c_client[vdev->CameraID], data, reg_bytes) != reg_bytes)
-			{
-	    		printk("write error for read!!!! \n");			
-	     		return -EIO; 
-			}
-
-			if(i2c_master_recv(cam_i2c_client[vdev->CameraID], val, val_bytes) != val_bytes)
-			{
-				printk("read error!!!! \n");
-				return -EIO; 
-			}
-		}
-		#else // CONFIG_VIDEO_DUAL_CAMERA_SUPPORT
-		{
-			if(!cam_i2c_client) {
-				printk("%s() cam_i2c_client is null !! \n");
-				return -ENODEV;
-			}
-
-			if(i2c_master_send(cam_i2c_client, data, reg_bytes) != reg_bytes)
-			{
-				printk("write error for read!!!! \n");			
-				return -EIO; 
-			}
-
-			if(i2c_master_recv(cam_i2c_client, val, val_bytes) != val_bytes)
-			{
-				printk("read error!!!! \n");
-				return -EIO; 
-			}
-		}
-		#endif // CONFIG_VIDEO_DUAL_CAMERA_SUPPORT
-	}
-	#endif
+		printk("%s() CM4 is running. Ignore sensor I2C!!!!\n",__func__);
 
     return 0;
 }
@@ -524,15 +582,14 @@ int DDI_I2C_Read(unsigned short reg, unsigned char reg_bytes, unsigned char *val
 static int __init cam_i2c_init(void)
 {
 	int ret = 0;
-	int mode0, mode1, mode2;
-
-	mode0 = gpio_get_value(TCC_GPB(22));
-	mode1 = gpio_get_value(TCC_GPB(19));
-	mode2 = gpio_get_value(TCC_GPB(23));
-	camera_type = (mode0<<2)|(mode1<<1)|mode2;
+	
+	camera_type = gpio_get_camera_variant();
 
 	if(camera_type == LVDS_SVM || camera_type == 6) {
 		dprintk("camera_type : LVDS(%d) \n", camera_type);
+	}
+	else if(camera_type == ADAS_PRK) {
+		dprintk("camera_type : ADAS_PRK(%d) \n", camera_type);
 	}
 	else {
 		dprintk("camera_type : CVBS(%d) \n", camera_type);

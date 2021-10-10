@@ -124,6 +124,12 @@ void snapshot_state_restore(void)
 	pmu_wakeup_param(PMU_WAKEUP_WKUP1) = pmu_wakeup[1];
 	pmu_wakeup_param(PMU_WAKEUP_WKPOL0) = pmu_wakeup[2];
 	pmu_wakeup_param(PMU_WAKEUP_WKPOL1) = pmu_wakeup[3];
+
+#ifdef CONFIG_LK_DEBUG_LOG_BUF
+	/* lk_log resume */
+	if (snapshot_ops->lk_log_resume)
+		snapshot_ops->lk_log_resume();
+#endif
 }
 
 void snapshot_state_store(void)

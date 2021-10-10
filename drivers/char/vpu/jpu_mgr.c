@@ -451,7 +451,10 @@ static int _jmgr_process(vputype type, int cmd, int pHandle, void* args)
 								arg->gsJpuEncInit.m_BitstreamBufferAddr[PA], arg->gsJpuEncInit.m_BitstreamBufferAddr[VA], arg->gsJpuEncInit.m_iBitstreamBufferSize,
 								arg->gsJpuEncInit.m_iRotMode, arg->gsJpuEncInit.m_bCbCrInterleaveMode, arg->gsJpuEncInit.m_uiEncOptFlags);
 #endif
-					jmgr_data.szFrame_Len = arg->gsJpuEncInit.m_iPicWidth * arg->gsJpuEncInit.m_iPicHeight *3 / 2;
+					if(arg->gsJpuEncInit.m_iSourceFormat)
+						jmgr_data.szFrame_Len = arg->gsJpuEncInit.m_iPicWidth * arg->gsJpuEncInit.m_iPicHeight * 2;
+					else
+						jmgr_data.szFrame_Len = arg->gsJpuEncInit.m_iPicWidth * arg->gsJpuEncInit.m_iPicHeight *3 / 2;
 					jmgr_data.current_resolution = arg->gsJpuEncInit.m_iPicWidth * arg->gsJpuEncInit.m_iPicHeight;
 
 					ret = tcc_jpu_enc(JPU_ENC_INIT, (void*)(&arg->gsJpuEncHandle), (void*)(&arg->gsJpuEncInit), (void*)NULL);

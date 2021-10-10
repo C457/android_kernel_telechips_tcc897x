@@ -772,6 +772,8 @@ int tcc_cipher_run(unsigned char *pucSrcAddr, unsigned char *pucDstAddr, unsigne
 	dma_sync_single_for_cpu(cipher_dev->dev, cipher_dev->dstPhy, uLength, DMA_FROM_DEVICE);
 #endif //USE_REV_MEMORY
 
+	msleep(1);
+
 	/* Remove PKCS7 PAD */
 	if((1 == iPKCS7Pad) && ( 0 == uiEncode)) {
 		*piPKCS7PadLength = cipher_dev->dstVir[uLength-1];

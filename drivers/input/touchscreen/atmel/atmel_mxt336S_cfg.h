@@ -742,6 +742,10 @@ typedef struct {
 
 int mxt_config_settings(struct mxt_data *mxt, u8 *mem, int which, unsigned int touch_type);
 
+int mxt_set_config_file_641t(int object_id,int offset,int width,int data,int instance);
+
+int mxt_set_config_file_641td(int object_id,int offset,int width,int data,int instance);
+
 int mxt_get_object_values(struct mxt_data *mxt, int obj_type);
 int mxt_copy_object(struct mxt_data *mxt, u8 *buf, int obj_type);
 

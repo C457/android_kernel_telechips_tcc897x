@@ -753,8 +753,11 @@ static int dwc_otg_pcd_udc_start(struct usb_gadget *g,
 {
 	//int retval;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+#else
 	/*DWC_DEBUGPL(DBG_PCD,*/ printk("registering gadget driver '%s'\n",
 		    driver->driver.name);
+#endif
 
 	if (!driver ||
 		driver->max_speed == USB_SPEED_UNKNOWN ||
@@ -763,6 +766,10 @@ static int dwc_otg_pcd_udc_start(struct usb_gadget *g,
 		DWC_DEBUGPL(DBG_PCDV, "EINVAL\n");
 		return -EINVAL;
 	}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	printk("registering gadget driver '%s'\n", driver->driver.name);
+#endif
+
 	if (gadget_wrapper == 0) {
 		DWC_DEBUGPL(DBG_PCDV, "ENODEV\n");
 		return -ENODEV;

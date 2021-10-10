@@ -1,9 +1,9 @@
 /*
  * Linux cfg80211 driver
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_cfg80211.h 680148 2017-12-19 09:18:08Z $
+ * $Id: wl_cfg80211.h 709004 2018-12-12 13:26:27Z $
  */
 
 /**
@@ -193,7 +193,7 @@ do {									\
 #define WL_MED_DWELL_TIME	400
 #define WL_MIN_DWELL_TIME	100
 #define WL_LONG_DWELL_TIME	1000
-#define IFACE_MAX_CNT	4
+#define IFACE_MAX_CNT	8 /* Make this to 8 from 5 as defined by MAX_VIF_NUM(8) */
 #define WL_SCAN_CONNECT_DWELL_TIME_MS		200
 #define WL_SCAN_JOIN_PROBE_INTERVAL_MS		20
 #define WL_SCAN_JOIN_ACTIVE_DWELL_TIME_MS	320
@@ -1327,9 +1327,12 @@ wl_clear_iwdata(struct bcm_cfg80211 *cfg)
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0) */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0))
-#define IEEE80211_BAND_2GHZ NL80211_BAND_2GHZ
-#define IEEE80211_BAND_5GHZ NL80211_BAND_5GHZ
-#define IEEE80211_NUM_BANDS NUM_NL80211_BANDS
+/* this enum was removed from version 4.7, redefine it to make it compilable */
+#define ieee80211_band		nl80211_band
+#define IEEE80211_BAND_2GHZ	NL80211_BAND_2GHZ
+#define IEEE80211_BAND_5GHZ	NL80211_BAND_5GHZ
+#define IEEE80211_BAND_60GHZ	NL80211_BAND_60GHZ
+#define IEEE80211_NUM_BANDS	NUM_NL80211_BANDS
 #endif
 
 #define wl_to_sr(w) (w->scan_req_int)
@@ -1528,7 +1531,7 @@ extern s32 wl_cfg80211_get_chanspecs_2g(struct net_device *ndev,
 		void *buf, s32 buflen);
 extern s32 wl_cfg80211_get_chanspecs_5g(struct net_device *ndev,
 		void *buf, s32 buflen);
-#if defined(WL_VIRTUAL_APSTA)
+#if defined(WL_VIRTUAL_APSTA) || defined(WL_VIF_SUPPORT)
 extern int wl_cfg80211_interface_create(struct net_device *dev, char *name);
 extern int wl_cfg80211_interface_delete(struct net_device *dev, char *name);
 #if defined(PKT_FILTER_SUPPORT) && defined(APSTA_BLOCK_ARP_DURING_DHCP)

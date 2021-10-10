@@ -53,5 +53,6 @@ obj-y   += daudio_sabre_tuner.o
 endif
 obj-y  += daudio_fm1688.o
 obj-$(CONFIG_RTC_DRV_RX8900) += daudio_rx8900_ext_rtc.o
+obj-$(CONFIG_LK_DEBUG_LOG_BUF) += lk_debug_logbuf.o
 
 EXTRA_CFLAGS +="-I$(srctree)/drivers/staging/android/"

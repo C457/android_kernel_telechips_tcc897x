@@ -309,7 +309,8 @@ int tcc_cm_ctrl_on(void) {
 int tcc_cm_ctrl_knock(void) {
 	int status = !IS_ERR_OR_NULL(cm_clk);//(pTsdCfg->CM_RESET.nREG & (Hw1|Hw2)) ? 0 : 1;
 	
-	printk(KERN_INFO "!@#---- %s - CM is %s working\n", __func__, (status ? "" : "NOT"));
+	if(status)
+		printk(KERN_INFO "!@#---- %s - CM is working\n", __func__);
 	
 	return status;
 }

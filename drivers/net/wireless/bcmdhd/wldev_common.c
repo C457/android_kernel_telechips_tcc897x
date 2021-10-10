@@ -1,9 +1,9 @@
 /*
  * Common function shared by Linux WEXT, cfg80211 and p2p drivers
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wldev_common.c 585478 2015-09-10 13:33:58Z $
+ * $Id: wldev_common.c 692295 2018-07-06 03:13:54Z $
  */
 
 #include <osl.h>
@@ -360,7 +360,7 @@ extern chanspec_t
 wl_chspec_driver_to_host(chanspec_t chanspec);
 #define WL_EXTRA_BUF_MAX 2048
 int wldev_get_mode(
-	struct net_device *dev, uint8 *cap)
+	struct net_device *dev, uint8 *cap, int cap_len)
 {
 	int error = 0;
 	int chanspec = 0;
@@ -384,21 +384,21 @@ int wldev_get_mode(
 
 	if (band == WL_CHANSPEC_BAND_2G) {
 		if (bss->n_cap)
-			strcpy(cap, "n");
+			strncpy(cap, "n", cap_len);
 		else
-			strcpy(cap, "bg");
+			strncpy(cap, "bg", cap_len);
 	} else if (band == WL_CHANSPEC_BAND_5G) {
 		if (bandwidth == WL_CHANSPEC_BW_80)
-			strcpy(cap, "ac");
+			strncpy(cap, "ac", cap_len);
 		else if ((bandwidth == WL_CHANSPEC_BW_40) || (bandwidth == WL_CHANSPEC_BW_20)) {
 			if ((bss->nbss_cap & 0xf00) && (bss->n_cap))
-				strcpy(cap, "n|ac");
+				strncpy(cap, "n|ac", cap_len);
 			else if (bss->n_cap)
-				strcpy(cap, "n");
+				strncpy(cap, "n", cap_len);
 			else if (bss->vht_cap)
-				strcpy(cap, "ac");
+				strncpy(cap, "ac", cap_len);
 			else
-				strcpy(cap, "a");
+				strncpy(cap, "a", cap_len);
 		} else {
 			WLDEV_ERROR(("%s:Mode get failed\n", __FUNCTION__));
 			return -1;
@@ -442,7 +442,10 @@ int wldev_set_country(
 		cspec.rev = revinfo;
 		memcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
 		memcpy(cspec.ccode, country_code, WLC_CNTRY_BUF_SZ);
-		dhd_get_customized_country_code(dev, (char *)&cspec.country_abbrev, &cspec);
+		/* If revinfo set, we shouldn't map ccode to another. Default revinfo is -1. */
+		if (revinfo == -1) {
+			dhd_get_customized_country_code(dev, (char *)&cspec.country_abbrev, &cspec);
+		}
 		error = wldev_iovar_setbuf(dev, "country", &cspec, sizeof(cspec),
 			smbuf, sizeof(smbuf), NULL);
 		if (error < 0) {

@@ -689,9 +689,14 @@ update_isoc_urb_state(dwc_otg_hcd_t * hcd,
 		      dwc_otg_hc_regs_t * hc_regs,
 		      dwc_otg_qtd_t * qtd, dwc_otg_halt_status_e halt_status)
 {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	struct dwc_otg_hcd_iso_packet_desc *frame_desc;
+	dwc_otg_hcd_urb_t *urb = qtd->urb;
+#else
 	dwc_otg_hcd_urb_t *urb = qtd->urb;
 	dwc_otg_halt_status_e ret_val = halt_status;
 	struct dwc_otg_hcd_iso_packet_desc *frame_desc;
+#endif
 
 	frame_desc = &urb->iso_descs[qtd->isoc_frame_index];
 	switch (halt_status) {
@@ -750,11 +755,23 @@ update_isoc_urb_state(dwc_otg_hcd_t * hcd,
 		 * The individual frame_desc statuses are used instead.
 		 */
 		hcd->fops->complete(hcd, urb->priv, urb, 0);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+		halt_status = DWC_OTG_HC_XFER_URB_COMPLETE;
+#else
 		ret_val = DWC_OTG_HC_XFER_URB_COMPLETE;
+#endif
 	} else {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+		halt_status = DWC_OTG_HC_XFER_COMPLETE;
+#else
 		ret_val = DWC_OTG_HC_XFER_COMPLETE;
+#endif
 	}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	return halt_status;
+#else
 	return ret_val;
+#endif
 }
 
 /**
@@ -1040,7 +1057,11 @@ static int32_t handle_xfercomp_isoc_split_in(dwc_otg_hcd_t * hcd,
 	}
 	frame_desc->actual_length += len;
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (hc->align_buff)
+#else
 	if (hc->align_buff && len)
+#endif
 		dwc_memcpy(qtd->urb->buf + frame_desc->offset +
 			   qtd->isoc_split_offset, hc->qh->dw_align_buf, len);
 	qtd->isoc_split_offset += len;

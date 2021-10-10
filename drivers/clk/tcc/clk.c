@@ -83,6 +83,11 @@ static void tcc_clk_register(struct device_node *np, struct tcc_clks_type *clks,
 		memset(&init, 0x0, sizeof(struct clk_init_data));
 		tcc = kzalloc(sizeof(struct tcc_clk), GFP_KERNEL);
 		if (!tcc) {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+			kfree(clk_data->clks);
+			kfree(clk_data);
+#else
+#endif
 			pr_err("could not allocate tcc clk\n");
 			return;
 		}
@@ -123,7 +128,14 @@ skip_clks_default_set:
 		pr_err("%s: clk register failed\n", init.name);
 		kfree(tcc);
 	}
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	ret = of_clk_add_provider(np, of_clk_src_onecell_get, clk_data);
+
+	if (ret < 0)
+		kfree(clk_data);
+#else
 	of_clk_add_provider(np, of_clk_src_onecell_get, clk_data);
+#endif
 }
 
 void tcc_ckc_set_ops(struct tcc_ckc_ops *ops)

@@ -436,7 +436,8 @@ static int tcc_audio_probe(struct platform_device *pdev)
 	char wm8731_str[]="wm8731", dummy_str[]="dummy";
 	char i2s_str[]="i2s", spdif_str[]="spdif", cdif_str[]="cdif";
 	char *tmp_str;
-	int ret=0, codec_pwr=0, i=0, i2s_devnum=0, spdif_devnum=0, cdif_devnum=0;
+	int ret=0, codec_pwr=0, i2s_devnum=0, spdif_devnum=0, cdif_devnum=0;
+    int i;
 
 #ifdef EXT_CODEC_ON
 	int ext_codec_pwr=0; 
@@ -504,15 +505,18 @@ static int tcc_audio_probe(struct platform_device *pdev)
 		if((!strcmp(tcc_dai[i].codec_of_node->name, wm8731_str))
 			&&(!strcmp(tcc_dai[i].cpu_of_node->name, i2s_str))){
 
-			tmp_str = (char *)kmalloc(strlen("WM8731"), GFP_KERNEL);
+			tmp_str = (char *)kmalloc(strlen("WM8731")+1, GFP_KERNEL);
+			if (tmp_str == NULL) return -ENOMEM;
 			sprintf(tmp_str, "WM8731");
 			tcc_dai[i].name = tmp_str;
 
-			tmp_str = (char *)kmalloc(strlen("WM8731_PCM"), GFP_KERNEL);
+			tmp_str = (char *)kmalloc(strlen("WM8731_PCM")+1, GFP_KERNEL);
+			if (tmp_str == NULL) return -ENOMEM;
 			sprintf(tmp_str, "WM8731_PCM");
 			tcc_dai[i].stream_name = tmp_str; 
 
-			tmp_str = (char *)kmalloc(strlen("wm8731-hifi"), GFP_KERNEL);
+			tmp_str = (char *)kmalloc(strlen("wm8731-hifi")+1, GFP_KERNEL);
+			if (tmp_str == NULL) return -ENOMEM;
 			sprintf(tmp_str, "wm8731-hifi");
 			tcc_dai[i].codec_dai_name = tmp_str; 
 
@@ -527,15 +531,18 @@ static int tcc_audio_probe(struct platform_device *pdev)
 		}else if((!strcmp(tcc_dai[i].codec_of_node->name, dummy_str))
 			&&(!strcmp(tcc_dai[i].cpu_of_node->name, i2s_str))){
 
-			tmp_str = (char *)kmalloc(strlen("TCC-I2S-CH "), GFP_KERNEL);
+			tmp_str = (char *)kmalloc(strlen("TCC-I2S-CH ")+11, GFP_KERNEL);
+			if (tmp_str == NULL) return -ENOMEM;
 			sprintf(tmp_str, "TCC-I2S-CH%d", i2s_devnum);
 			tcc_dai[i].name = tmp_str;
 
-			tmp_str = (char *)kmalloc(strlen("I2S-CH "), GFP_KERNEL);
+			tmp_str = (char *)kmalloc(strlen("I2S-CH ")+11, GFP_KERNEL);
+			if (tmp_str == NULL) return -ENOMEM;
 			sprintf(tmp_str, "I2S-CH%d", i2s_devnum);
 			tcc_dai[i].stream_name = tmp_str;
 
-			tmp_str = (char *)kmalloc(strlen("i2s-dai-dummy"), GFP_KERNEL);
+			tmp_str = (char *)kmalloc(strlen("i2s-dai-dummy")+1, GFP_KERNEL);
+			if (tmp_str == NULL) return -ENOMEM;
 			sprintf(tmp_str, "i2s-dai-dummy");
 			tcc_dai[i].codec_dai_name = tmp_str;
 
@@ -550,15 +557,18 @@ static int tcc_audio_probe(struct platform_device *pdev)
 		}else if((!strcmp(tcc_dai[i].codec_of_node->name, dummy_str))
 			&&(!strcmp(tcc_dai[i].cpu_of_node->name, spdif_str))){
 
-			tmp_str = (char *)kmalloc(strlen("TCC-SPDIF-CH "), GFP_KERNEL);
+			tmp_str = (char *)kmalloc(strlen("TCC-SPDIF-CH ")+11, GFP_KERNEL);
+			if (tmp_str == NULL) return -ENOMEM;
 			sprintf(tmp_str, "TCC-SPDIF-CH%d", spdif_devnum);
 			tcc_dai[i].name = tmp_str;
 
-			tmp_str = (char *)kmalloc(strlen("IEC958"), GFP_KERNEL);
+			tmp_str = (char *)kmalloc(strlen("IEC958")+1, GFP_KERNEL);
+			if (tmp_str == NULL) return -ENOMEM;
 			sprintf(tmp_str, "IEC958");
 			tcc_dai[i].stream_name = tmp_str;
 
-			tmp_str = (char *)kmalloc(strlen("IEC958"), GFP_KERNEL);
+			tmp_str = (char *)kmalloc(strlen("IEC958")+1, GFP_KERNEL);
+			if (tmp_str == NULL) return -ENOMEM;
 			sprintf(tmp_str, "IEC958");
 			tcc_dai[i].codec_dai_name = tmp_str;
 

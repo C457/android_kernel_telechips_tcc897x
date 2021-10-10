@@ -49,6 +49,11 @@
 #include <mach/of_vioc_wmix.h>
 #include <mach/of_vioc_sc.h>
 #include <mach/of_vioc_wdma.h>
+
+#include <mach/vioc_lut.h>
+#include <mach/vioc_blk.h>
+#include <mach/tcc_lut_ioctl.h>
+
 #else
 #include <video/tcc/vioc_rdma.h>
 #include <video/tcc/vioc_wdma.h>
@@ -238,6 +243,7 @@ static int wmixer_drv_ctrl(struct wmixer_drv_type *wmixer)
 			wmixer->wdma->data.mode.convert = 1;
 			wmixer->wdma->data.mode.rgb_swap = wmix_info->dst_rgb_swap;
 		}
+
 		vioc_wdma_set_image(wmixer->wdma, 1);
 	}
 #else
@@ -282,6 +288,7 @@ static int wmixer_drv_ctrl(struct wmixer_drv_type *wmixer)
 			VIOC_WDMA_SetImageR2YMode(pWMIX_wdma_base, 1);
 		}
 	}
+
 
 	VIOC_WDMA_SetImageEnable(pWMIX_wdma_base, 0/*OFF*/);
 	vioc_intr_clear(wmixer->vioc_intr->id, wmixer->vioc_intr->bits);
@@ -693,13 +700,14 @@ static long wmixer_drv_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 
 	int ret = 0;
 
-	dprintk("%s(): %s: cmd(%d), block_operating(%d), block_waiting(%d), cmd_count(%d), poll_count(%d). \n", \
-		__func__, wmixer->misc->name, cmd, \
+	dprintk("%s(): %s: cmd(%d) id:%d, block_operating(%d), block_waiting(%d), cmd_count(%d), poll_count(%d). \n", \
+		__func__, wmixer->misc->name, cmd, wmixer->id, \
 		wmixer->data->block_operating, wmixer->data->block_waiting, wmixer->data->cmd_count, wmixer->data->poll_count);
 
 	switch(cmd) {
 		case TCC_WMIXER_IOCTRL:
 		case TCC_WMIXER_IOCTRL_KERNEL:
+		case TCC_WMIXER_LUT_IOCTRL:
 			mutex_lock(&wmixer->data->io_mutex);
 			if(wmixer->data->block_operating) {
 				wmixer->data->block_waiting = 1;
@@ -728,6 +736,12 @@ static long wmixer_drv_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 
 				wmixer->data->block_waiting = 0;
 				wmixer->data->block_operating = 1;
+
+				if(cmd == TCC_WMIXER_LUT_IOCTRL &&  wmixer->id == 1) {
+					tcc_set_lut_plugin(TVC_LUT(LUT_COMP0), TVC_RDMA(wmixer->rdma0->id));
+					tcc_set_lut_enable(TVC_LUT(LUT_COMP0), 1);
+				}
+
 				ret = wmixer_drv_ctrl(wmixer);
 				if(ret < 0) 	wmixer->data->block_operating = 0;
 			}

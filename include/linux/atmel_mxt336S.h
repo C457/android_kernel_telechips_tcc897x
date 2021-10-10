@@ -15,6 +15,8 @@
 #ifndef _ATMEL_MXT336S_H
 #define _ATMEL_MXT336S_H
 
+#define INCLUDE_LCD_TOUCHKEY
+
 #include <linux/semaphore.h>
 #include <linux/earlysuspend.h>
 #include <linux/wakelock.h>
@@ -26,6 +28,9 @@
 #if 0
 #define MXT_TUNNING_ENABLE  /* for TS tunning using console  */
 #endif
+
+//#define MXT_CONFIG_RAW_FILE
+#define MXT_CONFIG_XCFG_FILE
 
 #define MXT_JIG_DETECT
 #define MXT_JIG_DETECT_DISABLE	0
@@ -129,6 +134,10 @@
 #define MXT641T_FIRM_VER1_VARIANTID		0x18
 #define MXT641T_FIRM_VER2_VARIANTID		0x18
 
+/* mxt641TD */
+#define MXT641TD_FIRM_VER1_VARIANTID             0x36
+#define MXT641TD_FIRM_VER2_VARIANTID             0x36
+
 /* mxt1189T */
 #define MXT1189T_FIRM_VER1_VARIANTID		0x27
 #define MXT1189T_FIRM_VER2_VARIANTID		0x27
@@ -189,8 +198,8 @@
 #define MXT_PROCG_NOISESUPPRESSION_T72		72u
 #define MXT_SPT_SELFCAPGLOBALCONFIG_T109	109u
 
-#define MXT_MAX_OBJECT_TYPES_VER1						119u //200u
-#define	MXT_MAX_OBJECT_TYPES_VER2						119u //200u
+#define MXT_MAX_OBJECT_TYPES_VER1						200u //200u
+#define	MXT_MAX_OBJECT_TYPES_VER2						200u //200u
 
 //#define MXT_MAX_OBJECT_TYPES_VER1						54u
 //#define	MXT_MAX_OBJECT_TYPES_VER2			63u
@@ -807,10 +816,102 @@
 #define MXT336S_FIRMWARE "mxt336s.fw"
 
 /* Self Test Result */
-#define MXT_SELF_TEST_SUCCESS	0
-#define MXT_SELF_TEST_FAIL		1
-#define MXT_SELF_TEST_RETRY		2
-#define MXT_SELF_TEST_TIMEOUT	3
+#define MXT_SELF_TEST_SUCCESS   0
+#define MXT_SELF_TEST_FAIL              1
+#define MXT_SELF_TEST_RETRY             2
+#define MXT_SELF_TEST_TIMEOUT   3
+
+#if defined (MXT_CONFIG_RAW_FILE) || defined( MXT_CONFIG_XCFG_FILE)
+
+//******************************************************************************
+/// \brief Config file types
+enum mxt_config_type {
+  CONFIG_RAW,
+  CONFIG_XCFG
+};
+
+//******************************************************************************
+/// \brief Return codes
+enum mxt_rc {
+  MXT_SUCCESS = 0,                           /*!< Success */
+  MXT_INTERNAL_ERROR = 1,                    /*!< Internal error/assert */
+  MXT_ERROR_IO = 2,                          /*!< Input/output error */
+  MXT_ERROR_NO_MEM = 3,                      /*!< Memory allocation failure */
+  MXT_ERROR_TIMEOUT = 4,                     /*!< Timeout */
+  MXT_ERROR_NO_DEVICE = 5,                   /*!< Could not find a device or device went away */
+  MXT_ERROR_ACCESS = 6,                      /*!< Permission denied */
+  MXT_ERROR_NOT_SUPPORTED = 7,               /*!< Operation not allowed for this device type */
+  MXT_ERROR_INTERRUPTED = 8,                 /*!< Interrupt function call */
+  MXT_ERROR_OBJECT_NOT_FOUND = 9,            /*!< Object not available on device */
+  MXT_ERROR_NO_MESSAGE = 10,                 /*!< Received unexpected invalid message from message processor */
+  MXT_ERROR_SELF_TEST_INVALID = 11,          /*!< Self test invalid test command */
+  MXT_ERROR_SELF_TEST_ANALOG = 12,           /*!< Self test AVdd Analog power is not present */
+  MXT_ERROR_SELF_TEST_PIN_FAULT = 13,        /*!< Self test Pin fault */
+  MXT_ERROR_SELF_TEST_AND_GATE = 14,         /*!< Self test AND Gate Fault */
+  MXT_ERROR_SELF_TEST_SIGNAL_LIMIT = 15,     /*!< Self test Signal limit fault */
+  MXT_ERROR_SELF_TEST_GAIN = 16,             /*!< Self test Gain error */
+  MXT_ERROR_CHECKSUM_MISMATCH = 17,          /*!< Information block or config checksum error */
+  MXT_ERROR_BOOTLOADER_UNLOCKED = 18,        /*!< Bootloader already unlocked */
+  MXT_ERROR_BOOTLOADER_FRAME_CRC_FAIL = 19,  /*!< Bootloader CRC failure (transmission failure) */
+  MXT_ERROR_FILE_FORMAT = 20,                /*!< File format error */
+  MXT_FIRMWARE_UPDATE_NOT_REQUIRED = 21,     /*!< Device firmware already required version */
+  MXT_ERROR_BOOTLOADER_NO_ADDRESS = 22,      /*!< Could not identify bootloader address */
+  MXT_ERROR_FIRMWARE_UPDATE_FAILED = 23,     /*!< Version on device did not match version given after bootloading operation */
+  MXT_ERROR_RESET_FAILURE = 24,              /*!< Device did not reset */
+  MXT_ERROR_UNEXPECTED_DEVICE_STATE = 25,    /*!< Device in unexpected state */
+  MXT_ERROR_BAD_INPUT = 26,                  /*!< Incorrect command line parameters or menu input given */
+  MXT_ERROR_PROTOCOL_FAULT = 27,             /*!< Bridge TCP protocol parse error */
+  MXT_ERROR_CONNECTION_FAILURE = 28,         /*!< Bridge connection error */
+  MXT_ERROR_SERIAL_DATA_FAILURE = 29,        /*!< Serial data download failed */
+  MXT_ERROR_NOENT = 30,                      /*!< No such file or directory */
+  MXT_ERROR_SELFCAP_TUNE = 31,               /*!< Error processing self cap command */
+  MXT_MSG_CONTINUE = 32,                     /*!< Continue processing messages */
+  MXT_ERROR_RESERVED = 33,                   /*!< Reserved value */
+  MXT_DEVICE_IN_BOOTLOADER = 34,             /*!< Device is in bootloader mode */
+  MXT_ERROR_OBJECT_IS_VOLATILE = 35,         /*!< Object is volatile */
+  MXT_ERROR_RESERVED2 = 36,                  /*!< Reserved value */
+};
+
+//******************************************************************************
+/// \brief Configuration data for a single object
+struct mxt_object_config {
+  uint32_t type;
+  uint8_t instance;
+  uint32_t size;
+  uint16_t start_position;
+  uint8_t *data;
+  struct mxt_object_config *next;
+};
+
+/*! \brief ID Information fields in the Information Block*/
+struct mxt_id_info {
+  uint8_t family;           /*!< Device family */
+  uint8_t variant;          /*!< Device variant */
+
+  uint8_t version;          /*!< Firmware version (Major/minor nibbles) */
+  uint8_t build;            /*!< Firmware build number */
+
+  uint8_t matrix_x_size;    /*!< Matrix X Size */
+  uint8_t matrix_y_size;    /*!< Matrix Y Size */
+
+  /*! Number of elements in the object table. The actual number of objects
+   * can be different if any object has more than one instance. */
+  uint8_t num_objects;
+} __attribute__((packed));
+
+//******************************************************************************
+/// \brief Device configuration
+struct mxt_config {
+  struct mxt_id_info id;
+  struct mxt_object_config *head;
+  uint32_t info_crc;
+  uint32_t config_crc;
+  enum mxt_config_type config_type;
+};
+
+#endif
+
+
 enum {
 	MXT_DISABLE,
 	MXT_ENABLE
@@ -1055,6 +1156,11 @@ struct mxt_data {
 #ifdef MXT_JIG_DETECT
     u8 jig_detected;
 #endif
+
+	struct{
+		struct delayed_work reset_dwork;
+		struct mutex lock;
+	} serdes;
 
 };
 

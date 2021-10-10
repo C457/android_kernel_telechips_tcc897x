@@ -25,6 +25,7 @@ Suite 330, Boston, MA 02111-1307 USA
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
+#include <linux/spinlock.h>
 
 #if defined(CONFIG_ARCH_TCC898X)
 #include <video/tcc/tcc_gpu_align.h>
@@ -35,6 +36,7 @@ Suite 330, Boston, MA 02111-1307 USA
 #include <mach/tcc_gpu_align.h>
 #include <mach/tcc_cam_ioctrl.h>
 #include <mach/vioc_deintls.h>
+#include <mach/gpio.h>
 #endif
 #include <soc/tcc/pmap.h>
 
@@ -52,12 +54,73 @@ static int debug	= 1;
 #define FUNCTION_IN	log("In\n");
 #define FUNCTION_OUT	log("Out\n");
 
+typedef struct _vin_lut_buffer
+{
+    spinlock_t vin_lut_spinlock;
+    char flag;
+    int lut_table[257];
+}VIN_LUT_BUFFER;
+
+static VIN_LUT_BUFFER vin_lut_buffer[4];
+
+void tccxxx_cif_vin_lut_spinlock_init(void)
+{
+    int i=0;
+
+    for(i=0; i<sizeof(vin_lut_buffer)/sizeof(vin_lut_buffer[0]); i++)
+    {
+        log("VIN(%d)LUT spinlock init \n", i);
+        spin_lock_init(&(vin_lut_buffer[i].vin_lut_spinlock));
+    }
+}
+
+void tccxxx_cif_vin_lut_update(struct tcc_camera_device * vdev)
+{
+//    log("in \n");
+
+    if(spin_trylock(&(vin_lut_buffer[vdev->vioc.vin.index].vin_lut_spinlock)))
+    {
+        if(vin_lut_buffer[vdev->vioc.vin.index].flag == 1)
+        {
+            log("Apply VIN LUT buffer to VIN LUT \n");
+            VIOC_VIN_SetLUT_by_table((VIOC_VIN *)vdev->vioc.vin.address, &(vin_lut_buffer[vdev->vioc.vin.index].lut_table));
+            vin_lut_buffer[vdev->vioc.vin.index].flag = 0;
+        }
+        spin_unlock(&(vin_lut_buffer[vdev->vioc.vin.index].vin_lut_spinlock));
+    }
+
+//    log("out \n");
+}
+
+void tccxxx_cif_vin_lut_buffer_update(int videoin_num, int * pTable)
+{
+    int i = 0;
+
+    spin_lock(&(vin_lut_buffer[videoin_num].vin_lut_spinlock));
+
+    log("Update VIN LUT buffer \n");
+    
+    for(i = 0; i < (sizeof(vin_lut_buffer[videoin_num].lut_table) / sizeof(vin_lut_buffer[videoin_num].lut_table[0])); i++)
+        vin_lut_buffer[videoin_num].lut_table[i] = pTable[i];
+
+    vin_lut_buffer[videoin_num].flag = 1;
+
+    spin_unlock(&(vin_lut_buffer[videoin_num].vin_lut_spinlock));
+}
+
 void cif_dma_hw_reg(unsigned char frame_num, struct tcc_camera_device * vdev);
 
 void cif_set_frameskip(struct tcc_camera_device * vdev, unsigned char skip_count, unsigned char locked)
 {
+	FUNCTION_IN
+
+	log("skip_frm: %d, frame_lock: %s \n", \
+		skip_count, (locked == 0 ? "disable" : "enable"));
+
 	vdev->skip_frm = skip_count;
 	vdev->frame_lock = locked;
+
+	FUNCTION_OUT
 }
 EXPORT_SYMBOL(cif_set_frameskip);
 
@@ -87,12 +150,18 @@ static void cif_data_init(struct tcc_camera_device * vdev)
 	vdev->data.cif_cfg.data_order        	= vdev->tcc_sensor_info.data_order;
 	vdev->data.cif_cfg.intl_en           	= vdev->tcc_sensor_info.intl_en;
 	vdev->data.cif_cfg.intpl_en          	= vdev->tcc_sensor_info.intpl_en;
+	vdev->data.cif_cfg.main_set.vin_crop.width = vdev->tcc_sensor_info.preview_w;
+	vdev->data.cif_cfg.main_set.vin_crop.height = vdev->tcc_sensor_info.preview_h;
+	vdev->data.cif_cfg.main_set.vin_crop.left = 0;
+	vdev->data.cif_cfg.main_set.vin_crop.top = 0;
 	vdev->data.cif_cfg.zoom_step			= 0;
 	vdev->data.cif_cfg.base_buf				= vdev->data.cif_buf.addr;
 	vdev->data.cif_cfg.pp_num				= 0; // TCC_CAMERA_MAX_BUFNBRS;
 	vdev->data.cif_cfg.fmt					= vdev->tcc_sensor_info.format;
 	vdev->data.cif_cfg.order422 			= CIF_YCBYCR;
 	vdev->data.cif_cfg.oper_mode 			= OPER_PREVIEW;
+	vdev->data.cif_cfg.main_set.target_x 	= 0;
+	vdev->data.cif_cfg.main_set.target_y 	= 0;
 	vdev->data.cif_cfg.cap_status 			= CAPTURE_NONE;
 	vdev->data.cif_cfg.retry_cnt			= 0;
 }
@@ -104,149 +173,155 @@ static irqreturn_t cif_cam_isr(int irq, void *client_data)
 	unsigned int next_num, stride;
 	VIOC_WDMA*	pWDMABase = (VIOC_WDMA*)vdev->vioc.wdma.address;
 
-	if (is_vioc_intr_activatied(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits) == false)
-		return IRQ_NONE;
+//    log("in(%x) \n", pWDMABase);
 
-	// preview operation.
-	if(vdev->data.cif_cfg.oper_mode == OPER_PREVIEW)
-	{
-		if(pWDMABase->uIRQSTS.nREG & VIOC_WDMA_IREQ_EOFF_MASK)
-		{
-			if(vdev->skip_frm == 0 && !vdev->frame_lock) 
-			{
-				if(vdev->prev_buf != NULL)
-					list_move_tail(&vdev->prev_buf->buf_list, &(vdev->data.done_list));
+	if (is_vioc_intr_activatied(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits) == true)
+    {
+//        log("wdma interrupt \n");
+    	// preview operation.
+    	if(vdev->data.cif_cfg.oper_mode == OPER_PREVIEW)
+        {
+        	if(pWDMABase->uIRQSTS.nREG & VIOC_WDMA_IREQ_EOFR_MASK)
+        	{
+        		if(vdev->skip_frm == 0 && !vdev->frame_lock) 
+        		{
+        			if(vdev->prev_buf != NULL)
+        				list_move_tail(&vdev->prev_buf->buf_list, &(vdev->data.done_list));
 
-				vdev->prev_buf = vdev->data.buf + vdev->data.cif_cfg.now_frame_num;
-				vdev->prev_num = vdev->data.cif_cfg.now_frame_num;
+        			vdev->prev_buf = vdev->data.buf + vdev->data.cif_cfg.now_frame_num;
+        			vdev->prev_num = vdev->data.cif_cfg.now_frame_num;
 
-				next_buf = list_entry(vdev->data.list.next->next, struct tccxxx_cif_buffer, buf_list);
-				next_num = next_buf->v4lbuf.index;
-				
-				// exception process!!
-				if(next_buf->buf_list.next != vdev->data.list.next && vdev->prev_buf != next_buf) 
-				{ 
-					if(vdev->prev_num != vdev->prev_buf->v4lbuf.index) 
-					{
-						printk("Frame num mismatch :: true num	:: %d \n", vdev->prev_num);
-						printk("Frame num mismatch :: false num :: %d \n", vdev->prev_buf->v4lbuf.index);
-						vdev->prev_buf->v4lbuf.index = vdev->prev_num ;
-					}
+        			next_buf = list_entry(vdev->data.list.next->next, struct tccxxx_cif_buffer, buf_list);
+        			next_num = next_buf->v4lbuf.index;
+        			
+        			// exception process!!
+        			if(next_buf->buf_list.next != vdev->data.list.next && vdev->prev_buf != next_buf) 
+        			{ 
+        				if(vdev->prev_num != vdev->prev_buf->v4lbuf.index) 
+        				{
+        					printk("Frame num mismatch :: true num	:: %d \n", vdev->prev_num);
+        					printk("Frame num mismatch :: false num :: %d \n", vdev->prev_buf->v4lbuf.index);
+        					vdev->prev_buf->v4lbuf.index = vdev->prev_num ;
+        				}
 
-					if(next_num > vdev->data.cif_cfg.pp_num || next_num < 0) return IRQ_NONE;
+        				if(next_num > vdev->data.cif_cfg.pp_num || next_num < 0) return IRQ_NONE;
 
-					cif_dma_hw_reg(next_num, vdev);
+        				cif_dma_hw_reg(next_num, vdev);
 
-					stride = ALIGNED_BUFF(vdev->data.cif_cfg.main_set.target_x, L_STRIDE_ALIGN);
-					
-					vdev->prev_buf->v4lbuf.bytesused = ALIGNED_BUFF((stride/2), C_STRIDE_ALIGN) * (vdev->data.cif_cfg.main_set.target_y / 2);
-					vdev->prev_buf->v4lbuf.flags &= ~V4L2_BUF_FLAG_QUEUED;
-					vdev->prev_buf->v4lbuf.flags |= V4L2_BUF_FLAG_DONE;
+        				stride = ALIGNED_BUFF(vdev->data.cif_cfg.main_set.target_x, L_STRIDE_ALIGN);
+        				
+        				vdev->prev_buf->v4lbuf.bytesused = ALIGNED_BUFF((stride/2), C_STRIDE_ALIGN) * (vdev->data.cif_cfg.main_set.target_y / 2);
+        				vdev->prev_buf->v4lbuf.flags &= ~V4L2_BUF_FLAG_QUEUED;
+        				vdev->prev_buf->v4lbuf.flags |= V4L2_BUF_FLAG_DONE;
 
-					/* bfield Process */
-					/**********  VERY IMPORTANT ***************************/
-					/* if we want to operate temporal deinterlacer mode,  */
-					/* initial 3 field are operated by spatial,           */
-					/* 	then change the temporal mode in next fields.     */
-					/******************************************************/
+        				/* bfield Process */
+        				/**********  VERY IMPORTANT ***************************/
+        				/* if we want to operate temporal deinterlacer mode,  */
+        				/* initial 3 field are operated by spatial,           */
+        				/* 	then change the temporal mode in next fields.     */
+        				/******************************************************/
 #if 0
-					if(vdev->data.cif_cfg.intl_en)
-					{
-						if((vdev->frm_cnt == 1) && (vdev->bfield == 0)) 
-						{
-							dprintk("Deintl Initialization\n");
-							VIOC_VIQE_SetDeintlMode((VIQE *)vdev->vioc.viqe.address, 2);
-						}
-						else
-						{
-							vdev->field_cnt++;
-						}
-						
-						// end fied of bottom field
-						if(vdev->bfield == 1) 
-						{ 
-							vdev->bfield = 0;
-							vdev->frm_cnt++;
-						}
-						else
-						{
-							vdev->bfield = 1;
-						}
+        				if(vdev->data.cif_cfg.intl_en)
+        				{
+        					if((vdev->frm_cnt == 1) && (vdev->bfield == 0)) 
+        					{
+        						dprintk("Deintl Initialization\n");
+        						VIOC_VIQE_SetDeintlMode((VIQE *)vdev->vioc.viqe.address, 2);
+        					}
+        					else
+        					{
+        						vdev->field_cnt++;
+        					}
+        					
+        					// end fied of bottom field
+        					if(vdev->bfield == 1) 
+        					{ 
+        						vdev->bfield = 0;
+        						vdev->frm_cnt++;
+        					}
+        					else
+        					{
+        						vdev->bfield = 1;
+        					}
 
-						if(vdev->skip_frm == 0)
-						{ 
-							vdev->skip_frm++;
-						}
-						else
-						{
-							vdev->skip_frm = 1;
-						}
-					}
+        					if(vdev->skip_frm == 0)
+        					{ 
+        						vdev->skip_frm++;
+        					}
+        					else
+        					{
+        						vdev->skip_frm = 1;
+        					}
+        				}
 #endif
-				}
-				else
-				{
-					vdev->prev_buf = NULL;
-					dprintk("no-buf change... wakeup!! \n");
-					vdev->skipped_frm++;
-				}
-				
-				vdev->data.wakeup_int = 1;
-				wake_up_interruptible(&(vdev->data.frame_wait));
-			}
-			else 
-			{
-				if(vdev->skip_frm > 0)
-					vdev->skip_frm--;
-				else
-					vdev->skip_frm = 0;
-			}
-			VIOC_WDMA_SetImageUpdate((VIOC_WDMA*)vdev->vioc.wdma.address); // update WDMA
-			VIOC_WDMA_ClearEOFF((VIOC_WDMA*)vdev->vioc.wdma.address); // clear EOFF
-		}
-		return IRQ_HANDLED;
-	}
-
-	// capture operation.
-	if(vdev->data.cif_cfg.oper_mode == OPER_CAPTURE) 
-	{ 
-		if(pWDMABase->uIRQSTS.nREG & VIOC_WDMA_IREQ_EOFR_MASK) 
-		{
-			if(vdev->skip_frm == 0 && !vdev->frame_lock) 
-			{
-				VIOC_WDMA_SetIreqMask((VIOC_WDMA*)vdev->vioc.wdma.address, VIOC_WDMA_IREQ_ALL_MASK, 0x1);
-				VIOC_WDMA_SetImageDisable((VIOC_WDMA*)vdev->vioc.wdma.address);
-				VIOC_VIN_SetEnable((VIOC_VIN *)vdev->vioc.vin.address, OFF); // disable VIN
-
-				vdev->data.cif_cfg.now_frame_num = 0;
-				curr_buf = vdev->data.buf + vdev->data.cif_cfg.now_frame_num;
-
-				curr_buf->v4lbuf.bytesused = vdev->data.cif_cfg.main_set.target_x*vdev->data.cif_cfg.main_set.target_y*2;
-
-				curr_buf->v4lbuf.flags &= ~V4L2_BUF_FLAG_QUEUED;
-				curr_buf->v4lbuf.flags |= V4L2_BUF_FLAG_DONE;
-
-				list_move_tail(&curr_buf->buf_list, &(vdev->data.done_list));
-				vdev->data.cif_cfg.cap_status = CAPTURE_DONE;
-				wake_up_interruptible(&(vdev->data.frame_wait)); //POLL
-
-				VIOC_WDMA_SetIreqStatus((VIOC_WDMA*)vdev->vioc.wdma.address, VIOC_WDMA_IREQ_ALL_MASK, 0x1);
-			}
-			else 
-			{
+        			}
+        			else
+        			{
+        				vdev->prev_buf = NULL;
+        				dprintk("no-buf change... wakeup!! \n");
+        				vdev->skipped_frm++;
+        			}
+        			
+        			vdev->data.wakeup_int = 1;
+        			wake_up_interruptible(&(vdev->data.frame_wait));
+        		}
+        		else 
+        		{
 				if(vdev->skip_frm > 0) {
-					printk("capture frame skip. skip count is %d. \n", vdev->skip_frm);
 					vdev->skip_frm--;
+					//log("preview isr - skip frame \n");
 				}
 				else {
 					vdev->skip_frm = 0;
+					//log("preview isr - set vdev->skip_frm to 0\n");
 				}
+        		}
+				vioc_intr_clear(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits); // clear EOFR
 				VIOC_WDMA_SetImageUpdate((VIOC_WDMA*)vdev->vioc.wdma.address); // update WDMA
-			}
-		}
-		return IRQ_HANDLED;
-	}
-	return IRQ_HANDLED;
+        	}
+        	return IRQ_HANDLED;
+        }
+
+    	// capture operation.
+    	if(vdev->data.cif_cfg.oper_mode == OPER_CAPTURE) 
+    	{ 
+    		if(pWDMABase->uIRQSTS.nREG & VIOC_WDMA_IREQ_EOFR_MASK) 
+    		{
+    			if(vdev->skip_frm == 0 && !vdev->frame_lock) 
+    			{
+					vioc_intr_clear(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits);
+					vdev->data.cif_cfg.cap_status = CAPTURE_DONE;
+					wake_up_interruptible(&(vdev->data.frame_wait)); //POLL
+    			}
+    			else 
+    			{
+    				if(vdev->skip_frm > 0) {
+    					vdev->skip_frm--;
+    				}
+    				else {
+    					vdev->skip_frm = 0;
+    				}
+					vioc_intr_clear(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits);
+					VIOC_WDMA_SetImageEnable((VIOC_WDMA *)vdev->vioc.wdma.address, OFF);
+    			}
+    		}
+    		return IRQ_HANDLED;
+    	}
+
+        return IRQ_HANDLED;
+    }
+    else if (is_vioc_intr_activatied(vdev->data.vioc_vin_intr.id, vdev->data.vioc_vin_intr.bits) == true)
+    {
+//        log("videoin interrupt \n");
+        tccxxx_cif_vin_lut_update(vdev);
+        vioc_intr_clear(vdev->data.vioc_vin_intr.id, vdev->data.vioc_vin_intr.bits);
+        return IRQ_HANDLED;
+    }
+    else 
+    {
+//        log("return IRQ_NONE \n");
+        return IRQ_NONE;
+    }
 }
 
 static int cif_cleanup(struct tcc_camera_device * vdev)
@@ -256,41 +331,80 @@ static int cif_cleanup(struct tcc_camera_device * vdev)
 
 void cif_scaler_calc(struct tcc_camera_device * vdev)
 {
-	enum cifoper_mode mode = vdev->data.cif_cfg.oper_mode;
-	unsigned int off_x = 0, off_y = 0, width = 0, height = 0;
+	cif_main_set * rec_info = &(vdev->data.cif_cfg.main_set);
+	VIOC_SC * pScaler = (VIOC_SC *)vdev->vioc.scaler.address;
 
-	if(mode == OPER_PREVIEW 	|| 	\
-		(mode == OPER_CAPTURE && vdev->data.cif_cfg.main_set.target_x < vdev->tcc_sensor_info.cam_capchg_width)) 
-	{
-		off_x  = vdev->tcc_sensor_info.preview_zoom_offset_x;
-		off_y  = vdev->tcc_sensor_info.preview_zoom_offset_y;
-		width  = vdev->tcc_sensor_info.preview_w;
-		height = vdev->tcc_sensor_info.preview_h;
+	int width = rec_info->target_x;
+	int height = rec_info->target_y;
+	int scaler_left = rec_info->sc_info.x;
+	int scaler_top = rec_info->sc_info.y;
+	int max_zoom_width = 4096 / 2;
+	int max_zoom_height = 4096 / 2;
+	/*
+	 * IMPORTANT
+	 * "max_zoom_step" must be bigger than
+	 * "max-zoom" in TelechipsCameraHardware.cpp.
+	 */
+	int max_zoom_step = 20;
+	int zoom_ratio = (height <= width) ? \
+					((max_zoom_width - width) / max_zoom_step) : \
+					((max_zoom_height - height) / max_zoom_step);
+	int zoom_step = vdev->data.cif_cfg.zoom_step;
+	int dst_width = width + (zoom_ratio * zoom_step);
+	int dst_height = height + (zoom_ratio * zoom_step);
+
+	log("width: %d, height: %d \n", \
+		width, height);
+	log("max step: %d, size: %d * %d\n", \
+		max_zoom_step, max_zoom_width, max_zoom_height);
+	log("cur step: %d, size: %d * %d\n", \
+		zoom_step, dst_width, dst_height);
+
+	VIOC_SC_SetOutPosition(pScaler, scaler_left, scaler_top);
+	VIOC_SC_SetDstSize(pScaler, dst_width, dst_height + 1);
+	VIOC_SC_SetUpdate(pScaler);
+
+	/*
+	 * sc_info.max_x, y mean that
+	 * how much it can be moved to right and bottom.
+	 */
+	rec_info->sc_info.max_x = dst_width - width;
+	rec_info->sc_info.max_y = dst_height - height;
+
+	return 0;
+}
+
+/*
+ * sc_info.x and y are starting point of scaler destination image
+ */
+int tccxxx_cif_set_zoom_rect(void *user, struct tcc_camera_device * vdev)
+{
+	cif_main_set * rec_info = &vdev->data.cif_cfg.main_set;
+	int ret = 0;
+	pinch_info *pos = (pinch_info *)user;
+	if((pos->x > rec_info->sc_info.max_x) || (pos->y > rec_info->sc_info.max_y)) {
+		pr_err("%s larger than destination size... can't move !!", __func__);
+		ret = -EINVAL;
+	} else {
+		memcpy(&rec_info->sc_info, pos, sizeof(pinch_info));
+		cif_scaler_calc(vdev);
 	}
-	else
-	{
-		off_x  = vdev->tcc_sensor_info.capture_zoom_offset_x;
-		off_y  = vdev->tcc_sensor_info.capture_zoom_offset_y;
-		width  = vdev->tcc_sensor_info.capture_w;
-		height = vdev->tcc_sensor_info.capture_h;
+	return ret;
+}
+
+/*
+ * sc_info.x and y are starting point of scaler destination image
+ */
+
+int tccxxx_cif_get_zoom_rect(void *user, struct tcc_camera_device *vdev)
+{
+	cif_main_set *rec_info = &vdev->data.cif_cfg.main_set;
+	int ret = 0;
+	if(user) {
+		pinch_info *pos = (pinch_info *)user;
+		memcpy(pos, &rec_info->sc_info, sizeof(pinch_info));
 	}
-
-	vdev->data.cif_cfg.main_set.win_hor_ofst = off_x * vdev->data.cif_cfg.zoom_step;
-	vdev->data.cif_cfg.main_set.win_ver_ofst = off_y * vdev->data.cif_cfg.zoom_step;
-	vdev->data.cif_cfg.main_set.source_x 	= width  - (off_x * vdev->data.cif_cfg.zoom_step) * 2;
-	vdev->data.cif_cfg.main_set.source_y 	= height - (off_y * vdev->data.cif_cfg.zoom_step) * 2;
-	dprintk("%s():  src_x=%d, src_y=%d, off_x=%d, off_y=%d, zoom_step=%d. \n", __FUNCTION__, vdev->data.cif_cfg.main_set.source_x, \
-			vdev->data.cif_cfg.main_set.source_y, off_x, off_y, vdev->data.cif_cfg.zoom_step);
-	dprintk("%s():  scaler_x=%d, scaler_y=%d, scaler_off_x=%d, scaler_off_y=%d, tgt_x=%d, tgt_y=%d. \n", __FUNCTION__, \
-			vdev->data.cif_cfg.main_set.scaler_x, vdev->data.cif_cfg.main_set.scaler_y, vdev->data.cif_cfg.main_set.win_hor_ofst, \
-			vdev->data.cif_cfg.main_set.win_ver_ofst, vdev->data.cif_cfg.main_set.target_x, vdev->data.cif_cfg.main_set.target_y);
-
-	VIOC_VIN_SetImageSize((VIOC_VIN *)vdev->vioc.vin.address, width, height);
-	VIOC_VIN_SetImageOffset((VIOC_VIN *)vdev->vioc.vin.address, 0, 0, 0);
-	VIOC_VIN_SetImageCropSize((VIOC_VIN *)vdev->vioc.vin.address, vdev->data.cif_cfg.main_set.source_x, vdev->data.cif_cfg.main_set.source_y);
-	VIOC_VIN_SetImageCropOffset((VIOC_VIN *)vdev->vioc.vin.address, vdev->data.cif_cfg.main_set.win_hor_ofst, vdev->data.cif_cfg.main_set.win_ver_ofst);
-	dprintk("VIN WxH[%dx%d] Crop Start XxY[%dx%d] \n", vdev->data.cif_cfg.main_set.source_x, vdev->data.cif_cfg.main_set.source_y, 	\
-													vdev->data.cif_cfg.main_set.win_hor_ofst, vdev->data.cif_cfg.main_set.win_ver_ofst);
+	return 0;
 }
 
 void cif_dma_hw_reg(unsigned char frame_num, struct tcc_camera_device * vdev)
@@ -375,7 +489,10 @@ void cif_set_port(struct tcc_camera_device * vdev)
 	unsigned int *cifport_addr;
 
 	port_np = of_parse_phandle(cam_np, "camera_port", 0);
-	of_property_read_u32_index(cam_np,"camera_port",1,&nUsingPort);
+	if(vdev->data.cam_info < DAUDIO_CAMERA_LVDS)
+		of_property_read_u32_index(cam_np,"camera_port",1,&nUsingPort);
+	else
+		of_property_read_u32_index(cam_np,"camera_port",3,&nUsingPort);
 #if defined(CONFIG_ARCH_TCC898X)	
 	of_property_read_u32_index(cam_np,"camera_port",2,&nCIF_8bit_connect);
 #endif
@@ -491,6 +608,16 @@ void tccxxx_parse_vioc_dt_data(struct tcc_camera_device * vdev)
 		{
 			printk("could not find camera viqe node!! \n");
 		}
+
+		vioc_np = of_parse_phandle(cam_np, "camera_deintls", 0);
+		if(vioc_np) {
+			of_property_read_u32_index(cam_np, "camera_deintls", 1, &vdev->vioc.deintls.index);
+			vdev->vioc.deintls.address = (unsigned int *)of_iomap(vioc_np, vdev->vioc.deintls.index);
+		}		
+		else
+		{
+			printk("could not find camera_deintls node!! \n");
+		}
 	}
 	else
 	{
@@ -500,30 +627,25 @@ void tccxxx_parse_vioc_dt_data(struct tcc_camera_device * vdev)
 
 int tccxxx_vioc_vin_main(struct tcc_camera_device * vdev)
 {
-	uint width, height, offs_width, offs_height; 
+	uint width, height; 
 	
 	if(vdev->data.cif_cfg.oper_mode == OPER_PREVIEW
 	|| (vdev->data.cif_cfg.oper_mode == OPER_CAPTURE && vdev->data.cif_cfg.main_set.target_x < vdev->tcc_sensor_info.cam_capchg_width)) 
 	{
-		offs_width 		= vdev->tcc_sensor_info.preview_zoom_offset_x;
-		offs_height 	= vdev->tcc_sensor_info.preview_zoom_offset_y;
 		width 			= vdev->tcc_sensor_info.preview_w;
 		height 			= vdev->tcc_sensor_info.preview_h;
 	}
 	else 
 	{
-		offs_width 		= vdev->tcc_sensor_info.capture_zoom_offset_x;
-		offs_height 	= vdev->tcc_sensor_info.capture_zoom_offset_y;
 		width 			= vdev->tcc_sensor_info.capture_w;
 		height 			= vdev->tcc_sensor_info.capture_h;
 	}
 
-	vdev->data.cif_cfg.main_set.win_hor_ofst = offs_width  * vdev->data.cif_cfg.zoom_step;
-	vdev->data.cif_cfg.main_set.win_ver_ofst = offs_height * vdev->data.cif_cfg.zoom_step;
-	vdev->data.cif_cfg.main_set.source_x 	= width  - (offs_width  * vdev->data.cif_cfg.zoom_step) * 2;
-	vdev->data.cif_cfg.main_set.source_y 	= height - (offs_height * vdev->data.cif_cfg.zoom_step) * 2;
-	dprintk("%s():  width=%d, height=%d, offset_x=%d, offset_y=%d. \n", __FUNCTION__, vdev->data.cif_cfg.main_set.source_x, \
-			vdev->data.cif_cfg.main_set.source_y, vdev->data.cif_cfg.main_set.win_hor_ofst, vdev->data.cif_cfg.main_set.win_ver_ofst);
+	log("width=%d, height=%d, offset_x=%d, offset_y=%d. \n", \
+		vdev->data.cif_cfg.main_set.vin_crop.width, \
+		vdev->data.cif_cfg.main_set.vin_crop.height, \
+		vdev->data.cif_cfg.main_set.vin_crop.left, \
+		vdev->data.cif_cfg.main_set.vin_crop.top);
 
 	if(vdev->vioc.wmixer.index == 5) 
 		VIOC_CONFIG_WMIXPath(WMIX50, OFF);	// VIN01 means LUT of VIN0 component
@@ -538,9 +660,25 @@ int tccxxx_vioc_vin_main(struct tcc_camera_device * vdev)
 			vdev->data.cif_cfg.vs_mask, vdev->data.cif_cfg.input_fmt, vdev->data.cif_cfg.data_order);
 	VIOC_VIN_SetInterlaceMode((VIOC_VIN *)vdev->vioc.vin.address, vdev->data.cif_cfg.intl_en, vdev->data.cif_cfg.intpl_en);
 	VIOC_VIN_SetImageSize((VIOC_VIN *)vdev->vioc.vin.address, width, height);
-	VIOC_VIN_SetImageOffset((VIOC_VIN *)vdev->vioc.vin.address, 128, 0, 0);
-	VIOC_VIN_SetImageCropSize((VIOC_VIN *)vdev->vioc.vin.address, vdev->data.cif_cfg.main_set.source_x, vdev->data.cif_cfg.main_set.source_y);
-	VIOC_VIN_SetImageCropOffset((VIOC_VIN *)vdev->vioc.vin.address, vdev->data.cif_cfg.main_set.win_hor_ofst, vdev->data.cif_cfg.main_set.win_ver_ofst);
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS)
+	{
+		if(gpio_get_value(TCC_GPB(19)))	//b110
+			VIOC_VIN_SetImageOffset((VIOC_VIN *)vdev->vioc.vin.address, 448, 4, 0);
+		else				//b100
+			VIOC_VIN_SetImageOffset((VIOC_VIN *)vdev->vioc.vin.address, 128, 0, 0);
+	}
+	else if (vdev->data.cam_info == DAUDIO_ADAS_PRK) 
+		VIOC_VIN_SetImageOffset((VIOC_VIN *)vdev->vioc.vin.address, 288, 0, 0);
+	else
+		VIOC_VIN_SetImageOffset((VIOC_VIN *)vdev->vioc.vin.address, 0, 0, 0);
+
+	VIOC_VIN_SetImageCropSize((VIOC_VIN *)vdev->vioc.vin.address, \
+			vdev->data.cif_cfg.main_set.vin_crop.width, \
+			vdev->data.cif_cfg.main_set.vin_crop.height);
+	VIOC_VIN_SetImageCropOffset((VIOC_VIN *)vdev->vioc.vin.address, \
+			vdev->data.cif_cfg.main_set.vin_crop.left, \
+			vdev->data.cif_cfg.main_set.vin_crop.top);
+
 	VIOC_VIN_SetY2RMode((VIOC_VIN *)vdev->vioc.vin.address, 2);
 
 	VIOC_VIN_SetY2REnable((VIOC_VIN *)vdev->vioc.vin.address, OFF);
@@ -558,18 +696,42 @@ int tccxxx_vioc_vin_wdma_set(struct tcc_camera_device * vdev)
 
 	dw = vdev->data.cif_cfg.main_set.target_x;
 	dh = vdev->data.cif_cfg.main_set.target_y;
-	
+
+	switch(vdev->pix_format.pixelformat)
+	{
+		case V4L2_PIX_FMT_RGB565:
+			fmt = VIOC_IMG_FMT_RGB565;
+			break;
+		case V4L2_PIX_FMT_RGB24:
+			fmt = VIOC_IMG_FMT_RGB888;
+			break;
+		case V4L2_PIX_FMT_RGB32:
+			fmt = VIOC_IMG_FMT_ARGB8888;
+			break;
+		case V4L2_PIX_FMT_YVU420:
+			fmt = VIOC_IMG_FMT_YUV420SEP;
+			break;
+		case V4L2_PIX_FMT_YUYV:
+			fmt = VIOC_IMG_FMT_YUYV;
+			break;
+		case V4L2_PIX_FMT_NV16:
+			fmt = VIOC_IMG_FMT_YUV422IL0;
+			break;
+		case V4L2_PIX_FMT_YUV422P:
+			fmt = VIOC_IMG_FMT_YUV422SEP;
+			break;
+		default:
+			fmt = VIOC_IMG_FMT_YUV420IL1;
+	}
+
 	if(vdev->data.cif_cfg.oper_mode == OPER_CAPTURE)
 	{
-		fmt = VIOC_IMG_FMT_YUV420SEP;
+		//fmt = VIOC_IMG_FMT_YUV420SEP;
 		cif_capture_dma_set(vdev);
 	}
 	else
 	{
-		if(vdev->pix_format.pixelformat == V4L2_PIX_FMT_YVU420)	
-			fmt = VIOC_IMG_FMT_YUV420SEP;
-		else
-			fmt = VIOC_IMG_FMT_YUV420IL1;
+		cif_dma_hw_reg(0, vdev);
 	}
 
 	dprintk("%s():  WDMA size[%dx%d], format[%d]. \n", __FUNCTION__, dw, dh, fmt);
@@ -589,45 +751,24 @@ int tccxxx_vioc_vin_wdma_set(struct tcc_camera_device * vdev)
 	{
 		dprintk("While capture, frame by frame mode. \n");
 		VIOC_WDMA_SetImageEnable((VIOC_WDMA*)vdev->vioc.wdma.address, OFF);	// operating start in 1 frame
-		VIOC_WDMA_ClearEORF((VIOC_WDMA*)vdev->vioc.wdma.address); // clear EORF bit
-		VIOC_WDMA_SetIreqMask((VIOC_WDMA*)vdev->vioc.wdma.address, VIOC_WDMA_IREQ_EOFR_MASK, 0x0);
+		vioc_intr_clear(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits);
+		vioc_intr_enable(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits);
 	}
 	else
 	{
 		dprintk("While preview, continuous mode. \n");
 		VIOC_WDMA_SetImageEnable((VIOC_WDMA*)vdev->vioc.wdma.address, ON);	// operating start in 1 frame
-		VIOC_WDMA_ClearEOFF((VIOC_WDMA*)vdev->vioc.wdma.address); // clear EOFF bit
-		VIOC_WDMA_SetIreqMask((VIOC_WDMA*)vdev->vioc.wdma.address, VIOC_WDMA_IREQ_EOFF_MASK, 0x0);
+		vioc_intr_clear(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits);
+		vioc_intr_enable(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits);
 	}
-	cif_dma_hw_reg(0, vdev);
 
 	return 0;
 }
 
 int tccxxx_vioc_scaler_set(struct tcc_camera_device * vdev)
 {
-#if defined(FEATURE_PREVIEW_RATIO_720P) 	
-	uint preview_ratio = 0;
-#endif
 	uint dw, dh;			// destination size in SCALER
-	uint width, height, off_x, off_y;
 	uint mw, mh;			// image size in WMIX
-
-	if(vdev->data.cif_cfg.oper_mode == OPER_PREVIEW
-	|| (vdev->data.cif_cfg.oper_mode == OPER_CAPTURE && vdev->data.cif_cfg.main_set.target_x < vdev->tcc_sensor_info.cam_capchg_width)) 
-	{
-		width 		= vdev->tcc_sensor_info.preview_w;
-		height 		= vdev->tcc_sensor_info.preview_h;
-		off_x 		= vdev->tcc_sensor_info.preview_zoom_offset_x;
-		off_y 		= vdev->tcc_sensor_info.preview_zoom_offset_y;
-	}
-	else
-	{
-		width 		= vdev->tcc_sensor_info.capture_w;
-		height 		= vdev->tcc_sensor_info.capture_h;
-		off_x 		= vdev->tcc_sensor_info.capture_zoom_offset_x;
-		off_y 		= vdev->tcc_sensor_info.capture_zoom_offset_y;
-	}
 
 	dw = vdev->data.cif_cfg.main_set.target_x;
 	dh = vdev->data.cif_cfg.main_set.target_y;
@@ -636,53 +777,6 @@ int tccxxx_vioc_scaler_set(struct tcc_camera_device * vdev)
 	{
 		VIOC_CONFIG_PlugOut(vdev->vioc.sc_channel_num);
 		vdev->sc_plugin_status = OFF;
-	}
-
-// modify to 720p preview that mismatch ratio
-#if defined(FEATURE_PREVIEW_RATIO_720P) 
-
-	// check to ratio 4:3
-	if((vdev->data.cif_cfg.oper_mode == OPER_PREVIEW) && ((dw*3/4) != dh)) 
-	{
-		preview_ratio = 1; 
-		dprintk("%s():  mismatch preview ratio. \n", __FUNCTION__); 
-	}
-	
-	if((vdev->data.cif_cfg.oper_mode == OPER_PREVIEW) && (dw > width)) 
-	{
-		width  = dw; 
-		height = width * 3 / 4; 
-	}
-
-#endif
-
-	/* PlugIn path 
-     *
-	 * VIOC_SC_VIN_00  : VIN0 - SCALE - WMIX
-	 * VIOC_SC_VIN_01  : VIN1 - SCALE - WMIX
-	 *
-	 * VIOC_SC_WDMA_05 : VIN0 - WMIX - SCALE
-	 * VIOC_SC_WDMA_06 : VIN0 - WMIX - SCALE
-	 * VIOC_SC_WDMA_07 : VIN1 - WMIX - SCALE
- 	 * VIOC_SC_WDMA_08 : VIN1 - WMIX - SCALE
-	 *
-	 */
-	switch(vdev->vioc.sc_plugin_pos)
-	{
-		case VIOC_SC_VIN_00:
-		case VIOC_SC_VIN_01:
-		default:
-			mw = vdev->data.cif_cfg.main_set.target_x;
-			mh = vdev->data.cif_cfg.main_set.target_y;
-			break;
-
-		case VIOC_SC_WDMA_05:
-		case VIOC_SC_WDMA_06:
-		case VIOC_SC_WDMA_07:
-		case VIOC_SC_WDMA_08:
-			mw 	= vdev->tcc_sensor_info.preview_w;
-			mh 	= vdev->tcc_sensor_info.preview_h;
-			break;
 	}
 
 	#if defined (CONFIG_VIDEO_TCCXX_ATV) //http://gerrit.daudio/#/c/22079/ 2016.6.07 mhjung merge
@@ -701,37 +795,20 @@ int tccxxx_vioc_scaler_set(struct tcc_camera_device * vdev)
 		#else 
 
 			mw = dw;
-			mh = dh + 6;
+			if(vdev->data.cam_info == DAUDIO_CAMERA_REAR)
+				mh = dh + 6;
+			else
+				mh = dh;
 		#endif		
 	}
 	#endif
 
 	VIOC_CONFIG_PlugIn(vdev->vioc.sc_channel_num, vdev->vioc.sc_plugin_pos); 
 	VIOC_SC_SetBypass((VIOC_SC *)vdev->vioc.scaler.address, OFF); 	
-	
-#if defined (CONFIG_VIDEO_TCCXX_ATV)
 
 	VIOC_SC_SetDstSize((VIOC_SC *)vdev->vioc.scaler.address, mw, mh); 
 	VIOC_SC_SetOutPosition((VIOC_SC *)vdev->vioc.scaler.address, (mw-dw), (mh-dh));
-//	VIOC_SC_SetOutPosition((VIOC_SC *)vdev->vioc.scaler.address, 0, 0);
 
-#else
-
-	#if defined(FEATURE_PREVIEW_RATIO_720P) 
-	if(preview_ratio) 
-	{ 
-		VIOC_SC_SetDstSize((VIOC_SC *)vdev->vioc.scaler.address, width, height); 
-		VIOC_SC_SetOutPosition((VIOC_SC *)vdev->vioc.scaler.address, ((width-dw)/2), ((height-dh)/2)); 
-	}
-	else 
-	#endif		
-	{ 
-		VIOC_SC_SetDstSize((VIOC_SC *)vdev->vioc.scaler.address, (dw + 2), (dh + 2)); 
-		VIOC_SC_SetOutPosition((VIOC_SC *)vdev->vioc.scaler.address, 1, 1);
-	}
-
-#endif
-	
 	VIOC_SC_SetOutSize((VIOC_SC *)vdev->vioc.scaler.address, dw, dh); 
 	VIOC_SC_SetUpdate((VIOC_SC *)vdev->vioc.scaler.address); 
 
@@ -747,9 +824,9 @@ int tccxxx_vioc_viqe_main(struct tcc_camera_device *vdev)
 
 	unsigned int	viqe_width	= 0;
 	unsigned int	viqe_height	= 0;
-	unsigned int	format		= FMT_FC_YUV420;
-	unsigned int	bypass_deintl	= VIOC_VIQE_DEINTL_MODE_2D;
-	unsigned int	offset			= vdev->tcc_sensor_info.preview_w*vdev->tcc_sensor_info.preview_h* 2 * 2;
+	unsigned int	format		= FMT_FC_YUV422;
+	unsigned int	bypass_deintl	= VIOC_VIQE_DEINTL_MODE_3D;
+	unsigned int	offset			= vdev->data.cif_cfg.main_set.vin_crop.width * vdev->data.cif_cfg.main_set.vin_crop.height * 2 * 2;
 	unsigned int	deintl_base0	= vdev->pmap_viqe.base;
 	unsigned int	deintl_base1	= deintl_base0 + offset;
 	unsigned int	deintl_base2	= deintl_base1 + offset;
@@ -781,10 +858,6 @@ int tccxxx_vioc_viqe_main(struct tcc_camera_device *vdev)
 					deintl_base0, deintl_base1, deintl_base2, deintl_base3);
 	VIOC_VIQE_SetControlEnable(pVIQE, cdf_lut_en, his_en, gamut_en, d3d_en, deintl_en);
 
-	// YUV422 Format
-	BITCSET(pVIQE->cDEINTL_COMP.nVIQE_FC_MISC.nREG, 0x0000f000, 			(1 << 12)); 		// 0x160
-	BITCSET(pVIQE->cDEINTL.nDI_FMT,					0x00000001, 			(1 <<  0)); 		// 0x2E8
-	
 	// Like Weave Mode
 	BITCSET(pVIQE->cDEINTL.nDI_ENGINE0, 			0xffffffff, 			0x0204ff08);		// 0x284
 	BITCSET(pVIQE->cDEINTL.nDI_ENGINE4, 			0xffffffff, 			0x124f2582);		// 0x294
@@ -944,6 +1017,13 @@ retry:
 		vdev->data.cif_cfg.preview_buf[req->count].p_Cr = (unsigned int)vdev->data.cif_cfg.preview_buf[req->count].p_Cb + uv_offset;
 			
 		vdev->data.cif_cfg.pp_num = req->count;
+
+		dprintk("	  [%d]		0x%08x 0x%08x 0x%08x\n", \
+			req->count, \
+			vdev->data.cif_cfg.preview_buf[req->count].p_Y, \
+			vdev->data.cif_cfg.preview_buf[req->count].p_Cb, \
+			vdev->data.cif_cfg.preview_buf[req->count].p_Cr);
+
 	}
 	return 0;
 }
@@ -961,7 +1041,15 @@ void tccxxx_set_camera_addr(struct tcc_camera_device * vdev,int index, unsigned 
 		vdev->data.cif_cfg.preview_buf[index].p_Y  = addr;
 		vdev->data.cif_cfg.preview_buf[index].p_Cb = (unsigned int)vdev->data.cif_cfg.preview_buf[index].p_Y + y_offset;
 		vdev->data.cif_cfg.preview_buf[index].p_Cr = (unsigned int)vdev->data.cif_cfg.preview_buf[index].p_Cb + uv_offset;
-	
+
+#if 0
+		dprintk("%s - preview_buf[%d]		0x%08x 0x%08x 0x%08x\n", \
+			__func__, \
+			index, \
+			vdev->data.cif_cfg.preview_buf[index].p_Y, \
+			vdev->data.cif_cfg.preview_buf[index].p_Cb, \
+			vdev->data.cif_cfg.preview_buf[index].p_Cr);
+#endif	
 	}
 	else if(cameraStatus == 3 /* MODE_CAPTURE */) 
 	{
@@ -975,31 +1063,43 @@ void tccxxx_set_camera_addr(struct tcc_camera_device * vdev,int index, unsigned 
 		vdev->data.cif_cfg.capture_buf.p_Y  = addr;
 		vdev->data.cif_cfg.capture_buf.p_Cb = (unsigned int)vdev->data.cif_cfg.capture_buf.p_Y + y_offset;
 		vdev->data.cif_cfg.capture_buf.p_Cr = (unsigned int)vdev->data.cif_cfg.capture_buf.p_Cb + uv_offset;
+
+#if 0
+		dprintk("%s - capture_buf		0x%08x 0x%08x 0x%08x\n", \
+			__func__, \
+			vdev->data.cif_cfg.capture_buf.p_Y, \
+			vdev->data.cif_cfg.capture_buf.p_Cb, \
+			vdev->data.cif_cfg.capture_buf.p_Cr);
+#endif
 	}
 }
 
 int tccxxx_cif_start_stream(struct tcc_camera_device * vdev) {
 	VIOC_IREQ_CONFIG *	pViocConfig	= (VIOC_IREQ_CONFIG *)vdev->vioc.config.address;
 	VIOC_SWRESET_Component	deinterlacer	= VIOC_CONFIG_VIQE;	// init
-	int			idxDeinterlacer = 0;			// init
-	
-	dprintk("%s - In\n", __func__);
+	unsigned int plug_type = \
+		(deinterlacer == VIOC_CONFIG_VIQE) ? VIOC_VIQE : VIOC_DEINTLS;
+	unsigned int plug_value = \
+		(vdev->vioc.vin.index == 0) ? VIOC_VIQE_VIN_00 : VIOC_VIQE_VIN_01;
+	int idxDeinterlacer = \
+		((deinterlacer == VIOC_CONFIG_VIQE) ? \
+		(vdev->vioc.viqe.index) : \
+		(vdev->vioc.deintls.index));
+
+	FUNCTION_IN
 	
 	// size info
-	dprintk("src: %d * %d\n", vdev->data.cif_cfg.main_set.source_x,		vdev->data.cif_cfg.main_set.source_y);
-	dprintk("ofs: %d * %d\n", vdev->data.cif_cfg.main_set.win_hor_ofst,	vdev->data.cif_cfg.main_set.win_ver_ofst);
-	dprintk("scl: %d * %d\n", vdev->data.cif_cfg.main_set.scaler_x,		vdev->data.cif_cfg.main_set.scaler_y);
-	dprintk("tgt: %d * %d\n", vdev->data.cif_cfg.main_set.target_x,		vdev->data.cif_cfg.main_set.target_y);
+	dprintk("src: %d * %d\n", \
+				vdev->data.cif_cfg.main_set.vin_crop.width, vdev->data.cif_cfg.main_set.vin_crop.height);
+	dprintk("ofs: %d * %d\n", \
+			vdev->data.cif_cfg.main_set.vin_crop.left, vdev->data.cif_cfg.main_set.vin_crop.top);
+	dprintk("scl: %d * %d\n", \
+			vdev->data.cif_cfg.main_set.sc_info.x, vdev->data.cif_cfg.main_set.sc_info.y);
+	dprintk("tgt: %d * %d\n", \
+			vdev->data.cif_cfg.main_set.target_x, vdev->data.cif_cfg.main_set.target_y);
 
 	vdev->data.cif_cfg.oper_mode  = OPER_PREVIEW;
 	vdev->data.cif_cfg.cap_status = CAPTURE_NONE;
-
-	
-	// select deinterlacer
-	if(vdev->data.cif_cfg.intl_en) {
-		deinterlacer	= VIOC_CONFIG_VIQE;		// default
-		idxDeinterlacer = vdev->vioc.viqe.index;	// default
-	}
 
 	sensor_if_change_mode(vdev,OPER_PREVIEW);
 	mdelay(100);
@@ -1027,9 +1127,6 @@ int tccxxx_cif_start_stream(struct tcc_camera_device * vdev) {
 	tccxxx_vioc_vin_main(vdev);
 
 	if(vdev->data.cif_cfg.intl_en) {
-		unsigned int plug_type	= (deinterlacer	== VIOC_CONFIG_VIQE) ? VIOC_VIQE : VIOC_DEINTLS;
-		unsigned int plug_value	= (vdev->vioc.vin.index == 0) ? VIOC_VIQE_VIN_00 : VIOC_VIQE_VIN_01;
-		
 //		vdev->frm_cnt 		= 0;
 //		vdev->bfield 		= 0;
 //		vdev->field_cnt 	= 0;
@@ -1062,7 +1159,8 @@ int tccxxx_cif_start_stream(struct tcc_camera_device * vdev) {
 	vdev->preview_method = PREVIEW_V4L2;
 	log("cam_streaming: %d, preview_method: %d\n", vdev->cam_streaming, vdev->preview_method);
 	
-	dprintk("%s - Out\n", __func__);
+	FUNCTION_OUT
+
 	return 0;
 }
 
@@ -1070,11 +1168,14 @@ int tccxxx_cif_stop_stream(struct tcc_camera_device * vdev)
 {
 	VIOC_IREQ_CONFIG * pViocConfig = (VIOC_IREQ_CONFIG *)vdev->vioc.config.address;
 	VIOC_SWRESET_Component	deinterlacer	= VIOC_CONFIG_VIQE;	// init
-	int idxDeinterlacer = 0;			// init
+	int idxDeinterlacer = \
+		((deinterlacer == VIOC_CONFIG_VIQE) ? \
+		(vdev->vioc.viqe.index) : \
+		(vdev->vioc.deintls.index));
 	int idxLoop;
 	unsigned int status;
 	
-	dprintk("%s - In\n", __func__);
+	FUNCTION_IN
 
 	mutex_lock(&(vdev->data.lock));
 	
@@ -1082,12 +1183,6 @@ int tccxxx_cif_stop_stream(struct tcc_camera_device * vdev)
 	if(0 < vdev->cam_streaming) {
 		printk("[%s] vdev->cam_streaming : %d \n", __FUNCTION__, vdev->cam_streaming);
 		return 0;
-	}
-
-	// select deinterlacer
-	if(vdev->data.cif_cfg.intl_en) {
-		deinterlacer	= VIOC_CONFIG_VIQE;		// default
-		idxDeinterlacer = vdev->vioc.viqe.index;	// default
 	}
 
 	vdev->gZoomStep = vdev->data.cif_cfg.zoom_step;
@@ -1134,11 +1229,13 @@ int tccxxx_cif_stop_stream(struct tcc_camera_device * vdev)
 	VIOC_CONFIG_SWReset(pViocConfig, VIOC_CONFIG_WDMA,	vdev->vioc.wdma.index,	 VIOC_CONFIG_CLEAR);
 
 	vdev->data.stream_state = STREAM_OFF;	
+	vdev->data.cif_cfg.cap_status = CAPTURE_NONE;
 
 	mutex_unlock(&(vdev->data.lock));
 	
 	dprintk("\n\n SKIPPED FRAME = %d \n\n", vdev->skipped_frm);
-	dprintk("%s - Out\n", __func__);
+
+	FUNCTION_OUT
 
 	return 0;
 }
@@ -1146,17 +1243,17 @@ int tccxxx_cif_stop_stream(struct tcc_camera_device * vdev)
 int tccxxx_cif_capture(int quality,struct tcc_camera_device * vdev)
 {
 	VIOC_SWRESET_Component	deinterlacer	= VIOC_CONFIG_VIQE;	// init
-	unsigned int plug_type = (deinterlacer == VIOC_CONFIG_VIQE) ? VIOC_VIQE : VIOC_DEINTLS;
-	int idxDeinterlacer = 0;			// init
+	unsigned int plug_type = \
+		(deinterlacer == VIOC_CONFIG_VIQE) ? VIOC_VIQE : VIOC_DEINTLS;
+	unsigned int plug_value = \
+		(vdev->vioc.vin.index == 0) ? VIOC_VIQE_VIN_00 : VIOC_VIQE_VIN_01;
+	int idxDeinterlacer = \
+		((deinterlacer == VIOC_CONFIG_VIQE) ? \
+		(vdev->vioc.viqe.index) : \
+		(vdev->vioc.deintls.index));
 	int skip_frame = 0;
 
-	dprintk("%s Start!! \n", __FUNCTION__);
-
-	if(vdev->data.cif_cfg.intl_en) {
-		deinterlacer	= VIOC_CONFIG_VIQE;		// default
-		idxDeinterlacer	= vdev->vioc.viqe.index;	// default
-		plug_type = (deinterlacer == VIOC_CONFIG_VIQE) ? VIOC_VIQE : VIOC_DEINTLS;
-	}
+	FUNCTION_IN
 	
 	VIOC_CONFIG_SWReset((VIOC_IREQ_CONFIG *)vdev->vioc.config.address,VIOC_CONFIG_WDMA,vdev->vioc.wdma.index,VIOC_CONFIG_RESET);
 	VIOC_CONFIG_SWReset((VIOC_IREQ_CONFIG *)vdev->vioc.config.address,VIOC_CONFIG_WMIXER,vdev->vioc.wmixer.index,VIOC_CONFIG_RESET);
@@ -1172,10 +1269,12 @@ int tccxxx_cif_capture(int quality,struct tcc_camera_device * vdev)
 	VIOC_CONFIG_SWReset((VIOC_IREQ_CONFIG *)vdev->vioc.config.address,VIOC_CONFIG_WDMA,vdev->vioc.wdma.index,VIOC_CONFIG_CLEAR);		
 	
 	vdev->data.cif_cfg.oper_mode = OPER_CAPTURE;
+	vdev->data.cif_cfg.cap_status = CAPTURE_NONE;
+
 	vdev->data.cif_cfg.zoom_step = vdev->gZoomStep;
 	dprintk("%s() -  Zoom Step is %d. \n", __func__, vdev->data.cif_cfg.zoom_step);
 	
-	memset(&(vdev->data.cif_cfg.jpg_info), 0x00, sizeof(TCCXXX_JPEG_ENC_DATA));
+	memset(&(vdev->data.cif_cfg.jpg_info), 0x00, sizeof(vdev->data.cif_cfg.jpg_info));
 
 	if(vdev->data.cif_cfg.main_set.target_x >= vdev->tcc_sensor_info.cam_capchg_width && !(vdev->data.cif_cfg.retry_cnt)) 
 	{
@@ -1183,7 +1282,7 @@ int tccxxx_cif_capture(int quality,struct tcc_camera_device * vdev)
 	}
 
 	// for Rotate Capture
-	vdev->data.cif_cfg.jpg_info.start_phy_addr = vdev->data.cif_cfg.base_buf;
+	vdev->data.cif_cfg.jpg_info.start_phy_addr = vdev->data.cif_cfg.capture_buf.p_Y;
 	
 	//capture config
 	if(vdev->data.cif_cfg.retry_cnt) 	
@@ -1197,11 +1296,31 @@ int tccxxx_cif_capture(int quality,struct tcc_camera_device * vdev)
 
 	cif_set_frameskip(vdev,skip_frame, 0);	
 	tccxxx_vioc_vin_main(vdev);
+
+	if(vdev->data.cif_cfg.intl_en) {
+		VIOC_CONFIG_PlugIn(plug_type, plug_value);
+
+		switch(deinterlacer) {
+		case VIOC_CONFIG_VIQE:
+			tccxxx_vioc_viqe_main(vdev);
+			break;
+		case VIOC_CONFIG_DEINTS:
+#if defined (CONFIG_ARCH_TCC897X)
+			VIOC_DEINTLS_SetDeIntlMode(vdev->vioc.deintls.address, 3);
+#endif
+			break;
+		default :
+			//do nothing...
+			break;
+		}
+		
+		vdev->deint_plugin_status = ON;
+	}
+
 	tccxxx_vioc_scaler_set(vdev);
 	tccxxx_vioc_vin_wdma_set(vdev);
-	vdev->data.cif_cfg.cap_status = CAPTURE_NONE;
 
-	dprintk("%s End!! \n", __FUNCTION__);
+	FUNCTION_OUT
 
 	return 0;
 }
@@ -1223,6 +1342,8 @@ int tccxxx_cif_set_zoom(unsigned char arg, struct tcc_camera_device * vdev)
 int tccxxx_cif_set_resolution(struct tcc_camera_device * vdev, unsigned int pixel_fmt, unsigned short width, unsigned short height)
 {
 	if(pixel_fmt == V4L2_PIX_FMT_YUYV)			vdev->data.cif_cfg.fmt = M420_ZERO;  // yuv422
+	else if(pixel_fmt == V4L2_PIX_FMT_NV16)			vdev->data.cif_cfg.fmt = M420_ZERO;     // yuv422
+	else if(pixel_fmt == V4L2_PIX_FMT_YUV422P)		vdev->data.cif_cfg.fmt = M420_ZERO;     // yuv422
 	else if(pixel_fmt == V4L2_PIX_FMT_RGB32)	vdev->data.cif_cfg.fmt = ARGB8888;  
 	else if(pixel_fmt == V4L2_PIX_FMT_RGB565) vdev->data.cif_cfg.fmt = RGB565;
 	else 										vdev->data.cif_cfg.fmt = M420_ODD; 	// yuv420
@@ -1247,9 +1368,9 @@ int tccxxx_cif_irq_request(struct tcc_camera_device * vdev)
 	{
 		of_property_read_u32_index(cam_np,"camera_wdma", 1, &(vdev->vioc.wdma.index));
 		irq_num = irq_of_parse_and_map(irq_np, vdev->vioc.wdma.index);
-
 		vdev->data.vioc_intr.id = VIOC_INTR_WD0 + vdev->vioc.wdma.index;
-		vdev->data.vioc_intr.bits = ((1 << VIOC_WDMA_INTR_EOFR) | (1 << VIOC_WDMA_INTR_EOFF));
+		vdev->data.vioc_intr.bits = (1 << VIOC_WDMA_INTR_EOFR);
+
 		vioc_intr_clear(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits);
 		ret = request_irq(irq_num, cif_cam_isr, IRQF_SHARED, CAM_NAME, vdev);
 	}
@@ -1269,6 +1390,49 @@ void tccxxx_cif_irq_free(struct tcc_camera_device * vdev)
 	{
 		of_property_read_u32_index(cam_np,"camera_wdma", 1, &(vdev->vioc.wdma.index));
 		irq_num = irq_of_parse_and_map(irq_np, vdev->vioc.wdma.index);
+		free_irq(irq_num, vdev);
+		vioc_intr_clear(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits);
+		vioc_intr_disable(vdev->data.vioc_intr.id, vdev->data.vioc_intr.bits);
+	}
+}
+
+int tccxxx_cif_vin_irq_request(struct tcc_camera_device * vdev)
+{
+	struct device_node *cam_np = vdev->camera_np;
+	struct device_node *irq_np;
+	int ret = -1, irq_num;
+
+	dprintk("[%s] in \n", __func__);
+
+	irq_np = of_parse_phandle(cam_np, "camera_videoin", 0);
+
+	if(irq_np)
+	{
+		irq_num = irq_of_parse_and_map(irq_np, vdev->vioc.vin.index);
+
+		vdev->data.vioc_intr.id = -1;
+		vdev->data.vioc_vin_intr.id = VIOC_INTR_VIN0 + vdev->vioc.vin.index;
+		vdev->data.vioc_vin_intr.bits = (1 << VIOC_VIN_INTR_INVS);
+		vioc_intr_clear(vdev->data.vioc_vin_intr.id, vdev->data.vioc_vin_intr.bits);
+		ret = request_irq(irq_num, cif_cam_isr, IRQF_SHARED, CAM_NAME, vdev);
+	}
+
+	dprintk("[%s] out \n", __func__);
+	return ret;
+
+}
+
+void tccxxx_cif_vin_irq_free(struct tcc_camera_device * vdev)
+{
+	struct device_node *cam_np = vdev->camera_np;
+	struct device_node *irq_np;
+	int irq_num;
+
+	irq_np = of_parse_phandle(cam_np, "camera_videoin", 0);
+	if(irq_np)
+	{
+		of_property_read_u32_index(cam_np,"camera_videoin", 1, &(vdev->vioc.vin.index));
+		irq_num = irq_of_parse_and_map(irq_np, vdev->vioc.vin.index);
 		free_irq(irq_num, vdev);
 	}
 }
@@ -1306,11 +1470,14 @@ int tcc_get_sensor_info(struct tcc_camera_device * vdev, int index)
 }
 
 int tccxxx_cif_init(struct tcc_camera_device * vdev) {
+	int cam_info = vdev->data.cam_info;
+
 	dprintk("%s - sensor_status = %d\n", __func__, vdev->sensor_status);
 
 	if(vdev->sensor_status == DISABLE) {
 		memset(&vdev->data,0x00,sizeof(struct TCCxxxCIF));
 
+		vdev->data.cam_info = cam_info;
 		vdev->data.buf = vdev->data.static_buf;
 		vdev->sensor_status  = ENABLE;
 		vdev->deint_plugin_status = OFF;
@@ -1327,7 +1494,7 @@ int tccxxx_cif_init(struct tcc_camera_device * vdev) {
 		cif_data_init(vdev);
 
 		if(vdev->data.cif_cfg.intl_en)
-			pmap_get_info("jpeg_raw", &vdev->pmap_viqe);
+			pmap_get_info("rearcamera_viqe", &vdev->pmap_viqe);
 		
 		init_waitqueue_head(&vdev->data.frame_wait);
 

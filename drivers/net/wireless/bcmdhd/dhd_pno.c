@@ -2,9 +2,9 @@
  * Broadcom Dongle Host Driver (DHD)
  * Prefered Network Offload and Wi-Fi Location Service(WLS) code.
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -27,7 +27,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_pno.c 681937 2018-01-05 09:03:11Z $
+ * $Id: dhd_pno.c 692354 2018-07-09 11:34:16Z $
  */
 
 #if defined(GSCAN_SUPPORT) && !defined(PNO_SUPPORT)
@@ -776,7 +776,7 @@ exit:
 	/* set FALSE only if the link list  is empty after returning the data */
 	if (list_empty(&params_batch->get_batch.expired_scan_results_list)) {
 		params_batch->get_batch.batch_started = FALSE;
-		bp += sprintf(bp, "%s", RESULTS_END_MARKER);
+		bp += snprintf(bp, nleftsize, "%s", RESULTS_END_MARKER);
 		DHD_PNO(("%s", RESULTS_END_MARKER));
 		DHD_PNO(("%s : Getting the batching data is complete\n", __FUNCTION__));
 	}

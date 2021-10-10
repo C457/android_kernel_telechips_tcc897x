@@ -43,8 +43,8 @@ void VIOC_ASYNC_FIFO_ConfigDMA(VIOC_FIFO * pFIFO, unsigned int nWDMA, unsigned i
 }
 
 void VIOC_ASYNC_FIFO_ConfigEntry(VIOC_FIFO * pFIFO, unsigned int * buf) {
-	unsigned int EEMPTY	= 0; // emergency empty
-	unsigned int EFULL	= 0; // emergency full
+	unsigned int EEMPTY	= 1; // emergency empty
+	unsigned int EFULL	= 1; // emergency full
 	unsigned int WMT 	= 0; // wdma mode - time
 	unsigned int NENTRY 	= 4; // frame memory number  ->  max. frame count is 4.
 	unsigned int RMT 	= 0; // rdma mode - time

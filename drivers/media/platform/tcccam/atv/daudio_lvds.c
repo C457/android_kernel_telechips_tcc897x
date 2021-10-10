@@ -32,6 +32,8 @@ when        who       what, where, why
 #include "daudio_atv.h"
 #include "daudio_lvds.h"
 
+#include "../tcc_cam.h"
+
 #define PRV_W 1920 
 #define PRV_H 720
 #define CAP_W 1920
@@ -42,10 +44,15 @@ when        who       what, where, why
 #define CONTRAST_RANGE   	4 // -X ~ +X
 
 int rgb[257] = {0, };
-static int _video_brightness = 127;
-static int _video_contrast = 127;
-static int _video_gamma = -1;
-static int _video_saturation = 127;
+//(hklee)2018.10.04 - IE set with default value
+static int _cam_brightness = DEFAULT_LVDS_SVM_BRIGHTNESS;
+static int _cam_contrast = DEFAULT_LVDS_SVM_CONTRAST;
+static int _cam_gamma = -1;
+static int _cam_saturation = DEFAULT_LVDS_SVM_SATURATION;
+static int _dvrs_brightness = 127;
+static int _dvrs_contrast = 127;
+static int _dvrs_gamma = -1;
+static int _dvrs_saturation = 127;
 
 static int debug_lvds	= DEBUG_DAUDIO_LVDS;
 
@@ -228,6 +235,7 @@ void lvds_close_cam(struct tcc_camera_device * vdev)
 int lvds_init(void)
 {
 	VPRINTK("%s\n", __func__);
+
 	return 0;
 }
 
@@ -250,62 +258,37 @@ int lvds_display_mute(int mute)
 	return FAIL;
 }
 
-int lvds_write_ie(int cmd, unsigned char value, struct tcc_camera_device * vdev)
+static int setLUT(int brightness, int contrast, int saturation)
 {
-	VPRINTK("%s-\n", __func__);
-
-	int ret = FAIL;
 	int vR, vG, vB, i;
 	int fsaturation, fcontrast;
 	VIOC_VIN *pVIN =(VIOC_VIN*)0xf3004000;
 
-	switch(cmd)
-	{
-		case SET_CAM_BRIGHTNESS:
-			_video_brightness = value;
-			break;
-		case SET_CAM_CONTRAST:
-			_video_contrast = value;
-			break;
-		case SET_CAM_SATURATION:
-			_video_saturation = value;
-			break;
-		default:
-			break;
-	}
-
-	if (_video_brightness < 0 || _video_brightness > 255)
-		_video_brightness = 127;
-	if (_video_contrast < 0 || _video_contrast > 255)
-		_video_contrast = 127;
-	if (_video_saturation < 0 || _video_saturation > 255)
-		_video_saturation = 127;
-
 	for (i = 0; i < 256; i++)
 	{
 		//contrast brightness
-		if(_video_contrast > 127)
-			fcontrast = (1 * MULTI_NUM) + ((_video_contrast -127) * MULTI_NUM * (CONTRAST_RANGE - 1)) / 127;
+		if(contrast > 127)
+			fcontrast = (1 * MULTI_NUM) + ((contrast -127) * MULTI_NUM * (CONTRAST_RANGE - 1)) / 127;
 		else
-			fcontrast = (_video_contrast * MULTI_NUM) / 127;
+			fcontrast = (contrast * MULTI_NUM) / 127;
 
 		vR = ((i - 16)*fcontrast)/MULTI_NUM + 16;
 
 		//brightness
 		if(vR > 255)    vR = 255;
 		if(vR < 0)      vR = 0;
-		if(_video_brightness >= 127)
-			vR = vR + ((_video_brightness - 127) * 2);
+		if(brightness >= 127)
+			vR = vR + ((brightness - 127) * 2);
 		else
-			vR = vR + ((_video_brightness - 127) * 2) - 1;
+			vR = vR + ((brightness - 127) * 2) - 1;
 
 		//saturation
-		if(_video_saturation > 127)
-			fsaturation = (1 * MULTI_NUM) + ((_video_saturation - 127) * MULTI_NUM * (SATURATION_RANGE - 1)) / 127;
+		if(saturation > 127)
+			fsaturation = (1 * MULTI_NUM) + ((saturation - 127) * MULTI_NUM * (SATURATION_RANGE - 1)) / 127;
 		else
-			fsaturation = (_video_saturation * MULTI_NUM) / 127;
+			fsaturation = (saturation * MULTI_NUM) / 127;
 
-		//fsaturation = (1* MULTI_NUM)+ ((((_video_saturation - 127) * MULTI_NUM) / 127) * SATURATION_RANGE);
+		//fsaturation = (1* MULTI_NUM)+ ((((saturation - 127) * MULTI_NUM) / 127) * SATURATION_RANGE);
 
 		vG = vB = (((i - 128)*fsaturation * fcontrast)/MULTI_NUM)/MULTI_NUM + 128;
 
@@ -320,13 +303,56 @@ int lvds_write_ie(int cmd, unsigned char value, struct tcc_camera_device * vdev)
 
 		//VPRINTK("%s count: %d rgb:0x%2x\n", __func__, i, rgb[i]);
 	}
-	VPRINTK("%s _video_brightness:%d  _video_contrast:%d  _video_saturation:%d \n",
-						__func__, _video_brightness, _video_contrast, _video_saturation);
+	VPRINTK("%s brightness:%d  contrast:%d  saturation:%d \n",
+						__func__, brightness, contrast, saturation);
 
-	VIOC_VIN_SetLUT_by_table(pVIN, rgb);
+//	VIOC_VIN_SetLUT_by_table(pVIN, rgb);
+    	tccxxx_cif_vin_lut_buffer_update(0, rgb);
 
-	ret = SUCCESS;
-	printk(KERN_INFO "%s,ret = %d \n", __func__ ,ret  );
+
+	return 0;
+}
+
+int lvds_write_ie(int cmd, unsigned char value, struct tcc_camera_device * vdev)
+{
+	VPRINTK("%s - cmd:%d, value:%d\n", __func__, cmd, value);
+
+	int ret = FAIL;
+
+	if (value < 0 || value > 255)
+		value = 127;
+	
+	switch(cmd)
+	{
+		case SET_CAM_BRIGHTNESS:
+			_cam_brightness = value;
+			break;
+		case SET_CAM_CONTRAST:
+			_cam_contrast = value;
+			break;
+		case SET_CAM_SATURATION:
+			_cam_saturation = value;
+			break;
+		case SET_DVRS_BRIGHTNESS:
+ 			_dvrs_brightness = value;
+			break;
+		case SET_DVRS_CONTRAST:
+ 			_dvrs_contrast = value;
+			break;
+		case SET_DVRS_SATURATION:
+ 			_dvrs_saturation = value;
+			break;
+		default:
+			break;
+	}
+
+	if(cmd >= SET_CAM_BRIGHTNESS && cmd <= SET_CAM_SATURATION)
+		ret = setLUT(_cam_brightness, _cam_contrast, _cam_saturation);
+	else if(cmd >= SET_DVRS_BRIGHTNESS && cmd <= SET_DVRS_SATURATION)
+		ret = setLUT(_dvrs_brightness, _dvrs_contrast, _dvrs_saturation);
+	
+	VPRINTK("%s,ret = %d \n", __func__ ,ret);
+
 	return ret;
 }
 
@@ -337,13 +363,13 @@ int lvds_read_ie(int cmd, unsigned char *level, struct tcc_camera_device * vdev)
 	switch(cmd)
 	{
 		case GET_CAM_BRIGHTNESS:
-			*level = _video_brightness;
+			*level = _cam_brightness;
 			break;
 		case GET_CAM_CONTRAST:
-			*level = _video_contrast;
+			*level = _cam_contrast;
 			break;
 		case GET_CAM_SATURATION:
-			*level = _video_saturation;
+			*level = _cam_saturation;
 			break;
 		default:
 			break;
@@ -505,12 +531,14 @@ static int lvds_sensor_check_luma(int val)
 	return 0;
 }
 
-void lvds_sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info)
+void adas_sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info)
 {
 	printk("%s - MAX96706 sensor info\n", __func__);
 
-	sensor_info->preview_w				= 1920;
+	sensor_info->preview_w				= 1280;
 	sensor_info->preview_h				= 720;
+	sensor_info->capture_w				= 1280;
+	sensor_info->capture_h				= 720;
 
 	sensor_info->cam_capchg_width			= 1920;
 	sensor_info->framerate				= 15;
@@ -530,7 +558,37 @@ void lvds_sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info)
 	sensor_info->intl_en				= OFF;
 	sensor_info->intpl_en				= OFF;
 	sensor_info->format 				= M420_ZERO;
-	sensor_info->capture_skip_frame 		= 1;
+	sensor_info->capture_skip_frame 		= 2;
+	sensor_info->sensor_sizes			= sensor_size;
+}
+void lvds_sensor_info_init(TCC_SENSOR_INFO_TYPE *sensor_info)
+{
+	printk("%s - MAX96706 sensor info\n", __func__);
+
+	sensor_info->preview_w				= 1920;
+	sensor_info->preview_h				= 720;
+	sensor_info->capture_w				= 1920;
+	sensor_info->capture_h				= 720;
+
+	sensor_info->cam_capchg_width			= 1920;
+	sensor_info->framerate				= 15;
+	//2017.12.22 - LVDS SVM Display Timing Fixed. PCLK(Positive Edge) HS(Active High) VS(Active High)
+	//Because of setup time issue, AVN detects PCLK at negative edge
+	sensor_info->p_clock_pol			= NEGATIVE_EDGE; //POSITIVE_EDGE;
+	sensor_info->v_sync_pol 			= ACT_HIGH;
+	sensor_info->h_sync_pol 			= ACT_HIGH;
+	sensor_info->de_pol 				= ACT_LOW;
+	sensor_info->field_bfield_low			= OFF;
+	sensor_info->gen_field_en			= OFF;
+	sensor_info->conv_en				= OFF;
+	sensor_info->hsde_connect_en			= ON;
+	sensor_info->vs_mask				= ON;
+	sensor_info->input_fmt				= FMT_YUV422_8BIT;
+	sensor_info->data_order 			= ORDER_RGB;
+	sensor_info->intl_en				= OFF;
+	sensor_info->intpl_en				= OFF;
+	sensor_info->format 				= M420_ZERO;
+	sensor_info->capture_skip_frame 		= 2;
 	sensor_info->sensor_sizes			= sensor_size;
 }
 
@@ -554,7 +612,6 @@ void lvds_sensor_init_fnc(SENSOR_FUNC_TYPE_DAUDIO *sensor_func)
 	sensor_func->sensor_read_ie				= lvds_read_ie;
 	sensor_func->sensor_get_preview_size			= lvds_sensor_get_preview_size;
 	sensor_func->sensor_get_capture_size			= lvds_sensor_get_capture_size;
-
 	sensor_func->Set_Zoom					= sensor_zoom;
 	sensor_func->Set_AF					= sensor_autofocus;
 	sensor_func->Set_Effect					= sensor_effect;

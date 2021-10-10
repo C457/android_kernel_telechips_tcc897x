@@ -281,9 +281,9 @@ config PHYS_OFFSET
 	  location of main memory in your system.
 
 # //+[TCCQB] for hibernation at arm architecture
-config ARCH_HIBERNATION_POSSIBLE
-       def_bool y
-       depends on CPU_V7 
+#config ARCH_HIBERNATION_POSSIBLE
+#       def_bool y
+#       depends on CPU_V7 
 # //-[TCCQB]
 # //
 
@@ -2228,10 +2228,10 @@ config ARCH_SUSPEND_POSSIBLE
 config ARM_CPU_SUSPEND
 	def_bool PM_SLEEP
 
-config ARCH_HIBERNATION_POSSIBLE
-	bool
-	depends on MMU
-	default y if ARCH_SUSPEND_POSSIBLE
+#config ARCH_HIBERNATION_POSSIBLE
+#	bool
+#	depends on MMU
+#	default y if ARCH_SUSPEND_POSSIBLE
 
 endmenu
 

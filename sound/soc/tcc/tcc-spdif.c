@@ -72,12 +72,12 @@
 #define SPDIF_TX_RATIO (7)
 
 struct tcc_spdif_data {
-	unsigned int	id;
+	int	id;
 
 	void __iomem	*spdif_reg;
 	struct clk	*spdif_pclk;
 	struct clk	*spdif_hclk;
-	unsigned int	spdif_irq;
+	int	spdif_irq;
 	unsigned long	spdif_clk_rate;
 #if defined(CONFIG_ARCH_TCC898X)
 	int dai_port;
@@ -172,13 +172,14 @@ static void tcc_spdif_set_clock(struct snd_soc_dai *dai, unsigned int clock_rate
 
 static int tcc_spdif_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
+#if 0
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 	alsa_dbg("tcc_spdif_startup() \n");
 	if (!cpu_dai->active) {
 	}
-
+#endif
 	return 0;
 }
 
@@ -413,7 +414,7 @@ static const struct snd_soc_component_driver tcc_spdif_component = {
 static int soc_tcc_spdif_probe(struct platform_device *pdev)
 {
 	struct tcc_spdif_data *tcc_spdif;
-	u32 clk_rate;
+	u32 clk_rate = 44100;
 #if defined(CONFIG_ARCH_TCC898X)
 	int port_mux = 0;
 #endif

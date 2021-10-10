@@ -18,6 +18,7 @@
 #include <mach/daudio.h>
 #include <mach/daudio_info.h>
 #include <mach/daudio_settings.h>
+#include <mach/daudio_pinctl.h>
 #include <mach/gpio.h>
 
 #define DRIVER_NAME				"daudio_info"
@@ -32,6 +33,8 @@
 
 EXPORT_SYMBOL(daudio_lcd_version);
 EXPORT_SYMBOL(daudio_main_version);
+EXPORT_SYMBOL(daudio_lcd_type_lvds_check);
+EXPORT_SYMBOL(daudio_lcd_inch_check);
 
 static struct class *daudio_info_class;
 static struct mutex info_lock;
@@ -39,6 +42,7 @@ static struct device *daudio_info_dev;
 
 extern int daudio_info_adc_init(struct device *dev);
 static int daudio_incell_version_for_user(void);
+static int daudio_vendor_verson_for_user(void);
 static char **daudio_lcd_versions;
 
 #if !defined(CONFIG_DAUDIO_ECO) && !defined(CONFIG_DAUDIO_KK)
@@ -62,6 +66,35 @@ int tag_lk_version = -1;
 
 static char swsusp_header_sig[QB_SIG_SIZE];
 static unsigned int swsusp_header_addr = 0;
+
+static unsigned char vehicle_info = 0;
+static unsigned char country_info = 0;
+
+unsigned char get_vehicle_info(void)
+{
+	return vehicle_info;
+}
+EXPORT_SYMBOL(get_vehicle_info);
+
+static int __init vehicle_info_setup(char *str)
+{
+	sscanf(str, "%x", &vehicle_info);
+	return 1;
+}
+__setup("vehicle_info=", vehicle_info_setup);
+
+unsigned char get_country_info(void)
+{
+	return country_info;
+}
+EXPORT_SYMBOL(get_country_info);
+
+static int __init country_info_setup(char *str)
+{
+	sscanf(str, "%x", &country_info);
+	return 1;
+}
+__setup("country_info=", country_info_setup);
 
 #if !defined(CONFIG_DAUDIO_ECO) && !defined(CONFIG_DAUDIO_KK)
 static unsigned int size_gps_lcd = sizeof(gps_lcd_ver)/sizeof(gps_lcd_ver[0]);
@@ -192,6 +225,238 @@ static int daudio_incell_version_for_user(void)
 		return 0;
 	else
 		return 1;
+}
+
+static int daudio_vendor_version_for_user(void)
+{
+	int version;
+	int mon, oem;
+	oem = gpio_get_value(TCC_GPB(24));
+	mon = gpio_get_value(TCC_GPB(13));
+	daudio_lcd_versions = lcd_version_check(oem, mon);
+	version = daudio_lcd_version();
+
+	if(strstr(daudio_lcd_versions[version], "LG") != NULL)
+	{
+		return VENDOR_LG;
+	}	
+	else if(strstr(daudio_lcd_versions[version], "AUO") != NULL)
+	{
+		return VENDOR_AUO;
+	}
+	else if(strstr(daudio_lcd_versions[version], "TRULY") != NULL)
+	{
+		return VENDOR_TRULY;
+	}
+	else if(strstr(daudio_lcd_versions[version], "TIANMA") != NULL)
+	{
+		return VENDOR_TIANMA;
+	}
+	else if(strstr(daudio_lcd_versions[version], "BOE") != NULL)
+	{
+		return VENDOR_BOE;
+	}
+	else
+	{
+		printk("[Not Spec]Out of Boundary\n");
+		return -1;
+	}
+	
+}
+
+static int daudio_lcd_color_temperature_check(void)
+{
+	int temperature = 7800;	//default = 7800K, 12.3' = 8200K
+	int mon, oem;
+	oem = gpio_get_value(TCC_GPB(24));
+	mon = gpio_get_value(TCC_GPB(13));
+
+	if((oem == 1) && (mon == 0))
+	{
+		if(daudio_lcd_version() == DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si_LG)
+			temperature = 8200;
+	}
+
+	return temperature;
+}
+
+static int daudio_lcd_touchkey_model_check(void)
+{
+        int touchkey_model = 0; //only PIO 1920 model touchkey_model = ture
+        int mon, oem;
+        oem = gpio_get_value(TCC_GPB(24));
+        mon = gpio_get_value(TCC_GPB(13));
+
+        if((oem == 0) && (mon == 1))
+        {
+                if(daudio_lcd_version() == DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO)
+                        touchkey_model = 1;
+        }
+
+        return touchkey_model;
+}
+
+int daudio_lcd_type_lvds_check(void)
+{
+	int lvds = 0; //LVDS : 1 , HDMI : 0
+	int mon, oem, lcd_ver;
+
+	oem = gpio_get_value(TCC_GPB(24));
+        mon = gpio_get_value(TCC_GPB(13));
+	lcd_ver = daudio_lcd_version();
+
+	if((oem == 1) && (mon == 1))
+	{
+		if(lcd_ver == DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si_BOE)
+			lvds = 1;
+	}
+	else if((oem == 0) && (mon == 1))
+	{
+		if(lcd_ver == DAUDIOKK_LCD_PI_08_00_800_400_PIO_TRULY)
+			lvds = 1;
+		else if(lcd_ver == DAUDIOKK_LCD_PI_DISCONNECTED)
+			lvds = 1;
+	}
+
+	return lvds;
+}
+
+/* lcd_size 243.648mm -> 243648 (1um)
+*/
+
+int daudio_lcd_inch_check(void)
+{
+        int version;
+        int mon, oem;
+        double inch;
+
+        oem = get_oemtype();
+        mon = get_montype();
+        daudio_lcd_versions = lcd_version_check(oem, mon);
+        version = daudio_lcd_version();
+
+        if(strstr(daudio_lcd_versions[version], "10_25") != NULL)
+        {
+                inch = 10;
+        }
+        else if(strstr(daudio_lcd_versions[version], "12_30") != NULL)
+        {
+                inch = 12;
+        }
+        else if(strstr(daudio_lcd_versions[version], "08_00") != NULL)
+        {
+                inch = 8;
+        }
+        else
+        {
+                inch = 0;
+        }
+
+        return inch;
+}
+
+static int daudio_lcd_size_check(double *size_x, double *size_y)
+{
+        int version;
+        int mon, oem;
+
+        oem = gpio_get_value(TCC_GPB(24));
+        mon = gpio_get_value(TCC_GPB(13));
+        daudio_lcd_versions = lcd_version_check(oem, mon);
+        version = daudio_lcd_version();
+
+        if(strstr(daudio_lcd_versions[version], "10_25") != NULL)
+        {
+                (*size_x) = 243.648;
+		(*size_y) = 91.368;
+        }
+        else if(strstr(daudio_lcd_versions[version], "12_30") != NULL)
+        {
+                (*size_x) = 292.032;
+                (*size_y) = 109.512;
+        }
+        else if(strstr(daudio_lcd_versions[version], "08_00") != NULL)
+        {
+                (*size_x) = 176.64;
+                (*size_y) = 99.36;
+        }
+        else
+        {
+		(*size_x) = 243.648;
+                (*size_y) = 91.368;
+        }
+
+        return 0;
+}
+
+static int daudio_lcd_resolution_check(int *resolution_x, int *resolution_y)
+{
+        int version;
+        int mon, oem;
+
+        oem = gpio_get_value(TCC_GPB(24));
+        mon = gpio_get_value(TCC_GPB(13));
+        daudio_lcd_versions = lcd_version_check(oem, mon);
+        version = daudio_lcd_version();
+
+        if(strstr(daudio_lcd_versions[version], "1920_720") != NULL)
+        {
+                (*resolution_x) = 1920;
+		(*resolution_y) = 720;
+        }
+        else if(strstr(daudio_lcd_versions[version], "1280_720") != NULL)
+        {
+                (*resolution_x) = 1280;
+		(*resolution_y) = 720;
+        }
+        else if(strstr(daudio_lcd_versions[version], "800_400") != NULL)
+        {
+                (*resolution_x) = 1280;
+		(*resolution_y) = 720;
+        }
+        else
+        {
+		(*resolution_x) = 1920;
+                (*resolution_y) = 720;
+        }
+
+        return 0;
+}
+
+/* pixel pitch 0.1269mm -> 1269 (10um)
+*/
+static int daudio_lcd_pixel_pitch_check(double *pixel_pitch_x, double *pixel_pitch_y)
+{
+        int version;
+        int mon, oem;
+
+        oem = gpio_get_value(TCC_GPB(24));
+        mon = gpio_get_value(TCC_GPB(13));
+        daudio_lcd_versions = lcd_version_check(oem, mon);
+        version = daudio_lcd_version();
+
+        if(strstr(daudio_lcd_versions[version], "10_25") != NULL)
+        {
+                (*pixel_pitch_x) = 0.1269;
+                (*pixel_pitch_y) = 0.1269;
+        }
+        else if(strstr(daudio_lcd_versions[version], "12_30") != NULL)
+        {
+		(*pixel_pitch_x) = 0.1521;
+                (*pixel_pitch_y) = 0.1521;
+        }
+        else if(strstr(daudio_lcd_versions[version], "08_00") != NULL)
+        {
+		(*pixel_pitch_x) = 0.138;
+                (*pixel_pitch_y) = 0.138;
+        }
+        else
+        {
+		(*pixel_pitch_x) = 0.1269;
+                (*pixel_pitch_y) = 0.1269;
+        }
+
+        return 0;
 }
 
 /*
@@ -392,6 +657,7 @@ static ssize_t daudio_info_read(struct file *file, char *buf, size_t count, loff
 //	printk(KERN_INFO "H/W GPS Version: %d, adc: %d mv\n", bsp_version.gps_version, bsp_adc.gps_adc);
 	printk(KERN_INFO "H/W LCD Version[OEM(%d), MON(%d)]: %s(%d), adc: %d mv\n", oem, mon, daudio_lcd_versions[bsp_version.lcd_version], bsp_version.lcd_version, bsp_adc.lcd_adc);
 	printk(KERN_INFO "H/W INCELL Version for user : %d\n", daudio_incell_version_for_user());
+	printk(KERN_INFO "H/W LCD Vendor Version : %d\n", daudio_vendor_version_for_user());
 //	printk(KERN_INFO "Quickboot Kernel define sig: [%s], snapshot header sig: [%s]\n", kernel_sig, snapshot_sig);
 //	printk(KERN_INFO "Quickboot start addr: 0x%x\n", swsusp_header_addr);	
 //	printk(KERN_INFO "GPS(0)/RTC(1) DET adc : %ld mv\n", get_ant_diag_adc(6));
@@ -426,9 +692,10 @@ static long daudio_info_ioctl(struct file *file, unsigned int cmd, unsigned long
 				bsp_ver.hw_version = bsp_version.hw_version;
 				bsp_ver.main_version = bsp_version.main_version;
 				bsp_ver.bt_version = bsp_version.bt_version;
-				//bsp_ver.gps_version = bsp_version.gps_version;
+				bsp_ver.gps_version = bsp_version.gps_version; 
 				bsp_ver.lcd_version = bsp_version.lcd_version;
 				bsp_ver.incell_version = daudio_incell_version_for_user();
+				bsp_ver.vendor_version = daudio_vendor_version_for_user();
 				ret = copy_to_user((D_Audio_bsp_version*)arg, &bsp_ver, sizeof(D_Audio_bsp_version));
 				if (ret) {
 					printk(KERN_ERR "%s: failed to copy_to_user (%d)\n", __func__, ret);
@@ -458,6 +725,58 @@ static long daudio_info_ioctl(struct file *file, unsigned int cmd, unsigned long
 				ret = 1;
 			}
 			break;
+		case DAUDIO_BSP_LCD_COLOR_TEMPERATURE_DET:
+			{
+				int temperature = 0;
+
+				temperature = daudio_lcd_color_temperature_check();
+				ret = copy_to_user((int*)arg, &temperature, sizeof(int));
+				if (ret) {
+					printk(KERN_ERR "%s: failed to copy_to_user (%d)\n", __func__, ret);
+					return -EFAULT;
+				}
+				ret = 1;
+			}
+			break;
+		case DAUDIO_BSP_LCD_INFO_DET:
+                        {
+                                D_Audio_bsp_lcd_info bsp_lcd_info;
+
+				daudio_lcd_resolution_check(&bsp_lcd_info.resolution[0], &bsp_lcd_info.resolution[1]);
+				daudio_lcd_size_check(&bsp_lcd_info.size[0], &bsp_lcd_info.size[1]);
+				daudio_lcd_pixel_pitch_check(&bsp_lcd_info.pixel_pitch[0], &bsp_lcd_info.pixel_pitch[1]);
+				bsp_lcd_info.temperature = daudio_lcd_color_temperature_check();
+				bsp_lcd_info.touchkey_model = daudio_lcd_touchkey_model_check();
+
+                                ret = copy_to_user((int*)arg, &bsp_lcd_info, sizeof(D_Audio_bsp_lcd_info));
+                                if (ret) {
+                                        printk(KERN_ERR "%s: failed to copy_to_user (%d)\n", __func__, ret);
+                                        return -EFAULT;
+                                }
+                                ret = 1;
+                        }
+                        break;
+		case DAUDIO_BSP_BACK_LCD_INFO_DET:
+                        {
+                                D_Audio_bsp_lcd_info bsp_lcd_info;
+
+				bsp_lcd_info.resolution[0] = 0;
+				bsp_lcd_info.resolution[1] = 0;
+				bsp_lcd_info.size[0] = 0;
+				bsp_lcd_info.size[1] = 0;
+				bsp_lcd_info.pixel_pitch[0] = 0;
+				bsp_lcd_info.pixel_pitch[1] = 0;
+				bsp_lcd_info.temperature = 0;
+				bsp_lcd_info.touchkey_model = 0;
+
+                                ret = copy_to_user((int*)arg, &bsp_lcd_info, sizeof(D_Audio_bsp_lcd_info));
+                                if (ret) {
+                                        printk(KERN_ERR "%s: failed to copy_to_user (%d)\n", __func__, ret);
+                                        return -EFAULT;
+                                }
+                                ret = 1;
+                        }
+                        break;
 	}
 
 	return ret;

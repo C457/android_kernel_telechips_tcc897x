@@ -63,6 +63,7 @@
 #include <linux/blkdev.h>
 #include "../../scsi/sd.h"
 
+#include "../core/hub.h"
 
 /***********************************************************************
  * Data transfer routines
@@ -1351,8 +1352,12 @@ int usb_stor_port_reset(struct us_data *us)
 	int result;
 
 	/*for these devices we must use the class specific method */
-	if (us->pusb_dev->quirks & USB_QUIRK_RESET)
-		return -EPERM;
+	if (us->pusb_dev->quirks & USB_QUIRK_RESET) {
+		struct usb_hub * hub;
+		hub = usb_hub_to_struct_hub(us->pusb_dev->parent);
+		usb_queue_reset_device(to_usb_interface(hub->intfdev));
+		return 0;
+	}
 
 	result = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
 	if (result < 0)

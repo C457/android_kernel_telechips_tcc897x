@@ -49,6 +49,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <mach/daudio.h>
 
 #define DRV_NAME "tcc-rtc"
 
@@ -145,6 +146,10 @@ static void tcc_rtc_setaie(struct device *dev, int to)
 
 	printk("%s: aie=%d\n", __func__, to);
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if (!tcc_rtc)
+		return -ENOMEM;
+#endif
 	rtc_writel( rtc_readl(tcc_rtc->regs + RTCCON) | Hw1, tcc_rtc->regs + RTCCON);
 	rtc_writel( rtc_readl(tcc_rtc->regs + INTCON) | Hw0, tcc_rtc->regs + INTCON);
 
@@ -461,7 +466,7 @@ static int tcc_rtc_proc(struct device *dev, struct seq_file *seq)
 static int tcc_rtc_ioctl(struct device *dev,
 		unsigned int cmd, unsigned long arg)
 {
-	unsigned int ret = -ENOIOCTLCMD;
+	int ret = -ENOIOCTLCMD;
 
 printk("%s %d\n",__func__,__LINE__);
 	switch (cmd) {
@@ -737,13 +742,13 @@ static int tcc_rtc_probe(struct platform_device *pdev)
 		rtctime pTime;
 
 		// temp init;
-		pTime.wDay      = 27;
-		pTime.wMonth    = 3;
-		pTime.wDayOfWeek= 5;
-		pTime.wHour     = 9;
-		pTime.wMinute   = 30;
-		pTime.wSecond   = 0;
-		pTime.wYear     = 2014;	// year 2038 problem.
+		pTime.wDay      = DAUDIO_RTC_DAY;
+		pTime.wMonth    = DAUDIO_RTC_MONTH;
+		pTime.wDayOfWeek= DAUDIO_RTC_WEEK;
+		pTime.wHour     = DAUDIO_RTC_HOUR;
+		pTime.wMinute   = DAUDIO_RTC_MINUTE;
+		pTime.wSecond   = DAUDIO_RTC_SECOND;
+		pTime.wYear     = DAUDIO_RTC_YEAR;	// year 2038 problem.
 
 		tca_rtc_settime((unsigned int)tcc_rtc->regs, &pTime);
 
@@ -855,13 +860,13 @@ static int tcc_rtc_restore(struct device *dev)
 		rtctime pTime;
 
 		// temp init;
-		pTime.wDay      = 27;
-		pTime.wMonth    = 3;
-		pTime.wDayOfWeek= 5;
-		pTime.wHour     = 9;
-		pTime.wMinute   = 30;
-		pTime.wSecond   = 0;
-		pTime.wYear     = 2014;	// year 2038 problem.
+		pTime.wDay      = DAUDIO_RTC_DAY;
+		pTime.wMonth    = DAUDIO_RTC_MONTH;
+		pTime.wDayOfWeek= DAUDIO_RTC_WEEK;
+		pTime.wHour     = DAUDIO_RTC_HOUR;
+		pTime.wMinute   = DAUDIO_RTC_MINUTE;
+		pTime.wSecond   = DAUDIO_RTC_SECOND;
+		pTime.wYear     = DAUDIO_RTC_YEAR;	// year 2038 problem.
 
 		tca_rtc_settime((unsigned int)tcc_rtc->regs, &pTime);
 

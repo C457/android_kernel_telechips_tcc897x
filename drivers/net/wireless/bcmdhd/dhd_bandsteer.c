@@ -4,9 +4,9 @@
  * Feature by which dualband capable PEERs will be
  * forced move on 5GHz interface
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -30,7 +30,7 @@
  *
  * $ Copyright Cypress Semiconductor $
  *
- * $Id: dhd_bandsteer.c 674523 2017-10-25 14:29:02Z $
+ * $Id: dhd_bandsteer.c 710124 2019-02-20 13:15:23Z $
  */
 
 #include <typedefs.h>
@@ -214,9 +214,9 @@ dhd_bandsteer_remove_mac_from_list(dhd_bandsteer_mac_entry_t *dhd_bandsteer_mac,
 		if ((curr == dhd_bandsteer_mac) || all) {
 			DHD_ERROR(("%s: " MACDBG " deleted from list \n", __FUNCTION__,
 					MAC2STRDBG(dhd_bandsteer_mac->mac_addr.octet)));
-			list_del(&dhd_bandsteer_mac->list);
-			dhd_bandsteer_delete_timer(dhd_bandsteer_mac);
-			kfree(dhd_bandsteer_mac);
+			list_del(&curr->list);
+			dhd_bandsteer_delete_timer(curr);
+			kfree(curr);
 			if (!all)
 				break;
 		}

@@ -87,15 +87,21 @@ void panic(const char *fmt, ...)
 	va_list args;
 	long i, i_next = 0;
 	int state = 0;
+	int oneshot = false;
 	int panic_check = 0;
 
-	panic_check = panic_count_check();
+	if (get_reboot_reason() != 4)	// before panic occure check... (boot-panic)
+		oneshot = true;
+
+	panic_check = panic_count_check(oneshot);
+	printk("##### panic_count=%d, oneshot=%d #####\n", panic_check, oneshot);
+
 
 	if(panic_check >= 5) {
 		panic_repeat_debug();
 		restart_reason_misc_write_with_message(2);	/* 2 == "boot_recovery" */
 	} else {
-		restart_reason_misc_write(3);				/* 3 == "force_normal" */
+		restart_reason_misc_write(4);				/* 3 == "force_normal", 4=="panic" */
 	}
 
 #if defined(CONFIG_ENABLE_TCC_MMC_KPANIC)

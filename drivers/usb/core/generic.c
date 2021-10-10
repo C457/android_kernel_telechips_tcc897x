@@ -62,7 +62,7 @@ int usb_choose_configuration(struct usb_device *udev)
 		//if you want to attached mass storage use the code below (like ipod_shuffle...)
 		//this code for the apple deviecs support mass storage only.
 		for (i = 0; i < num_configs; (i++)) {
-			int j = 0;
+			int j;
 			for(j = 0; j < c[i].desc.bNumInterfaces;j++){
 				const struct usb_host_interface *desc1 = &c[i].intf_cache[j]->altsetting->desc;
 				if(desc1->desc.bInterfaceClass == USB_CLASS_AUDIO)

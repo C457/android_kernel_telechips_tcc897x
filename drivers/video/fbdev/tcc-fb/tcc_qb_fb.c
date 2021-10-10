@@ -184,7 +184,7 @@ int fb_quickboot_progress_bar(int percent)
 		bar.height = 19;
 #else
 #ifdef CONFIG_DAUDIO_KK
-#ifdef CONFIG_LCD_HDMI1920X720
+#if 1//def CONFIG_LCD_HDMI1920X720
 		//wide platform
 		bar.sx = (img_width /4);
 		bar.sy = (img_height / 4 ) * 3;

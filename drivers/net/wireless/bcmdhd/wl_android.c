@@ -1,9 +1,9 @@
 /*
  * Linux cfg80211 driver - Android related functions
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,15 +26,12 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_android.c 681267 2017-12-28 07:30:16Z $
+ * $Id: wl_android.c 710131 2019-02-21 08:56:26Z $
  */
 
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <net/netlink.h>
-#ifdef CONFIG_COMPAT
-#include <linux/compat.h>
-#endif
 
 #include <wl_android.h>
 #include <wldev_common.h>
@@ -91,6 +88,7 @@
 #define CMD_SETBAND		"SETBAND"
 #define CMD_GETBAND		"GETBAND"
 #define CMD_COUNTRY		"COUNTRY"
+#define CMD_CHANNELS_IN_CC	"CHANNELS_IN_CC"
 #define CMD_P2P_SET_NOA		"P2P_SET_NOA"
 #if !defined WL_ENABLE_P2P_IF
 #define CMD_P2P_GET_NOA			"P2P_GET_NOA"
@@ -259,6 +257,9 @@
 
 #define CMD_MAXASSOC "MAXASSOC"
 
+#define CMD_AP_WHITELIST "AP_WHITELIST"
+#define CMD_AP_RESET_WHITELIST "AP_RESET_WHITELIST"
+
 #define CMD_CHANNEL_WIDTH "CHANNEL_WIDTH"
 
 #ifdef CONNECTION_STATISTICS
@@ -331,7 +332,9 @@ typedef struct _compat_android_wifi_priv_cmd {
 				           (JOIN_PREF_WPA_TUPLE_SIZE * JOIN_PREF_MAX_WPA_TUPLES))
 #endif /* BCMFW_ROAM_ENABLE */
 
-
+// Case 00535536, juho@mobis.co.kr, Add version info
+#define CMD_GET_FIRMVER		"ver"
+#define CMD_GET_CLMVER		"clmver"
 /**
  * Extern function declarations (TODO: move them to dhd_linux.h)
  */
@@ -364,6 +367,9 @@ static int lock_cookie_wifi = 'W' | 'i'<<8 | 'F'<<16 | 'i'<<24;	/* cookie is "Wi
 
 extern bool ap_fw_loaded;
 extern char iface_name[IFNAMSIZ];
+#ifdef WL_VIF_SUPPORT
+extern char vif_name[IFNAMSIZ];
+#endif
 
 /**
  * Local (static) functions and variables
@@ -473,6 +479,84 @@ wl_android_set_maxassoc_limit(struct net_device *dev, char *command, int total_l
 }
 
 static int
+wl_android_set_ap_whitelist(struct net_device *dev, char *command)
+{
+	int ret = 0, i;
+	char *buf = NULL;
+	struct maclist *whitelisted_mac = NULL;
+	size_t list_size = MAX_NUM_OF_ASSOCLIST *
+		sizeof(struct ether_addr) + sizeof(uint);
+
+	buf = kmalloc(WLC_IOCTL_MAXLEN, GFP_KERNEL);
+	whitelisted_mac = (struct maclist *)kmalloc(list_size, GFP_KERNEL);
+
+	if ((buf == NULL) || (whitelisted_mac == NULL)) {
+		DHD_ERROR(("%s: failed to allocated memory\n", __FUNCTION__));
+		ret = -ENOMEM;
+		goto exit;
+	}
+	bzero(whitelisted_mac, list_size);
+	bzero(buf, WLC_IOCTL_MAXLEN);
+
+	if (*(command + strlen(CMD_AP_WHITELIST)) == '\0') {
+		DHD_ERROR(("%s: No MAC addresses present to whitelist\n", __FUNCTION__));
+		goto exit;
+	}
+	command = (command + strlen(CMD_AP_WHITELIST));
+	command++;
+	/* Convert upper case MAC address to lower case MAC Address */
+	for (i = 0; command[i] != '\0'; i++)
+		command[i] = command[i] | 32;
+
+	DHD_ERROR(("%s: command = %s length = %zu\n", __FUNCTION__, command, strlen(command)));
+
+	while (strlen(command) >= ETHER_ADDR_STR_LEN-1) {
+		bcm_ether_atoe(command, (whitelisted_mac->ea +
+			(whitelisted_mac->count)*ETHER_ADDR_LEN));
+		whitelisted_mac->count++;
+		command += ETHER_ADDR_STR_LEN;
+	}
+
+	if (whitelisted_mac->count >= 1) {
+		ret = wldev_iovar_setbuf(dev, "ap_whitelist",
+			whitelisted_mac, list_size,
+			buf, WLC_IOCTL_MAXLEN, NULL);
+		if (ret) {
+			DHD_ERROR(("%s: Failed to set to whitelist\n", __FUNCTION__));
+		} else {
+			DHD_INFO(("%s: Successfully set to whitelist\n", __FUNCTION__));
+		}
+	}
+exit:
+	if (buf)
+		kfree(buf);
+	if (whitelisted_mac)
+		kfree(whitelisted_mac);
+	return ret;
+}
+
+static int
+wl_android_reset_ap_whitelist(struct net_device *dev, char *command)
+{
+	int ret = 0;
+	char *buf = NULL;
+	buf = kmalloc(WLC_IOCTL_MAXLEN, GFP_KERNEL);
+	if (buf == NULL) {
+		DHD_ERROR(("%s: failed to allocated memory\n", __FUNCTION__));
+		return -ENOMEM;
+	}
+	ret = wldev_iovar_setbuf(dev, "ap_reset_whitelist", NULL, 0, buf, WLC_IOCTL_MAXLEN, NULL);
+	if (ret) {
+		DHD_ERROR(("%s: Failed to reset whitelisted MAC address\n", __FUNCTION__));
+	} else {
+		DHD_INFO(("%s: Successfully reset whitelisted MAC address\n", __FUNCTION__));
+	}
+	if (buf)
+		kfree(buf);
+	return ret;
+}
+
+static int
 wl_android_set_channel_width(struct net_device *dev, char *command, int total_len)
 {
 	u32 channel_width = 0;
@@ -502,7 +586,7 @@ wl_android_set_bandsteer(struct net_device *dev, char *command, int total_len)
 {
 	char *iftype;
 	char *token1, *context1 = NULL;
-	uint val;
+	int val;
 	int ret = 0;
 
 	struct wireless_dev *__wdev = (struct wireless_dev *)(dev)->ieee80211_ptr;
@@ -775,11 +859,13 @@ static int wl_android_set_max_dtim(struct net_device *dev, char *command, int to
 
 int wl_android_get_80211_mode(struct net_device *dev, char *command, int total_len)
 {
-	uint8 mode[4];
+	uint8 mode[5];
 	int  error = 0;
 	int bytes_written = 0;
 
-	error = wldev_get_mode(dev, mode);
+	memset(mode, 0x0, sizeof(mode));
+
+	error = wldev_get_mode(dev, mode, sizeof(mode));
 	if (error)
 		return -1;
 
@@ -900,6 +986,55 @@ int wl_android_get_assoclist(struct net_device *dev, char *command, int total_le
 	return bytes_written;
 
 }
+
+static int wl_android_get_channel_list(struct net_device *dev, char *command, int total_len)
+{
+
+	int error = 0, len = 0, i;
+	char smbuf[WLC_IOCTL_SMLEN] = {0};
+	wl_channels_in_country_t *cic;
+	char band[2];
+	char *pos = command;
+
+	cic = (wl_channels_in_country_t *)smbuf;
+
+	pos = pos + strlen(CMD_CHANNELS_IN_CC) + 1;
+
+	sscanf(pos, "%s %s", cic->country_abbrev, band);
+	DHD_INFO(("%s:country  %s  and mode %s \n", __FUNCTION__, cic->country_abbrev, band));
+	len = strlen(cic->country_abbrev);
+	if ((len > 3) || (len < 2)) {
+		DHD_ERROR(("%s :invalid country abbrev\n", __FUNCTION__));
+		return -1;
+	}
+
+	if (!strcmp(band, "a") || !strcmp(band, "A"))
+		cic->band = WLC_BAND_5G;
+	else if (!strcmp(band, "b") || !strcmp(band, "B"))
+		cic->band = WLC_BAND_2G;
+	else {
+		DHD_ERROR(("%s: unsupported band: \n", __FUNCTION__));
+		return -1;
+	}
+
+	cic->count = 0;
+	cic->buflen = WL_EXTRA_BUF_MAX;
+
+	error = wldev_ioctl(dev, WLC_GET_CHANNELS_IN_COUNTRY, cic, sizeof(smbuf), false);
+	if (error) {
+		DHD_ERROR(("%s :Failed to get channels \n", __FUNCTION__));
+		return -1;
+	}
+
+	if (cic->count == 0)
+		return -1;
+
+	for (i = 0; i < (cic->count); i++) {
+		pos += snprintf(pos, total_len, " %d", (cic->channel[i]));
+	}
+	return (pos - command);
+}
+
 extern chanspec_t
 wl_chspec_host_to_driver(chanspec_t chanspec);
 static int wl_android_set_csa(struct net_device *dev, char *command, int total_len)
@@ -949,7 +1084,7 @@ static int wl_android_set_csa(struct net_device *dev, char *command, int total_l
 	csa_arg.chspec = chnsp;
 
 	if (chnsp & WL_CHANSPEC_BAND_5G) {
-		u32 chanspec = chnsp;
+		u32 chanspec = wf_chspec_ctlchan(chnsp);
 		err = wldev_iovar_getint(dev, "per_chan_info", &chanspec);
 		if (!err) {
 			if ((chanspec & WL_CHAN_RADAR) || (chanspec & WL_CHAN_PASSIVE)) {
@@ -1770,7 +1905,12 @@ wl_android_set_mac_address_filter(struct net_device *dev, const char* str)
 	list->count = htod32(macnum);
 	bzero((char *)eabuf, ETHER_ADDR_STR_LEN);
 	for (i = 0; i < list->count; i++) {
-		strncpy(eabuf, strsep((char**)&str, " "), ETHER_ADDR_STR_LEN - 1);
+		token = strsep((char**)&str, " ");
+		if (!token) {
+			kfree(list);
+			return -1;
+		}
+		strncpy(eabuf, token, ETHER_ADDR_STR_LEN - 1);
 		if (!(ret = bcm_ether_atoe(eabuf, &list->ea[i]))) {
 			DHD_ERROR(("%s : mac parsing err index=%d, addr=%s\n",
 				__FUNCTION__, i, eabuf));
@@ -3365,6 +3505,19 @@ wl_android_murx_bfe_cap(struct net_device *dev, int val)
 	return err;
 }
 
+// Case 00535536, juho@mobis.co.kr, Add version info
+int
+wl_android_get_priv_string(struct net_device *dev, char *command, int total_len)
+{
+	int ret = 0,  bytes_written = 0;
+	char smbuf[WLC_IOCTL_SMLEN]={0x00, };
+
+	ret = wldev_iovar_getbuf(dev, command, NULL, 0, smbuf, sizeof(smbuf), NULL);
+	if (!ret)
+		bytes_written = snprintf(command, total_len, "%s", smbuf);
+	return bytes_written;
+}
+
 int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 {
 #define PRIVATE_COMMAND_MAX_LEN	8192
@@ -3388,9 +3541,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 
 #ifdef CONFIG_COMPAT
-#if ((LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)) || ((LINUX_VERSION_CODE >= \
-	KERNEL_VERSION(4, 6, 0)) && !defined(__X86)))
-	if (is_compat_task()) {
+	if (iscompattask()) {
 		compat_android_wifi_priv_cmd compat_priv_cmd;
 		if (copy_from_user(&compat_priv_cmd, ifr->ifr_data,
 			sizeof(compat_android_wifi_priv_cmd))) {
@@ -3402,7 +3553,6 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		priv_cmd.used_len = compat_priv_cmd.used_len;
 		priv_cmd.total_len = compat_priv_cmd.total_len;
 	} else
-#endif /* LINUX_VER < 4.6 || (LINUX_VER >= 4.6 && !defined(__X86)) */
 #endif /* CONFIG_COMPAT */
 	{
 		if (copy_from_user(&priv_cmd, ifr->ifr_data, sizeof(android_wifi_priv_cmd))) {
@@ -3547,6 +3697,9 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 #endif /* FCC_PWR_LIMIT_2G */
 	}
 #endif /* WL_CFG80211 */
+	else if (strnicmp(command, CMD_CHANNELS_IN_CC, strlen(CMD_CHANNELS_IN_CC)) == 0) {
+		bytes_written = wl_android_get_channel_list(net, command, priv_cmd.total_len);
+	}
 	else if (strnicmp(command, CMD_SET_CSA, strlen(CMD_SET_CSA)) == 0) {
 		bytes_written = wl_android_set_csa(net, command, priv_cmd.total_len);
 	} else if (strnicmp(command, CMD_80211_MODE, strlen(CMD_80211_MODE)) == 0) {
@@ -3893,7 +4046,8 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 #ifdef DHD_BANDSTEER
 	else if (strnicmp(command, CMD_BANDSTEER, strlen(CMD_BANDSTEER)) == 0) {
 		bytes_written = wl_android_set_bandsteer(net, command, priv_cmd.total_len);
-	} else if (strnicmp(command, CMD_BANDSTEER_TRIGGER, strlen(CMD_BANDSTEER_TRIGGER)) == 0) {
+	}
+	else if (strnicmp(command, CMD_BANDSTEER_TRIGGER, strlen(CMD_BANDSTEER_TRIGGER)) == 0) {
 		uint8 *p = command + strlen(CMD_BANDSTEER_TRIGGER)+1;
 		struct ether_addr ea;
 		char eabuf[ETHER_ADDR_STR_LEN];
@@ -3917,11 +4071,24 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	else if (strnicmp(command, CMD_MAXASSOC, strlen(CMD_MAXASSOC)) == 0) {
 		bytes_written = wl_android_set_maxassoc_limit(net, command, priv_cmd.total_len);
 	}
+	else if (strnicmp(command, CMD_AP_WHITELIST, strlen(CMD_AP_WHITELIST)) == 0) {
+		ret = wl_android_set_ap_whitelist(net, command);
+	}
+	else if (strnicmp(command, CMD_AP_RESET_WHITELIST, strlen(CMD_AP_RESET_WHITELIST)) == 0) {
+		ret = wl_android_reset_ap_whitelist(net, command);
+	}
 	else if (strnicmp(command, CMD_CHANNEL_WIDTH, strlen(CMD_CHANNEL_WIDTH)) == 0) {
 		bytes_written = wl_android_set_channel_width(net, command, priv_cmd.total_len);
 	}
 	else if (strnicmp(command, CMD_RSDB_MODE, strlen(CMD_RSDB_MODE)) == 0) {
 		bytes_written = wl_android_rsdb_mode(net, command, priv_cmd.total_len);
+	}
+	// Case 00535536, juho@mobis.co.kr, Add version info
+	else if (strnicmp(command, CMD_GET_FIRMVER, strlen(CMD_GET_FIRMVER)) == 0) {
+		bytes_written = wl_android_get_priv_string(net, command, priv_cmd.total_len);
+	}
+	else if (strnicmp(command, CMD_GET_CLMVER, strlen(CMD_GET_CLMVER)) == 0) {
+		bytes_written = wl_android_get_priv_string(net, command, priv_cmd.total_len);
 	} else {
 		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
 		snprintf(command, 3, "OK");
@@ -3972,6 +4139,13 @@ int wl_android_init(void)
 		memset(iface_name, 0, IFNAMSIZ);
 		bcm_strncpy_s(iface_name, IFNAMSIZ, "wlan", IFNAMSIZ);
 	}
+
+#ifdef WL_VIF_SUPPORT
+	if (!vif_name[0]) {
+		memset(vif_name, 0, IFNAMSIZ);
+		bcm_strncpy_s(vif_name, IFNAMSIZ, "cyp", IFNAMSIZ);
+	}
+#endif
 
 	wl_netlink_init();
 

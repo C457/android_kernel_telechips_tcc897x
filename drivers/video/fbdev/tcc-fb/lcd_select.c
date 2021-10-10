@@ -58,6 +58,8 @@
 #include <video/tcc/vioc_disp.h>
 #endif
 
+#include <mach/daudio.h>
+
 static struct mutex panel_lock;
 static struct clk *hdmi_link_clk = NULL;
 static struct clk *hdmi_peri_clk = NULL;
@@ -235,153 +237,185 @@ static int fld0800_set_power(struct lcd_panel *panel, int on, struct tcc_dp_devi
 }
 
 
-static struct lcd_panel hdmi1920x720_panel = {
-	.name		= "HDMI1920x720",
-	.manufacturer	= "Telechips",
+
+static struct lcd_panel Truly_lvds1280x720_8 = {
+	.name		= "LVDS1280x720_8_0",
+	.manufacturer	= "Truly",
+	.id		= PANEL_ID_FLD0800,
+	.xres		= 1280,
+	.yres		= 720,
+	.width		= 60,
+	.height		= 72,
+	.bpp		= 24,
+
+	.clk_freq	= 63700000,
+	.clk_div	= 2,
+	.bus_width	= 24,
+	
+	.lpw		= 2,
+	.lpc		= 1280,
+	.lswc		= 12,
+	.lewc		= 44,
+
+	.vdb		= 0,
+	.vdf		= 0,
+
+	.fpw1		= 2,
+	.flc1		= 720,
+	.fswc1		= 1,
+	.fewc1		= 67,
+	
+	.fpw2		= 2,
+	.flc2		= 720,
+	.fswc2		= 1,
+	.fewc2		= 67,
+
+	.sync_invert	= IV_INVERT | IH_INVERT,
+	.init		= fld0800_panel_init,
+	.set_power	= fld0800_set_power,
+};
+
+static struct lcd_panel BOE_hdmi1280x720_8 = {
+        .name           = "HDMI1280x720_8_0",
+        .manufacturer   = "BOE",
+        .id             = PANEL_ID_HDMI,
+        .xres           = 1280,
+        .yres           = 720,
+        .width          = 60,
+        .height         = 72,
+        .bpp            = 24,
+
+        .clk_freq       = 64000000,
+        .clk_div        = 2,
+        .bus_width      = 24,
+
+        .lpw            = 32,
+        .lpc            = 1280,
+        .lswc           = 80,
+        .lewc           = 48,
+
+        .vdb            = 0,
+        .vdf            = 0,
+
+        .fpw1           = 5,
+        .flc1           = 720,
+        .fswc1          = 13,
+        .fewc1          = 3,
+
+        .fpw2           = 5,
+        .flc2           = 720,
+        .fswc2          = 13,
+        .fewc2          = 3,
+
+        .sync_invert    = IV_INVERT | IH_INVERT,
+        .init           = hdmi1920x720_panel_init,
+        .set_power      = hdmi1920x720_set_power,
+};
+
+static struct lcd_panel BOE_lvds1280x720_8 = {
+        .name           = "LVDS1280x720_8_0",
+        .manufacturer   = "BOE",
+        .id             = PANEL_ID_FLD0800,
+        .xres           = 1280,
+        .yres           = 720,
+        .width          = 176,
+        .height         = 99,
+        .bpp            = 24,
+
+        .clk_freq       = 64200000,
+        .clk_div        = 2,
+        .bus_width      = 24,
+
+        .lpw            = 31,
+        .lpc            = 1279,
+        .lswc           = 79,
+        .lewc           = 47,
+
+        .vdb            = 0,
+        .vdf            = 0,
+
+        .fpw1           = 4,
+        .flc1           = 719,
+        .fswc1          = 12,
+        .fewc1          = 4,
+
+        .fpw2           = 4,
+        .flc2           = 719,
+        .fswc2          = 12,
+        .fewc2          = 4,
+
+	.sync_invert    = IV_INVERT | IH_INVERT,
+        .init           = fld0800_panel_init,
+        .set_power      = fld0800_set_power,
+};
+
+static struct lcd_panel LGD_hdmi1920x720_10_25 = {
+	.name		= "HDMI1920x720_10_25",
+	.manufacturer	= "LGDisplay",
 	.id		= PANEL_ID_HDMI,
 	.xres		= 1920,
 	.yres		= 720,
-	.width		= 177,//103, //177
-	.height		= 100,//62, //100
+	.width		= 177,
+	.height		= 100,
 	.bpp		= 32,
-#ifdef CONFIG_DAUDIO	
-	.clk_freq = 95000000,
-#else	
-	.clk_freq	= 97340000,
-#endif	
+	.clk_freq 	= 89600000,
 	.clk_div	= 2,
 	.bus_width	= 24,
-	.lpw		= 20,
+	.lpw		= 40,
 	.lpc		= 1920,
-	.lswc		= 70,
-	.lewc		= 70,
+	.lswc		= 44,
+	.lewc		= 44,
 	.vdb		= 0,
 	.vdf		= 0,
-	.fpw1		= 4,
+	.fpw1		= 2,
 	.flc1		= 720,
-	.fswc1		= 18,
-	.fewc1		= 18,
-	.fpw2		= 4,
+	.fswc1		= 3,
+	.fewc1		= 4,
+	.fpw2		= 2,
 	.flc2		= 720,
-	.fswc2		= 18,
-	.fewc2		= 18,
+	.fswc2		= 3,
+	.fewc2		= 4,
 	.sync_invert	= IV_INVERT | IH_INVERT,
 	.init		= hdmi1920x720_panel_init,
 	.set_power	= hdmi1920x720_set_power,
 };
 
- 
-#if defined(INCLUDE_LCD_RESOLUTION_1280_720)
-
-struct lcd_panel fld0800_panel = {
-	.name		= "FLD0800",
-	.manufacturer	= "innolux",
-	.id		= PANEL_ID_FLD0800,
-	.xres		= 1280,//1024,
-	.yres		= 720,//600,
-	.width		= 60,//153,
-	.height		= 72,//90,
-	.bpp		= 24,
-
-	.clk_freq	= 63700000,//51200000,
-	.clk_div	= 2,
-	.bus_width	= 24,
-	
-	.lpw		= 2,//19,
-	.lpc		= 1280,//1024,
-	.lswc		= 12,//147,
-	.lewc		= 44,//147,
-
-	.vdb		= 0,
-	.vdf		= 0,
-
-	.fpw1		= 2,//2,
-	.flc1		= 720,//600,
-	.fswc1		= 1,//10,
-	.fewc1		= 67,//25,
-	
-	.fpw2		= 2,//2,
-	.flc2		= 720,//600,
-	.fswc2		= 1,//10,
-	.fewc2		= 67,//25,
-
-	.sync_invert	= IV_INVERT | IH_INVERT,
-	.init		= fld0800_panel_init,
-	.set_power	= fld0800_set_power,
+static struct lcd_panel LGD_hdmi1920x720_12_3 = {
+        .name           = "HDMI1920x720_12_3",
+        .manufacturer   = "LGDisplay",
+        .id             = PANEL_ID_HDMI,
+        .xres           = 1920,
+        .yres           = 720,
+        .width          = 177,
+        .height         = 100,
+        .bpp            = 32,
+        .clk_freq       = 99700000,
+        .clk_div        = 2,
+        .bus_width      = 24,
+        .lpw            = 32,
+        .lpc            = 1920,
+        .lswc           = 160,
+        .lewc           = 50,
+        .vdb            = 0,
+        .vdf            = 0,
+        .fpw1           = 5,
+        .flc1           = 720,
+        .fswc1          = 28,
+        .fewc1          = 15,
+        .fpw2           = 5,
+        .flc2           = 720,
+        .fswc2          = 28,
+        .fewc2          = 15,
+        .sync_invert    = IV_INVERT | IH_INVERT,
+        .init           = hdmi1920x720_panel_init,
+        .set_power      = hdmi1920x720_set_power,
 };
 
-#else
-struct lcd_panel fld0800_panel = {
-	.name		= "FLD0800",
-	.manufacturer	= "innolux",
-	.id		= PANEL_ID_FLD0800,
-#ifdef CONFIG_DAUDIO    
-	.xres		= 800,//1024,
-	.yres		= 480,//600,
-	.width		= 154,//153,
-	.height		= 85,//90,
-	.bpp		= 24,
-	.clk_freq	= 33260000,//51200000,
-	.clk_div	= 2,
-	.bus_width	= 24,
-#else
-	.xres		= 1024,
-	.yres		= 600,
-	.width		= 153,
-	.height		= 90,
-	.bpp		= 24,
-	.clk_freq	= 51200000,
-	.clk_div	= 2,
-	.bus_width	= 24,
-#endif    
-	
-#ifdef CONFIG_DAUDIO
-	.lpw		= 12,//19,
-	.lpc		= 800,//1024,
-	.lswc		= 48,//147,
-	.lewc		= 100,//147,
-	.vdb		= 0,
-	.vdf		= 0,
-#else
-	.lpw		= 19,
-	.lpc		= 1024,
-	.lswc		= 147,
-	.lewc		= 147,
-	.vdb		= 0,
-	.vdf		= 0,
-#endif    
-
-#ifdef CONFIG_DAUDIO
-	.fpw1		= 1,//2,
-	.flc1		= 480,//600,
-	.fswc1		= 3,//10,
-	.fewc1		= 90,//25,
-
-	.fpw2		= 1,//2,
-	.flc2		= 480,//600,
-	.fswc2		= 3,//10,
-	.fewc2		= 90,//25,
-	.sync_invert	= IV_INVERT | IH_INVERT,
-#else
-	.fpw1		= 2,
-	.flc1		= 600,
-	.fswc1		= 10,
-	.fewc1		= 25,
-	
-	.fpw2		= 2,
-	.flc2		= 600,
-	.fswc2		= 10,
-	.fewc2		= 25,	.sync_invert	= IV_INVERT | IH_INVERT,
-#endif    
-	.init		= fld0800_panel_init,
-	.set_power	= fld0800_set_power,
-};
-#endif //INCLUDE_LCD_RESOLUTION_1280_720
-
-
-
-static int hdmi1920x720_probe(struct platform_device *pdev)
+static int hdmi_probe(struct platform_device *pdev)
 {
+
+	unsigned char lcd_ver = daudio_lcd_version();
+
 	printk("%s\n", __func__);
 	
 	hdmi_lcdc0_clk = of_clk_get_by_name(pdev->dev.of_node, "lcdc0-clk");
@@ -393,19 +427,56 @@ static int hdmi1920x720_probe(struct platform_device *pdev)
 	
 	mutex_init(&panel_lock);
 
-	hdmi1920x720_panel.dev = &pdev->dev;
-
-	tccfb_register_panel(&hdmi1920x720_panel);
-
+	if(gpio_get_value(TCC_GPB(24))) // OE
+                switch(lcd_ver)
+                {
+                        case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG: //0
+			case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_2_LG: //1
+                        case DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si_LG: //3
+                        case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_LTPS_LG: //7
+			case DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_LG: //5
+                                LGD_hdmi1920x720_10_25.dev = &pdev->dev;
+			        tccfb_register_panel(&LGD_hdmi1920x720_10_25);
+                                break;
+			case DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si_LG: //4
+                                LGD_hdmi1920x720_12_3.dev = &pdev->dev;
+                                tccfb_register_panel(&LGD_hdmi1920x720_12_3);
+                                break;
+                        case DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE: //6 HDMI SERDES
+                               	BOE_hdmi1280x720_8.dev = &pdev->dev;
+                                tccfb_register_panel(&BOE_hdmi1280x720_8);
+                                break;
+                        case DAUDIOKK_LCD_OI_DISCONNECTED: //10
+                                LGD_hdmi1920x720_10_25.dev = &pdev->dev;
+                                tccfb_register_panel(&LGD_hdmi1920x720_10_25);
+                                break;
+			case DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si_BOE: //8 LVDS
+                        default:
+                                printk("ADC value is wrong number : %d\n",lcd_ver);
+                                break;
+                }
+        else                            // PIO
+                switch(lcd_ver)
+                {
+                        case DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO: //5
+                                LGD_hdmi1920x720_10_25.dev = &pdev->dev;
+                                tccfb_register_panel(&LGD_hdmi1920x720_10_25);
+                                break;
+                        case DAUDIOKK_LCD_PI_08_00_800_400_PIO_TRULY: //6
+                        case DAUDIOKK_LCD_PI_DISCONNECTED: //10 Temporary use DAUDIOKK_LCD_PI_08_00_800_400_PIO_TRULY
+                        default:
+                                printk("ADC value is wrong number : %d\n",lcd_ver);
+                                break;
+                }
 	return 0;
 }
 
-static int hdmi1920x720_remove(struct platform_device *pdev)
+static int hdmi_remove(struct platform_device *pdev)
 {
 	return 0;
 }
 
-static void fld0800_parse_dt(struct device_node *np)
+static void lvds_parse_dt(struct device_node *np)
 {
 	if(np){
 		lvds_fld0800.power_on= of_get_named_gpio(np, "power-on-gpios", 0);
@@ -466,9 +537,11 @@ static void fld0800_parse_dt(struct device_node *np)
 	}
 }
 
-static int fld0800_probe(struct platform_device *pdev)
+static int lvds_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
+
+	unsigned char lcd_ver = daudio_lcd_version();
 	
 	printk("%s : %s\n", __func__,  pdev->name);
     	printk(" ###### %s ###### \n",__func__);
@@ -476,70 +549,101 @@ static int fld0800_probe(struct platform_device *pdev)
 	mutex_init(&panel_lock);
 	lcd_pwr_state = 1;
 
-	fld0800_parse_dt(pdev->dev.of_node);
+	lvds_parse_dt(pdev->dev.of_node);
 
-	fld0800_panel.state = 1;
-	fld0800_panel.dev = &pdev->dev;
+	np = of_parse_phandle(pdev->dev.of_node, "lvds0", 0);
+	lvds_clk = of_clk_get(np, 0);
 
-       np = of_parse_phandle(pdev->dev.of_node, "lvds0", 0);
-       lvds_clk = of_clk_get(np, 0);
+	if(IS_ERR(lvds_clk)){
+		printk(" FLD0800 : failed to get lvds clock \n");
+		lvds_clk = NULL;
+		return -ENODEV;
+	}
 
-       if(IS_ERR(lvds_clk)){
-               printk(" FLD0800 : failed to get lvds clock \n");
-               lvds_clk = NULL;
-               return -ENODEV;
-       }
-
-       if(lvds_clk)
-               clk_prepare_enable(lvds_clk);
-
+	if(lvds_clk)
+        	clk_prepare_enable(lvds_clk);
 	
-	tccfb_register_panel(&fld0800_panel);
+	if(gpio_get_value(TCC_GPB(24))) // OE
+                switch(lcd_ver)
+                {
+			case DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si_BOE: //8 LVDS
+				BOE_lvds1280x720_8.state = 1;
+                                BOE_lvds1280x720_8.dev = &pdev->dev;
+                                tccfb_register_panel(&BOE_lvds1280x720_8);
+                                break;			
+                        case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG: //0
+			case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_2_LG: //1
+                        case DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si_LG: //3
+                        case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_LTPS_LG: //7
+			case DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_LG: //5
+                        case DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si_LG: //4
+                        case DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE: //6 HDMI SERDES
+                        case DAUDIOKK_LCD_OI_DISCONNECTED: //10
+                        default:
+                                printk("ADC value is wrong number : %d\n",lcd_ver);
+                                break;
+                }
+        else                            // PIO
+                switch(lcd_ver)
+                {
+			case DAUDIOKK_LCD_PI_08_00_800_400_PIO_TRULY: //6
+				Truly_lvds1280x720_8.state = 1;
+			        Truly_lvds1280x720_8.dev = &pdev->dev;
+			        tccfb_register_panel(&Truly_lvds1280x720_8);
+				break;
+                        case DAUDIOKK_LCD_PI_DISCONNECTED: //10 Temporary use DAUDIOKK_LCD_PI_08_00_800_400_PIO_TRULY
+				Truly_lvds1280x720_8.state = 1;
+                                Truly_lvds1280x720_8.dev = &pdev->dev;
+                                tccfb_register_panel(&Truly_lvds1280x720_8);
+				break;
+                        case DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO: //5
+                        default:
+                                printk("ADC value is wrong number : %d\n",lcd_ver);
+                                break;
+                }
 	return 0;
 }
 
-static int fld0800_remove(struct platform_device *pdev)
+static int lvds_remove(struct platform_device *pdev)
 {
 	return 0;
 }
 
 
-#ifdef CONFIG_OF
-static struct of_device_id hdmi1920x720_of_match[] = {
+
+static struct of_device_id hdmi_of_match[] = {
 	{ .compatible = "telechips,hdmi1920x720" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, hdmi1920x720_of_match);
-#endif
+MODULE_DEVICE_TABLE(of, hdmi_of_match);
 
-static struct platform_driver hdmi1920x720_driver = {
-	.probe	= hdmi1920x720_probe,
-	.remove	= hdmi1920x720_remove,
+
+static struct platform_driver hdmi_driver = {
+	.probe	= hdmi_probe,
+	.remove	= hdmi_remove,
 	.driver	= {
-		.name	= "hdmi1920x720_lcd",
+		.name	= "hdmi_lcd",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(hdmi1920x720_of_match),
+		.of_match_table = of_match_ptr(hdmi_of_match),
 	},
 };
 
 
-#ifdef CONFIG_OF
-static struct of_device_id fld0800_of_match[] = {
+
+static struct of_device_id lvds_of_match[] = {
        { .compatible = "telechips,lvds-fld0800" },
        {}
 };
-MODULE_DEVICE_TABLE(of, fld0800_of_match);
-#endif
+MODULE_DEVICE_TABLE(of, lvds_of_match);
 
-static struct platform_driver fld0800_lcd = {
-	.probe	= fld0800_probe,
-	.remove	= fld0800_remove,
+
+static struct platform_driver lvds_lcd = {
+	.probe	= lvds_probe,
+	.remove	= lvds_remove,
 	.driver	= {
-		.name	= "fld0800_lcd",
+		.name	= "lvds_lcd",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_OF
-               .of_match_table = of_match_ptr(fld0800_of_match),
-#endif
+               .of_match_table = of_match_ptr(lvds_of_match),
 	},
 };
 
@@ -549,36 +653,47 @@ static __init int lcd_select_init(void)
 
 	unsigned char lcd_ver = daudio_lcd_version();
 
-	switch(lcd_ver)
-	{
-		case 0:
-		case 3:
-		case 4:
-		case 5:
-		case 7:
-			return platform_driver_register(&hdmi1920x720_driver);
-			break;
-		case 6:
-			return platform_driver_register(&fld0800_lcd);
-			break;
-		case 10:
-			if(gpio_get_value(TCC_GPB(24)))//OE hdmi no monitor
-			{
-				return platform_driver_register(&hdmi1920x720_driver);
-			}
-			else//PIO lvds
-			{
-				return platform_driver_register(&fld0800_lcd);
-			}
-			break;
-			
-		default:
-			printk("ADC value is wrong number : %d\n",lcd_ver);
-			break;
-	}
-	
-	return 0;
-	
+	if(gpio_get_value(TCC_GPB(24))) // OE
+                switch(lcd_ver)
+                {
+                        case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG: //0
+			case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_2_LG: //1
+                        case DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si_LG: //3
+                        case DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si_LG: //4
+                        case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_LTPS_LG: //7
+			case DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_LG: //5
+                                platform_driver_register(&hdmi_driver);
+                                break;
+                        case DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE: //6 HDMI SERDES
+				platform_driver_register(&hdmi_driver);
+                                break;
+			case DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si_BOE: //8 LVDS
+				platform_driver_register(&lvds_lcd);
+                                break;
+                        case DAUDIOKK_LCD_OI_DISCONNECTED: //10
+                                platform_driver_register(&hdmi_driver);
+                                break;
+                        default:
+                                printk("ADC value is wrong number : %d\n",lcd_ver);
+                                break;
+                }
+        else                            // PIO
+                switch(lcd_ver)
+                {
+                        case DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO: //5
+                                platform_driver_register(&hdmi_driver);
+                                break;
+                        case DAUDIOKK_LCD_PI_08_00_800_400_PIO_TRULY: //6
+                                platform_driver_register(&lvds_lcd);
+                                break;
+                        case DAUDIOKK_LCD_PI_DISCONNECTED: //10 Temporary use DAUDIOKK_LCD_PI_08_00_800_400_PIO_TRULY
+                                platform_driver_register(&lvds_lcd);
+                                break;
+                        default:
+                                printk("ADC value is wrong number : %d\n",lcd_ver);
+                                break;
+                }
+	return 0;	
 }
 static __exit void lcd_select_exit(void)
 {
@@ -586,34 +701,47 @@ static __exit void lcd_select_exit(void)
 	printk("~ %s ~ \n", __func__);
 
         unsigned char lcd_ver = daudio_lcd_version();
-
-        switch(lcd_ver)
-        {
-                case 0:
-                case 3:
-                case 4:
-                case 5:
-                case 7:
-                        platform_driver_unregister(&hdmi1920x720_driver);
-                        break;
-                case 6:
-                        platform_driver_unregister(&fld0800_lcd);
-                        break;
-                case 10:
-                        if(gpio_get_value(TCC_GPB(24)))//OE hdmi no monitor
-                        {
-                                platform_driver_unregister(&hdmi1920x720_driver);
-                        }
-                        else//PIO lvds
-                        {
-                                platform_driver_unregister(&fld0800_lcd);
-                        }
-                        break;
-
-                default:
-                        printk("ADC value is wrong number : %d\n",lcd_ver);
-                        break;
-        }
+	
+	if(gpio_get_value(TCC_GPB(24)))	// OE
+	        switch(lcd_ver)
+	        {
+	                case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_LG: //0
+			case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_Si_2_LG: //1
+	                case DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_Si_LG: //3
+	                case DAUDIOKK_LCD_OD_12_30_1920_720_INCELL_Si_LG: //4
+	                case DAUDIOKK_LCD_OI_10_25_1920_720_INCELL_LTPS_LG: //7
+			case DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_LG: //5
+	                        platform_driver_unregister(&hdmi_driver);
+	                        break;
+			case DAUDIOKK_LCD_OD_08_00_1280_720_OGS_Si_BOE: //6 HDMI SERDES
+				platform_driver_unregister(&hdmi_driver);
+	                        break;
+			case DAUDIOKK_LCD_OI_08_00_1280_720_OGS_Si_BOE: //8 LVDS
+				platform_driver_unregister(&lvds_lcd);
+                                break;
+	                case DAUDIOKK_LCD_OI_DISCONNECTED: //10
+	                        platform_driver_unregister(&hdmi_driver);
+	                        break;
+	                default:
+	                        printk("ADC value is wrong number : %d\n",lcd_ver);
+	                        break;
+	        }
+	else				// PIO
+		switch(lcd_ver)
+                {
+                        case DAUDIOKK_LCD_PI_10_25_1920_720_PIO_AUO: //5
+                                platform_driver_unregister(&hdmi_driver);
+                                break;
+                        case DAUDIOKK_LCD_PI_08_00_800_400_PIO_TRULY: //6
+                                platform_driver_unregister(&lvds_lcd);
+                                break;
+                        case DAUDIOKK_LCD_PI_DISCONNECTED: //10 Temporary use DAUDIOKK_LCD_PI_08_00_800_400_PIO_TRULY
+                                platform_driver_unregister(&lvds_lcd);
+                                break;
+                        default:
+                                printk("ADC value is wrong number : %d\n",lcd_ver);
+                                break;
+                }
 
 }
 

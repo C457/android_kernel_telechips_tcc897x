@@ -29,7 +29,10 @@
 static gfp_t high_order_gfp_flags = (GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN |
 				     __GFP_NORETRY) & ~__GFP_WAIT;
 static gfp_t low_order_gfp_flags  = (GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN);
-static const unsigned int orders[] = {8, 4, 0};
+
+//2019.04.10 tunning ion memory order
+//static const unsigned int orders[] = {8, 4, 0};
+static const unsigned int orders[] = {8, 7, 6, 5, 4, 3, 2, 1, 0};
 static const int num_orders = ARRAY_SIZE(orders);
 static int order_to_index(unsigned int order)
 {
@@ -139,7 +142,10 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		return -EINVAL;
 
 	if (size / PAGE_SIZE > totalram_pages / 2)
+	{
+		printk("func=%s, line=%d, Not enough ion memory!!!, size=%ld\n", __func__, __LINE__, size);
 		return -ENOMEM;
+	}
 
 	INIT_LIST_HEAD(&pages);
 	while (size_remaining > 0) {
@@ -174,6 +180,8 @@ free_table:
 free_pages:
 	list_for_each_entry_safe(page, tmp_page, &pages, lru)
 		free_buffer_page(sys_heap, buffer, page);
+
+	printk("func=%s, line=%d, Not enough ion memory!!!, size(sg_table)=%ld\n", __func__, __LINE__, size);
 	return -ENOMEM;
 }
 
@@ -268,8 +276,10 @@ struct ion_heap *ion_system_heap_create(struct ion_platform_heap *unused)
 	heap = kzalloc(sizeof(struct ion_system_heap) +
 			sizeof(struct ion_page_pool *) * num_orders,
 			GFP_KERNEL);
-	if (!heap)
+	if (!heap) {
+		printk("func=%s, line=%d, Not enough ion memory!!!, size=%d\n", __func__, __LINE__, sizeof(struct ion_system_heap) +sizeof(struct ion_page_pool *) * num_orders);
 		return ERR_PTR(-ENOMEM);
+	}
 	heap->heap.ops = &system_heap_ops;
 	heap->heap.type = ION_HEAP_TYPE_SYSTEM;
 	heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;
@@ -293,6 +303,7 @@ destroy_pools:
 	while (i--)
 		ion_page_pool_destroy(heap->pools[i]);
 	kfree(heap);
+	printk("func=%s, line=%d, Not enough ion memory!!!, size(ion_page_pool*n)=%d\n", __func__, __LINE__, sizeof(struct ion_page_pool)*num_orders);
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -324,8 +335,10 @@ static int ion_system_contig_heap_allocate(struct ion_heap *heap,
 		return -EINVAL;
 
 	page = alloc_pages(low_order_gfp_flags, order);
-	if (!page)
+	if (!page) {
+		printk("func=%s, line=%d, Not enough ion memory!!!, len(alloc_pages)=%ld\n", __func__, __LINE__, len);
 		return -ENOMEM;
+	}
 
 	split_page(page, order);
 
@@ -335,6 +348,7 @@ static int ion_system_contig_heap_allocate(struct ion_heap *heap,
 
 	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!table) {
+		printk("func=%s, line=%d, Not enough ion memory!!!, size(sg_table)=%d\n", __func__, __LINE__, sizeof(struct sg_table));
 		ret = -ENOMEM;
 		goto free_pages;
 	}
@@ -411,8 +425,10 @@ struct ion_heap *ion_system_contig_heap_create(struct ion_platform_heap *unused)
 	struct ion_heap *heap;
 
 	heap = kzalloc(sizeof(struct ion_heap), GFP_KERNEL);
-	if (!heap)
+	if (!heap) {
+		printk("func=%s, line=%d, Not enough ion memory!!!, size(ion_heap)=%d\n", __func__, __LINE__, sizeof(struct ion_heap));
 		return ERR_PTR(-ENOMEM);
+	}
 	heap->ops = &kmalloc_ops;
 	heap->type = ION_HEAP_TYPE_SYSTEM_CONTIG;
 	return heap;

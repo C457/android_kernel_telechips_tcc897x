@@ -23,8 +23,11 @@
 
 #include <linux/rwsem.h>
 #include <linux/interrupt.h>
-
+#if defined(INCLUDE_EXHUB)
+#define MAX_TOPO_LEVEL		2
+#else
 #define MAX_TOPO_LEVEL		1
+#endif
 
 /* This file contains declarations of usbcore internals that are mostly
  * used or exposed by Host Controller Drivers.

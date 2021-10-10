@@ -74,6 +74,7 @@ Suite 330, Boston, MA 02111-1307 USA
 #include <mach/vioc_scaler.h>
 #include <mach/tca_display_config.h>
 #include <mach/tcc_board_composite.h>
+#include <mach/daudio_info.h>
 #else
 #include <video/tcc/tcc_types.h>
 #include <video/tcc/tccfb.h>
@@ -1217,6 +1218,8 @@ static int composite_parse_dt(struct device_node *np)
 		printk("%s, could not find fbdisplay_num\n", __func__);
 		ret = -ENODEV;
 	}
+
+	Composite_Disp_Num = daudio_lcd_type_lvds_check();
 
 	if(Composite_Disp_Num) {
 		np_fb_1st = of_find_node_by_name(np_fb, "fbdisplay1");

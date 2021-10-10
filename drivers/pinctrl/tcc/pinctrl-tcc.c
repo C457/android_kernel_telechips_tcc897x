@@ -222,8 +222,13 @@ static int tcc_dt_node_to_map(struct pinctrl_dev *pctldev,
 		++(*num_maps);
 	}
 
-	if (!num_configs)
+	if (!num_configs) {
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+		kfree(configs);
+#else
+#endif
 		goto skip_config;	/* We have only function config */
+	}
 
 	for (i = 0, num_configs = 0; i < pctl->nconfigs; i++) {
 		struct tcc_pinconf *config = &pctl->pin_configs[i];
@@ -242,6 +247,12 @@ static int tcc_dt_node_to_map(struct pinctrl_dev *pctldev,
 							  value);
 	}
 
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+	if ((nmaps - 1) != *num_maps) {
+		kfree(configs);
+		goto skip_config;
+	}
+#endif
 	(*map)[*num_maps].data.configs.group_or_pin = group;
 	(*map)[*num_maps].data.configs.configs = configs;
 	(*map)[*num_maps].data.configs.num_configs = num_configs;
@@ -562,9 +573,21 @@ static int tcc_pinctrl_parse_dt(struct platform_device *pdev,
 
 		if (of_find_property(child, "telechips,pin-function", NULL)) {
 			func->name = kstrdup(child->name, GFP_KERNEL);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+			if (!func->name)
+				return -ENOMEM;
+#endif
 			func->groups = devm_kzalloc(pctl->dev, ((strlen(func->name)+2+3)/4)*4,
 						    GFP_KERNEL);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+			if (!func->groups)
+				return -ENOMEM;
+#endif
 			func->groups[0] = kstrdup(child->name, GFP_KERNEL);
+#if !defined(CONFIG_TCC_CODESONAR_BLOCKED)
+			if (!func->groups[0])
+				return -ENOMEM;
+#endif
 			func->ngroups = 1;
 
 			++func;

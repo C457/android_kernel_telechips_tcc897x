@@ -76,6 +76,7 @@
 #include <mach/of_vioc_sc.h>
 #include <mach/of_vioc_wmix.h>
 #include <mach/of_vioc_wdma.h>
+#include <mach/daudio_info.h>
 
 #else
 #include <video/tcc/irqs.h>
@@ -461,6 +462,8 @@ static int tcc_wdma_parse_dt(struct platform_device *pdev, struct tcc_wdma_dev *
 			pr_err( "could not find  telechips,fbdisplay_nubmer\n");
 			ret = -ENODEV;
 		}
+
+		pwdma_data->fb_dd_num = daudio_lcd_type_lvds_check();
 
 		if(pwdma_data->fb_dd_num)
 			np = of_find_node_by_name(vioc_node, "fbdisplay1");

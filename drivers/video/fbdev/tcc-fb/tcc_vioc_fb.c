@@ -94,6 +94,7 @@
 #include <mach/tcc_component_ioctl.h>
 #include <mach/TCC_LCD_Interface.h>
 
+#include <mach/vioc_blk.h>
 #include <mach/tca_lcdc.h>
 #include <mach/vioc_rdma.h>
 #include <mach/vioc_disp.h>
@@ -103,7 +104,9 @@
 
 #include <mach/vioc_api.h>
 #include <mach/tca_display_config.h>
+#include <mach/daudio_info.h>
 #else
+#include <mach/vioc_blk.h>
 #include <video/tcc/tccfb.h>
 #include <video/tcc/tcc_fb.h>
 #include <video/tcc/tcc_scaler_ctrl.h>
@@ -293,6 +296,9 @@ static void tcc_fb_update_regs(struct tccfb_info *tccfb, struct tcc_fenc_reg_dat
 		tcc_fd_fence_wait(regs->fence);
 		sync_fence_put(regs->fence);
 	}
+	#if defined(CONFIG_USE_DISPLAY_FB_LOCK)
+	if(!fb_lock){
+	#endif
  	BaseAddr = tccfb->map_dma + regs->var.xres * regs->var.yoffset * (regs->var.bits_per_pixel/8);
 
 	if(tccfb->pdata.Mdp_data.FbPowerState)
@@ -303,6 +309,9 @@ static void tcc_fb_update_regs(struct tccfb_info *tccfb, struct tcc_fenc_reg_dat
 	if(tccfb->pdata.Sdp_data.FbPowerState)
 		tca_fb_activate_var(BaseAddr, &regs->var, &tccfb->pdata.Sdp_data);
 	#endif
+	#endif
+	#if defined(CONFIG_USE_DISPLAY_FB_LOCK)
+	}
 	#endif
 
 	tca_fb_vsync_activate(&tccfb->pdata.Mdp_data);
@@ -618,12 +627,7 @@ static int tccfb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 				pr_err(" fb fence sync get fd error : %d \n", fd);
 				break;
 			}
-#if defined(CONFIG_USE_DISPLAY_FB_LOCK)
-			if(fb_lock){
-				//pr_err(" display is locked !!! fb_lock : %d \n", fb_lock);
-				break;
-			}
-#endif
+
 			mutex_lock(&ptccfb_info->output_lock);
 		
 			if (!ptccfb_info->output_on) {
@@ -1555,8 +1559,58 @@ static int tccfb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 			}
 			break;
 #endif
+		case FBIO_DISABLE:
+			{
+				unsigned int type;
+				struct tcc_dp_device *pdp_data = NULL;
+				if (copy_from_user((void *)&type, (const void *)arg, sizeof(unsigned int ))) {
+					return -EFAULT;
+				}
 
-			
+				if(type == DD_MAIN)
+					pdp_data = &ptccfb_info->pdata.Mdp_data;
+				else
+					pdp_data = &ptccfb_info->pdata.Sdp_data;
+				#if defined(CONFIG_SYNC_FB)
+				if(pdp_data)
+				{
+
+					if(pdp_data->rdma_info[RDMA_FB].virt_addr)
+					{
+						spin_lock_irq(&ptccfb_info->spin_lockDisp);
+			#if 1
+						VIOC_RDMA_SetImageAlphaEnable(pdp_data->rdma_info[RDMA_FB].virt_addr, 1);
+						VIOC_RDMA_SetImageAlphaSelect(pdp_data->rdma_info[RDMA_FB].virt_addr, 0);
+				#if defined(CONFIG_ARCH_TCC897X) || defined(CONFIG_ARCH_TCC803X)
+						VIOC_RDMA_SetImageAlpha(pdp_data->rdma_info[RDMA_FB].virt_addr, 0xFFF, 0xFFF);
+				#else
+						VIOC_RDMA_SetImageAlpha(pdp_data->rdma_info[RDMA_FB].virt_addr, 0x0, 0x0);
+				#endif//
+			#else //
+						{
+							int sc_num = 0;
+							volatile void __iomem *pscale_addr = NULL;
+							sc_num = VIOC_CONFIG_GetScaler_PluginToRDMA(pdp_data->rdma_info[RDMA_FB].blk_num);
+							if(sc_num > 0)
+								pscale_addr = VIOC_SC_GetAddress(sc_num);
+
+							VIOC_RDMA_SetImageSize(pdp_data->rdma_info[RDMA_FB].virt_addr, 0, 0);
+
+							if(pscale_addr){
+								VIOC_SC_SetBypass(pscale_addr, 1);
+								VIOC_SC_SetUpdate(pscale_addr);
+							}
+						}
+			#endif//
+						VIOC_RDMA_SetImageUpdate(pdp_data->rdma_info[RDMA_FB].virt_addr);
+						spin_unlock_irq(&ptccfb_info->spin_lockDisp);
+					}
+				}
+				#endif//
+			}
+			break;
+
+
 // VSYNC PART
 	case TCC_LCDC_REFER_VSYNC_ENABLE:
 		tca_vsync_enable(ptccfb_info, 1);
@@ -2121,6 +2175,8 @@ unsigned int tcc_dp_dt_parse_data(struct tccfb_info *info)
 			ret = -ENODEV;
 		}
 
+		info->pdata.lcdc_number = daudio_lcd_type_lvds_check();
+
 		if(info->pdata.lcdc_number) {
 			main_np = of_find_node_by_name(info->dev->of_node, "fbdisplay1");
 			extend_np = of_find_node_by_name(info->dev->of_node, "fbdisplay0");
@@ -2293,6 +2349,7 @@ static int tccfb_probe(struct platform_device *pdev)
 				fb_show_logo(fbinfo_reg, FB_ROTATE_UR);
         	}
        	}
+		spin_lock_init(&info_reg->spin_lockDisp);
 		pr_info("fb%d: %s frame buffer device info->dev:0x%p  \n", fbinfo->node, fbinfo->fix.id, info->dev);
 	}
 	

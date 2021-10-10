@@ -1,9 +1,9 @@
 /*
  * Linux cfgp2p driver
  *
- * Portions of this code are copyright (c) 2018 Cypress Semiconductor Corporation
+ * Portions of this code are copyright (c) 2019 Cypress Semiconductor Corporation
  * 
- * Copyright (C) 1999-2018, Broadcom Corporation
+ * Copyright (C) 1999-2019, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_cfgp2p.c 653898 2016-08-10 07:50:39Z $
+ * $Id: wl_cfgp2p.c 692295 2018-07-06 03:13:54Z $
  *
  */
 #include <typedefs.h>
@@ -2042,7 +2042,7 @@ wl_cfgp2p_set_p2p_ecsa(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* 
 		csa_arg.count = P2P_ECSA_CNT;
 		csa_arg.reg = 0;
 
-		sprintf(buf, "%d/%d", ch, bw);
+		snprintf(buf, len, "%d/%d", ch, bw);
 		chnsp = wf_chspec_aton(buf);
 		if (chnsp == 0) {
 			CFGP2P_ERR(("%s:chsp is not correct\n", __FUNCTION__));
