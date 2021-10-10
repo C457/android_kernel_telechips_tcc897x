@@ -1,0 +1,20 @@
+config DAUDIO_INFO
+	boolean "D-Audio Info"
+	default y
+	depends on DAUDIO
+	help
+	  D-Audio Info.
+
+config DAUDIO_INFO_ATAGS
+	boolean "D-Audio Info using ATAGS"
+	default n
+	depends on DAUDIO_INFO && ATAGS && !DAUDIO_INFO_CMDLINE
+	help
+		D-Audio Info using ATAGS.
+
+config DAUDIO_INFO_CMDLINE
+	boolean "D-Audio Info using Kernel Command Line"
+	default y
+	depends on DAUDIO_INFO
+	help
+		D-Audio Info using Kernel Command Line.

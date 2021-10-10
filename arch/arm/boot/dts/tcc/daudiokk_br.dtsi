@@ -1,0 +1,14 @@
+
+ /* ISDB */
+gpsb1@76910000 {
+	status = "okay";
+         compatible = "telechips,tcc89xx-tsif";  // ISDB_T		    
+	gpsb-port = <5>;
+	gpsb-id = <1>;
+	port-mux = <5>;
+	pinctrl-names = "default","active", "idle";
+	pinctrl-0 = <&gpsb5_bus>;
+	pinctrl-1 = <&gpsb5_bus>;
+	pinctrl-2 = <&gpsb5_idle>;
+};
+

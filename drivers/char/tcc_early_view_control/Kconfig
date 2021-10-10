@@ -1,0 +1,8 @@
+config TCC_EARLY_VIEW_CM_CONTROL
+	tristate "TCC Early-View CM Control"
+	default y
+	depends on (ARCH_TCC897X || ARCH_TCC570X || ARCH_TCC802X)
+	depends on PLATFORM_AVN
+	help
+		Support to TCC89xx Early-View Solution.
+

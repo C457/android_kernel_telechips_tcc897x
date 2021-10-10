@@ -1,0 +1,22 @@
+
+        fbdisplay: fbdisplay@72000000 {
+                telechips,fbdisplay_num = <0>;
+                status ="okay";
+        };
+
+	panel {
+		status = "disabled";
+		compatible = "telechips,hdmi1280x720";
+		clocks = <&clk_peri PERI_LCD0>, <&clk_peri PERI_LCD1>, <&clk_peri PERI_HDMI>, <&clk_ddi DDIBUS_HDMI>, <&clk_isoip_top ISOIP_TOP_HDMI>;
+		clock-names = "lcdc0-clk", "lcdc1-clk", "hdmi-pclk", "hdmi-hclk", "hdmi-phy";
+
+
+	};
+panel_1920x720 {
+	status = "okay";
+	compatible = "telechips,hdmi1920x720";
+	clocks = <&clk_peri PERI_LCD0>, <&clk_peri PERI_LCD1>, <&clk_peri PERI_HDMI>, <&clk_ddi DDIBUS_HDMI>, <&clk_isoip_top ISOIP_TOP_HDMI>, <&clk_peri PERI_HDMI_PCLK>;
+	clock-names = "lcdc0-clk", "lcdc1-clk", "hdmi-lclk", "hdmi-hclk", "hdmi-phy", "hdmi-pclk";
+};
+
+

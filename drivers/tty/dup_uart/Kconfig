@@ -1,0 +1,5 @@
+config DUP_UART
+	tristate "Virtual UART driver"
+	default n
+	help
+	  Virtual UART Driver for Navigation.

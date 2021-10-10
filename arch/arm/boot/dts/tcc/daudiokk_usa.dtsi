@@ -1,0 +1,25 @@
+
+ /* SIRIUS(XM) SPI : todo re check */
+gpsb1@76910000 {
+	status = "okay";
+	gpsb-port = <5>;
+	gpsb-id = <1>;
+	port-mux = <5>;
+	pinctrl-names = "default","active", "idle";
+	pinctrl-0 = <&gpsb5_bus>;
+	pinctrl-1 = <&gpsb5_bus>;
+	pinctrl-2 = <&gpsb5_idle>;
+};
+/* HD TRAFFIC SPI : todo re check */
+gpsb2@76920000{
+	status = "okay";
+	gpsb-port = <12>;
+	gpsb-id = <2>;
+	port-mux = <12>;
+	pinctrl-names = "default","active","idle";
+	pinctrl-0 = <&gpsb12_bus>;
+	pinctrl-1 = <&gpsb12_bus>;
+	pinctrl-2 = <&gpsb12_idle>;
+};
+
+

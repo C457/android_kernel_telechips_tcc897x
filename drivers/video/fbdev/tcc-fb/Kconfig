@@ -1,0 +1,396 @@
+config FB_TCC
+	bool "Telechips TCC Frame buffer support"
+	depends on FB && ARCH_TCC
+	default y
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+
+	help
+	  Framebuffer driver for Telechips TCC series.
+
+	  If unsure, say N.
+
+menuconfig FB1_SUPPORT
+       bool "FB1 support"
+       default n
+       depends on FB_TCC && (ARCH_TCC898X || ARCH_TCC897X)
+       ---help---
+         Framebuffer 1 driver for Telechips TCC series.
+
+config FB1_MEMORY_SIZE
+       int "FB1 memory size"
+       default 20
+       depends on (FB1_SUPPORT  && ARCH_TCC897X)
+       ---help---
+           FB1 Memory size Mbyte.
+
+
+config SYNC_FB
+	bool "Telechips fb fence sync option"
+	depends on SYNC && SW_SYNC && FB
+	default y
+
+config TCC_MIPI
+	bool "Telelechips MIPI DSI controller"
+	default n
+
+config TCC_VIOC_CONTROLLER
+	bool "Telechips TCC support VIOC controller"
+	depends on FB && ARCH_TCC && !ARM64
+	default y
+
+	help
+	  TCC VIOC controller 
+
+	  If unsure, say N.
+
+
+config ARCH_TCC_MAP_CONVERTER
+	bool "VIOC MAP Decompressor support for HEVC"
+	depends on (ARCH_TCC898X || ARCH_TCC896X)
+	default y
+
+	help
+	  TCC VIOC MAP CONVERTER Block. 
+	  Decompress  HEVC compressed data.
+
+	  If unsure, say N.
+
+
+
+config FB_TCC_USE_VSYNC_INTERRUPT
+	bool "Use VSYNC interrupt"
+	depends on FB_TCC && FB_TCC
+
+config HWCOMPOSER_OVER_1_1_FOR_MID
+	bool "Support External display device over HWC v1.1 on MID"
+	default n
+
+config HWCOMPOSER_OVER_1_1_FOR_STB
+	bool "Support External display device over HWC v1.1 on STB"
+	default n
+
+config DISPLAY_PATH_Y2R_ENABLE
+	bool "Display Y2R Enable"
+	depends on FB_TCC && FB_TCC
+	default n
+	
+config QUICK_BOOT_LOGO
+	bool "FB display device display making snapshot image"
+	depends on FB_TCC && HIBERNATION
+	default y
+	help
+		Support for Quick boot.
+		During making snapshot image for quickboot, an image (Quickboot logo)
+		can be display
+
+
+config DISPLAY_IMAGE_DURING_QUICKBOOT
+	bool "Displaying an image during Quickboot"
+
+choice
+        depends on DISPLAY_IMAGE_DURING_QUICKBOOT
+        prompt "Please choose one option for display"
+
+config USING_LAST_FRAMEBUFFER
+	bool "using last framebuffer"
+	help
+		support for Quick boot, say Y here if you 
+		You can use an image in framebuffer just before making a snapshot boot image 
+
+config USING_IMAGE_WHAT_YOU_WANT
+	bool "using an image what you want"
+	help	
+		support for Quick boot, say Y here if you 
+		You can choose any image for agree image
+
+endchoice
+
+config QUICK_BOOT_PROGRESS_BAR
+	bool "Display the progress of making snapshot image"
+	depends on FB_TCC && HIBERNATION
+	default y 
+	help
+		Supprot for Quick boot.
+		During making snapshot image for quickboot, display progress of making snapshot image
+
+config USE_EXT_INTERRUPT
+	bool "Use external-vsync-interrupt"
+	depends on FB_TCC_USE_VSYNC_INTERRUPT && ARCH_TCC92XX
+	default y
+
+
+config FB_TCC93XX
+    bool "TCC93xx Frame buffer support"
+	depends on FB && ARCH_TCC93XX
+	default y
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+
+	help
+	  Framebuffer driver for Telechips TCC93xx series.
+
+	  If unsure, say N.
+
+config FB_TCC_OVERLAY
+	tristate "Overlay for Camera/Video"
+	depends on FB && ARCH_TCC
+	help
+	  This is the Overlay device driver
+
+choice
+	prompt "Display Kernel Logo"
+	depends on TCC_OUTPUT_ATTACH
+	default OUTPUT_DISPLAY_KERNEL_LOGO
+
+config OUTPUT_DISPLAY_KERNEL_LOGO
+	bool 'Display Mode'
+config OUTPUT_SKIP_KERNEL_LOGO
+	bool 'Skip Mode'
+endchoice
+
+config TCC_VIDEO_DISPLAY_BY_VSYNC_INT
+    bool "Displaying video frame by hw vsync interrupt"
+	depends on FB  
+	default n
+	help
+	  Video frame is displayed by hw vsync interrupt.
+
+config TCC_LCD_VIDEO_DISPLAY_BY_VSYNC_INT
+    bool "LCD display video by hw vsync interrupt"
+	depends on FB && TCC_VIDEO_DISPLAY_BY_VSYNC_INT
+	default n
+	help
+	  It makes LCD use on-the-fly and vsync routine.
+
+config TCC_VIDEO_DISPLAY_DEINTERLACE_MODE
+    bool "Support Interlaced Video"
+	depends on TCC_VIDEO_DISPLAY_BY_VSYNC_INT
+	default y
+	help
+	  It makes the interlaced video can be displayed smoothly.
+
+config TCC_FB_HIGH_CLOCK
+    bool "FB limit clock high"
+	depends on FB
+	default n
+	help
+	  FB limit clock chage to high when big size LCD module use.
+
+config VIOC_FIFO_UNDER_RUN_COMPENSATION
+		bool "VIOC FIFO-Under-Run Compensation"
+		depends on (FB && TCC_VIOC_CONTROLLER)
+    help 
+    	Reset VIOC display block to compensation the fifo under run problem.
+
+config HDMI_DISPLAY_LASTFRAME
+	bool "HDMI use lastframe funtion"
+	depends on FB
+	default y
+	help
+	 Using HDMI Last frame funtion for video play
+
+config HDMI_DISPLAY_LASTFRAME_STB_ENABLE
+        bool "HDMI use lastframe funtion for stb"
+        depends on FB && HDMI_DISPLAY_LASTFRAME
+        default n
+        help
+         Using HDMI Last frame funtion for video play on STB
+
+config VIDEO_DISPLAY_SWAP_VPU_FRAME
+        bool "Swap frame from vpu on seeking"
+        depends on FB
+        default y
+        help
+         To prevent flickering on seeking
+
+
+config PRESENTATION_SECONDAY_DISPLAY_RESIZE_STB
+	depends on FB && ARCH_TCC896X && HWCOMPOSER_OVER_1_1_FOR_STB
+	bool "Support Secondary display resize mode in presentation window function"
+	default n
+
+config DISPLAY_EXT_FRAME
+	bool "Display external frame"
+	depends on FB
+	default y if (ANDROID && PLATFORM_AVN) || (!ANDROID && PLATFORM_STB && ARCH_TCC898X)
+	help
+		Displaying External frame like paused video
+
+config EXT_FRAME_VIDEO_EFFECT
+	bool "Apply video effect to Display external frame"
+	depends on DISPLAY_EXT_FRAME
+	default y if(ANDROID && PLATFORM_AVN)
+	help
+		Lut plug in ext frame scaling driver.
+
+config USE_DISPLAY_FB_LOCK
+	bool "Blocking fb display update"
+	depends on (FB_TCC && PLATFORM_AVN) && ANDROID
+	default n
+	help
+	To use maintain boot init logo display until finish boot
+	
+	
+menu "Support for LCD panels"
+
+config LCD_HDMI1920X720
+	bool "HDMI 1920x720 LCD support"
+	depends on FB_TCC
+
+config LCD_HDMI1920X1080
+	bool "HDMI 1920X1080 LCD support"
+	depends on FB_TCC
+
+config LCD_HDMI4K
+	bool "HDMI 4K (3840X2160) LCD support"
+	depends on FB_TCC
+	depends on ARCH_TCC898X && !ARM64
+
+config LCD_FLD0800
+	bool "FLD080 1024 * 600 LVDS interface LCD support"
+	depends on FB_TCC
+
+config LCD_ED090NA
+	bool "CHIMEI INNOLUX 1280 * 800 LVDS interface LCD support"
+	depends on FB_TCC
+
+config LCD_AT070TN93
+	bool "INNOLUX AT070TN93 800*480 RGB interface LCD support"
+	depends on FB_TCC
+
+config LCD_SELECT
+        bool "FLD080 1024 * 600 LVDS interface LCD support"
+        depends on FB_TCC
+
+
+endmenu
+
+menu "TCC Extend Display"
+
+config TCC_HDMI_DRIVER_V1_3
+	bool "Use TCC HDMI V1.3 drivers"
+	depends on (ARCH_TCC892X || CHIP_TCC8935S)
+	default y
+
+config TCC_HDMI_DRIVER_V1_4
+	bool "Use TCC HDMI V1.4 drivers"
+	depends on ((ARCH_TCC893X && !CHIP_TCC8935S) || ARCH_TCC896X || ARCH_TCC897X)
+	default y
+
+config TCC_HDMI_DRIVER_V2_0
+	bool "Use TCC HDMI V2.0 drivers"
+	depends on ARCH_TCC898X && !ARM64
+	default y
+	
+config TCC_HDMI_HDCP_USED
+	bool "HDCP1.x Feature Enable"
+	depends on (ARCH_TCC896X || ARCH_TCC897X)
+	default n
+
+config EXTEND_DISPLAY_DELAY
+	bool "Extend Device Display Delay"
+	default n
+	help
+	 	UI image isn't displyed for few senconds at HDMI detected.
+choice
+	prompt  "HDMI FB ROTATE DISPLAY"
+	depends on (TCC_HDMI_DRIVER_V1_3 || TCC_HDMI_DRIVER_V1_4)
+	default HDMI_FB_ROTATE_0
+
+config HDMI_FB_ROTATE_0
+	bool 'HDMI FB DISPLAY 0 degree'
+
+config HDMI_FB_ROTATE_90
+	bool 'HDMI FB DISPLAY 90 degree'
+
+config HDMI_FB_ROTATE_180
+	bool 'HDMI FB DISPLAY 180 degree'
+
+config HDMI_FB_ROTATE_270
+	bool 'HDMI FB DISPLAY 270 degree'
+
+endchoice
+
+choice 
+	prompt "HDMI Clock select"
+	depends on (TCC_HDMI_DRIVER_V1_3 || TCC_HDMI_DRIVER_V1_4)
+	default HDMI_CLK_USE_XIN_24MHZ
+	
+config HDMI_CLK_USE_INTERNAL_PLL
+	bool 'HDMI CLK USE INTERNAL PLL'
+	
+config HDMI_CLK_USE_XIN_24MHZ
+	bool 'HDMI CLK USE XIN 24MHZ'
+
+endchoice
+
+config FB_TCC_COMPOSITE
+    tristate "Composite(Y+Pb+Pr) Output for UI/Video"
+	depends on FB && ARCH_TCC
+	help
+	  This is the Composite device driver
+
+config FB_TCC_COMPONENT
+    tristate "Component(Y/Pb/Pr) Output for UI/Video"
+	depends on FB && ARCH_TCC
+	help
+	  This is the Component device driver
+
+config TCC_VIOC_MANAGER
+	bool"VIOC manager select"
+	depends on MACH_TCC8930ST
+	default y
+	help
+		This is the vioc manager driver
+
+config TCC_COMPOSITE_COLOR_SPACE_YUV
+    bool "Change Color Space to YUV for Composite Output"
+	depends on FB && MACH_TCC8930ST
+	default y
+	help
+	  There is no YUV-to-RGB conversion to enhance signal quality of video data
+
+config TCC_M2M_USE_INTERLACE_OUTPUT
+    bool "Use M2M For INTERLACE Output"
+        depends on FB && (MACH_TCC8930ST)
+        default n
+        help
+          This is the using of M2M for Interlace output.
+	  
+config TCC_OUTPUT_STARTER
+	bool "Use Output Starter to Show Logo Image through External Output"
+	default n
+	help
+	  Use Output Starter to Show RLE(kernel logo) Image through HDMI/CVBS/Component Output
+
+config TCC_DISPLAY_LCD_CVBS
+	bool"support LCD CVBS display"
+	depends on FB && FB_TCC_COMPOSITE
+	default n
+	help
+		This is support LCD CVBS display
+
+config TCC_DISPLAY_MODE_USE
+    bool "Use Display Mode for STB solution"
+	depends on FB && FB_TCC_COMPOSITE
+	default n
+	help
+	  This is for auto detection and dual output in STB solution
+
+choice
+	prompt "Select Display Mode"
+	depends on TCC_DISPLAY_MODE_USE
+	default TCC_DISPLAY_MODE_DUAL_HDMI_CVBS
+
+config TCC_DISPLAY_MODE_AUTO_DETECT
+  bool "Auto Detection for HDMI/CVBS"
+config TCC_DISPLAY_MODE_DUAL_HDMI_CVBS
+	bool 'Dual Output for HDMI/CVBS'
+config TCC_DISPLAY_MODE_DUAL_AUTO
+	bool 'Dual Output for HDMI/Component/CVBS'
+endchoice
+
+endmenu	

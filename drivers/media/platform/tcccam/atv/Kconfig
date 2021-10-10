@@ -1,0 +1,77 @@
+config VIDEO_TCCXX_ATV
+	tristate "Enable Telechips ATV Receiver"
+	depends on VIDEO_V4L_SENSOR
+	help
+	  V4L2 Analog TV driver support for TCCXXX.
+	
+config VIDEO_ATV_SENSOR
+	tristate "ATV sensor support"
+	depends on VIDEO_TCCXX_ATV
+	help
+	   atv sensor support
+
+config VIDEO_ATV_SENSOR_TVP5150
+	tristate "TVP5150 ATV-sensor support"
+	depends on VIDEO_ATV_SENSOR
+	help
+		atv sensor support for TVP5150
+
+config VIDEO_ATV_SENSOR_ADV7182
+	tristate "ADV7182 ATV-sensor support"
+	depends on VIDEO_ATV_SENSOR
+	help
+		atv sensor support for ADV7182
+
+config VIDEO_ATV_SENSOR_DAUDIO
+        tristate "D-Audio TV Decoder Support"
+        depends on VIDEO_ATV_SENSOR
+        help
+	   TV decoder support for D-Audio
+
+config LVDS_CAMERA
+        tristate "LVDS Camera Support"
+        help
+	   LVDS Camera Support
+
+config LVDS_CAMERA_BT601
+        tristate "LVDS BT601 Camera Support"
+        depends on LVDS_CAMERA
+        help
+	   LVDS BT601 Camera Support
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 

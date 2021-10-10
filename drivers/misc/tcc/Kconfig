@@ -1,0 +1,6 @@
+config TCC_DSP
+	tristate "Telechips DSP Processor"
+	depends on ARCH_TCC897X
+	default n
+	help
+		if processor is TCC897x, it use CA7SP

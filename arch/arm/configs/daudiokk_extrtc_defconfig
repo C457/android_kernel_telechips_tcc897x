@@ -1,0 +1,2 @@
+#External RTC
+CONFIG_RTC_DRV_RX8900=y

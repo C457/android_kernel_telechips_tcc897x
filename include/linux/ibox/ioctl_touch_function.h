@@ -1,0 +1,24 @@
+#ifndef __LINUX_IBOX_API_TOUCH_FUNCTION_H__
+#define __LINUX_IBOX_API_TOUCH_FUNCTION_H__
+
+#define IBOX_TOUCH_IOC_MAGIC_V1	'T'
+
+struct ibox_touch_version {
+	char firm[32];
+	char conf[32];
+};
+
+#define IBOX_TOUCHIOC_S_MODE_VERSION \
+		_IOW(IBOX_TOUCH_IOC_MAGIC_V1, 0, char[sizeof(struct ibox_touch_version)])
+#define IBOX_TOUCHIOC_S_MODE_LOCK \
+		_IO(IBOX_TOUCH_IOC_MAGIC_V1, 1)
+#define IBOX_TOUCHIOC_S_MODE_UNLOCK \
+		_IO(IBOX_TOUCH_IOC_MAGIC_V1, 2)
+#define IBOX_TOUCHIOC_DISABLE_AUTO_CAL \
+		_IO(IBOX_TOUCH_IOC_MAGIC_V1, 3)
+#define IBOX_TOUCHIOC_CHECK_RE_CAL \
+		_IO(IBOX_TOUCH_IOC_MAGIC_V1, 4)
+#define IBOX_TOUCHIOC_SENSITIVITY \
+		_IOW(IBOX_TOUCH_IOC_MAGIC_V1, 5, unsigned int)
+
+#endif /* __LINUX_IBOX_API_TOUCH_FUNCTION_H__ */

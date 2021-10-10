@@ -1,0 +1,44 @@
+
+# Telechips VOUT (Vidoe OUTput) Driver Configuration
+#----------------------------------------------------------------
+
+#
+# Debuggind Option
+#
+config TCC_VOUT_DEBUG
+	bool "Telechips VOUT debugging"
+	default n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables vout driver debugging.
+
+config TCC_VOUT_DBG_INFO
+	bool "Telechips VOUT debugging for info"
+	depends on TCC_VOUT_DEBUG
+	default n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables vout driver debugging.
+
+config TCC_VOUT_DBG_BUF
+	bool "Telechips VOUT debugging for buffer"
+	depends on TCC_VOUT_DEBUG
+	default n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables vout driver debugging.
+
+config TCC_VOUT_DBG_INT
+	bool "Telechips VOUT debugging for interrupt"
+	depends on TCC_VOUT_DEBUG
+	default n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables vout driver debugging.
+
+#
+# Vsync Option
+#
+config VOUT_USE_VSYNC_INT
+	bool "Use vsync interrupt"
+	default n

@@ -1,0 +1,22 @@
+menu "Rear-camera"
+
+
+config TCC_EARLY_CAMERA_CPU
+
+   bool "TCC Early/Rear-camera function with cpu interface"
+   default n
+   depends on PLATFORM_AVN && (ARCH_TCC896X ||  ARCH_TCC897X)
+   help
+     TCC Automotive Early/Rear-camera with cpu interface.
+ 
+
+config TCC_REAR_CAMERA_DRV
+   bool "TCC Rear camera control driver"
+   default n
+   depends on PLATFORM_AVN && (TCC_EARLY_CAMERA_CPU && (ARCH_TCC896X ||  ARCH_TCC897X))
+   help
+     TCC Automotive Rear camera driver.
+	 TCC893X : Rear gear event set & get
+	 TCC892X : Rear-cam of kernel driver and get reat gear event.
+endmenu
+

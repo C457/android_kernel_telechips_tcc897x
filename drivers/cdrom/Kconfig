@@ -1,0 +1,6 @@
+menu "CDROM Device Support"
+
+config BLK_CDROM_SUPPORT
+	tristate "Unifom Cdrom Driver Support"
+
+endmenu

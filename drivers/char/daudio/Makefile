@@ -1,0 +1,1 @@
+obj-$(CONFIG_DAUDIO_INFO) += daudio_info.o daudio_info_adc.o

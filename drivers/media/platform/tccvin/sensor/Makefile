@@ -1,0 +1,24 @@
+# 
+# Makefile for image sensor module driver.
+#
+EXTRA_CFLAGS = -I$(src)/..
+
+#
+# Camera
+#
+obj-$(CONFIG_VIDEO_CAMERA_MT9D111) += mt9d111.o
+obj-$(CONFIG_VIDEO_CAMERA_MT9D112) += mt9d112.o
+obj-$(CONFIG_VIDEO_CAMERA_OV2643) += ov2643.o
+obj-$(CONFIG_VIDEO_CAMERA_OV5640) += ov5640.o
+obj-$(CONFIG_VIDEO_CAMERA_NT99141) += nt99141.o
+
+#
+# Decoder
+#
+obj-$(CONFIG_VIDEO_DECODER_TVP5150) += tvp5150.o
+obj-$(CONFIG_VIDEO_DECODER_TW2867) += tw2867.o
+obj-$(CONFIG_VIDEO_DECODER_TVP5158) += tvp5158.o
+obj-$(CONFIG_VIDEO_DECODER_THCV220) += thcv220.o
+obj-$(CONFIG_VIDEO_DECODER_TW9900) += tw9900.o
+obj-$(CONFIG_VIDEO_DECODER_ADV7182) += adv7182.o
+
