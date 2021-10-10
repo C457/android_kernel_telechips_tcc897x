@@ -35,8 +35,6 @@
 modules.builtin
 Module.symvers
 *.dwo
-tcc8971-android-lcn.dtsi
-daudiokk_defconfig
 
 #
 # Top-level generic files
