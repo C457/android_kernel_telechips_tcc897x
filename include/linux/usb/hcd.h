@@ -23,7 +23,7 @@
 
 #include <linux/rwsem.h>
 #include <linux/interrupt.h>
-#if defined(INCLUDE_EXHUB)
+#if defined(CONFIG_EXHUB)
 #define MAX_TOPO_LEVEL		2
 #else
 #define MAX_TOPO_LEVEL		1

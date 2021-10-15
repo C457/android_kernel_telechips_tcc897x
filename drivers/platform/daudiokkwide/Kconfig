@@ -1,0 +1,70 @@
+# Daudio Wide configuration options
+
+menuconfig DAUDIOKKWIDE_PLATFORM
+	bool "Daudio Wide KK options"
+	default n
+	depends on ARCH_TCC && DAUDIO_KK
+
+if DAUDIOKKWIDE_PLATFORM
+
+config BOARD3HW_GPIO
+	bool "TCC board 3 HW gpio support"
+	default n
+	depends on DAUDIO_KK
+
+config DAB
+	bool "Enable Digital Audio Broadcasting"
+	default n
+	depends on DAUDIO_KK
+
+config EXHUB
+	bool
+	default n
+	depends on DAUDIO_KK
+
+config ISDB
+	bool "Enable Integrated Services Digital Broadcasting"
+	default n
+	depends on DAUDIO_KK
+
+config PIO_WIDE_128GB_PARTITION
+	bool "QB unmount list for 128GB"
+	default n
+	depends on DAUDIO_KK
+
+config PIO_WIDE_4GB_PARTITION
+	bool "QB unmount list for 4GB"
+	default n
+	depends on DAUDIO_KK
+
+config PIO_WIDE_64GB_PARTITION
+	bool "QB unmount list for 64GB"
+	default n
+	depends on DAUDIO_KK
+
+config PIO_WIDE_8GB_PARTITION
+	bool "QB unmount list for 8GB"
+	default n
+	depends on DAUDIO_KK
+
+config PIO_WIDE_8GB_PARTITION2
+	bool "Second QB unmount list for 8GB"
+	default n
+	depends on DAUDIO_KK
+
+config TDMB
+	bool "Enable Terrestrial Digital Multimedia Broadcasting"
+	default n
+	depends on DAUDIO_KK
+
+config VIDEO_DECODING_MEMORY
+	bool "Enable video decoding memory"
+	default n
+	depends on DAUDIO_KK
+
+config XM
+	bool "Enable satellite radio service"
+	default n
+	depends on DAUDIO_KK
+
+endif # DAUDIOKKWIDE_PLATFORM

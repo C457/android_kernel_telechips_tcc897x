@@ -16,7 +16,7 @@
 #include "../tcc_cam_i2c.h"
 #include "../tcc_cam.h"
 
-#if defined(INCLUDE_BOARD3HW_GPIO)
+#if defined(CONFIG_BOARD3HW_GPIO)
 #include "tw9990.h"
 #include "daudio_lvds.h"
 #include "daudio_atv.h"
@@ -455,7 +455,7 @@ int datv_init(struct tcc_camera_device * vdev)
 
 	VPRINTK("%s\n", __func__);
 
-#if defined(INCLUDE_BOARD3HW_GPIO)
+#if defined(CONFIG_BOARD3HW_GPIO)
 	if (vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK)
 	{
 		lvds_sensor_init_fnc(&sf_daudio[SENSOR_LVDS]);

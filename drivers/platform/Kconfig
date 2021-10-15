@@ -4,3 +4,5 @@ endif
 source "drivers/platform/goldfish/Kconfig"
 
 source "drivers/platform/chrome/Kconfig"
+
+source "drivers/platform/daudiokkwide/Kconfig"

@@ -602,7 +602,7 @@ IRQ	(140810, mobis, hklee, det_batt_low_4.5V)
 ===========================================================================*/
 static irqreturn_t isr_low_battery_management_routine(int irq, void* dev_id)
 {
-#if defined(INCLUDE_XM)
+#if defined(CONFIG_XM)
 	//sxm shutdown
 	gpio_set_value(SIRIUS_GPIO_RESET, 1);
 	mdelay(6);
@@ -644,7 +644,7 @@ void low_battery_irq_event_manager(void)
 	int ret;
 	volatile PGPION pgpio = (PGPION)tcc_p2v(HwGPIOB_BASE);
 
-#if defined(INCLUDE_XM)
+#if defined(CONFIG_XM)
 	ret = gpio_request(SIRIUS_GPIO_SHDN, "sirius_shutdown");
 	if(ret)
 		printk("%s, there is some trouble on xm shdn\n", __func__);
