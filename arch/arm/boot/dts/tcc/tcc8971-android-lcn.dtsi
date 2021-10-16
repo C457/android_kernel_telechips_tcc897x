@@ -6,8 +6,9 @@
  * published by the Free Software Foundation.
  */
 
-#include "tcc/daudiokkwide_common.dtsi"
-#include "tcc/daudiokk_2G.dtsi"
-#include "tcc/daudiokk_3rd_board.dtsi"
-#include "tcc/daudiokk_fm8802.dtsi"
-#include "tcc/daudiokk_usa.dtsi"
+#include "daudiokkwide_common.dtsi"
+#include "daudiokk_2G.dtsi"
+#include "daudiokk_fm8802.dtsi"
+#include "daudiokk_3rd_board.dtsi"
+#include "daudiokk_usa.dtsi"
+#include "daudiokk_hdmi.dtsi"
