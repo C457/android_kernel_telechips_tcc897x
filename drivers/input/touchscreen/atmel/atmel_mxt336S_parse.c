@@ -1,6 +1,6 @@
 #include <linux/string.h>
 #include <linux/device.h>
-#include <linux/atmel_mxt336S.h>
+#include "atmel_mxt336S.h"
 #include "atmel_mxt336S_parse.h"
 
 enum {

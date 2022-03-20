@@ -35,8 +35,10 @@
 #include "siw_touch_irq.h"
 #include "siw_touch_sys.h"
 
-#define FW_10_25_EXTERNAL_PATH "{root}/storage/usb0/siw_10_25.img"
-#define FW_12_3_EXTERNAL_PATH "{root}/storage/usb0/siw_12_3.img"
+#define FW_PATH_EXTERNAL_10_25 "{root}/res/firmware/touchscreen/siw_10_25.img"
+#define FW_PATH_EXTERNAL_12_3 "{root}/res/firmware/touchscreen/siw_12_3.img"
+#define FW_PATH_EXTERNAL_USB_10_25 "{root}/storage/usb0/siw_10_25.img"
+#define FW_PATH_EXTERNAL_USB_12_3 "{root}/storage/usb0/siw_12_3.img"
 int FW_UPDATE_RESULT = 0;
 
 
@@ -232,21 +234,30 @@ static ssize_t _store_update(struct device *dev,
 
 	t_dev_info(dev, "%s [Start] %d\n",__func__, state);
 
-	if(state == 1)
+	if(state == 1 || state == 3)
 	{
 		t_dev_info(dev, "System F/W upgrade with %s\n", ts->test_fwpath);
 
 		ts->test_fwpath[0] = '\0';
+
+		if(state == 3)
+			ts->force_fwup |= FORCE_FWUP_SYS_STORE;
 	}
-	else if(state == 2)
+	else if(state == 2 || state == 4)
 	{
 		switch(daudio_lcd_inch_check())
 		{
 			case 10 :
-				sscanf(FW_10_25_EXTERNAL_PATH, "%255s", ts->test_fwpath);
+				if(state == 4)
+					sscanf(FW_PATH_EXTERNAL_10_25, "%255s", ts->test_fwpath);
+				else
+					sscanf(FW_PATH_EXTERNAL_USB_10_25, "%255s", ts->test_fwpath);
 				break;
 			case 12 :
-				sscanf(FW_12_3_EXTERNAL_PATH, "%255s", ts->test_fwpath);
+				if(state == 4)
+					sscanf(FW_PATH_EXTERNAL_12_3, "%255s", ts->test_fwpath);
+				else
+					sscanf(FW_PATH_EXTERNAL_USB_12_3, "%255s", ts->test_fwpath);
 				break;
 			default :
 				return count;

@@ -34,4 +34,5 @@ enum LVDS_MODE {
 
 extern void lvds_sensor_info_init(TCC_SENSOR_INFO_TYPE * sensor_info);
 extern void adas_sensor_info_init(TCC_SENSOR_INFO_TYPE * sensor_info);
+extern int lvds_check_video_signal(struct tcc_camera_device * vdev);
 #endif

@@ -20,7 +20,8 @@ unsigned char cfg_1189T_T15[11] = {3, 19, 49, 9, 1, 0, 5, 50, 2, 10,
 								  };
 
 //[SPT_SELFTEST_T25 INSTANCE 0]
-unsigned char cfg_1189T_T25[21] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+unsigned char cfg_1189T_T25[21] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				   0, 0, 0, 0, 250, 0, 0, 0, 0, 0, 0 };
 
 //[PROCI_TOUCHSUPPRESSION_T42 INSTANCE 0]
 unsigned char cfg_1189T_T42[14] = {3, 60, 100, 35, 225, 255, 0, 5, 3, 5,

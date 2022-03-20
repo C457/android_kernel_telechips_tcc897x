@@ -1,0 +1,1 @@
+obj-$(CONFIG_TOUCHSCREEN_SERDES_INIT) += serdes.o

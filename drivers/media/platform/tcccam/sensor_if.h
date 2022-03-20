@@ -139,6 +139,9 @@ typedef struct
 	
 	int (*ReadSensorRegister)(int reg, struct tcc_camera_device * vdev);
 	int (*CheckCameraModule)(struct tcc_camera_device * vdev);
+
+	unsigned int (*Enable_signal_error_monitoring)(unsigned int enable, struct tcc_camera_device * vdev);
+	unsigned int (*Signal_error_monitoring)(struct tcc_camera_device * vdev);
 }
 SENSOR_FUNC_TYPE;
 
@@ -231,7 +234,7 @@ typedef struct tcc_sensor_info
 
 #ifdef CONFIG_DAUDIO //mhjung
 #define USING_HW_I2C
-    #if defined(CONFIG_BOARD3HW_GPIO)
+    #if defined(INCLUDE_BOARD3HW_GPIO)
     #include "atv/tw9990.h"
     #include "atv/daudio_lvds.h"
     #else
@@ -274,4 +277,5 @@ extern int sensor_get_port(int port);
 
 extern int sensor_if_read_i2c(int reg, struct tcc_camera_device * vdev);
 extern int sensor_if_check_camera_module(struct tcc_camera_device * vdev);
+extern int sensor_if_check_camera_signal_error(struct tcc_camera_device * vdev);
 #endif

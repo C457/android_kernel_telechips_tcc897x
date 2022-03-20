@@ -18,9 +18,9 @@ unsigned char cfg_641T_T24[19] = {3, 4, 0xFF, 0x07, 0, 40, 60, 30, 25, 50,
 #endif
 
 //[PROCI_ONETOUCHGESTUREPROCESSOR_T25 INSTANCE 0]
-unsigned char cfg_641TD_T25[27] = {3, 0, 0xA8, 0x61, 0x20, 0x4E, 0, 0, 0, 0,
-								 0, 0, 0, 0, 200, 0xB8, 0x0B, 0, 0, 0,
-								 0, 0};
+unsigned char cfg_641TD_T25[27] = {27, 0, 0x25, 0x65, 0xB5, 0x4D, 0x84, 0x67, 0xCC, 0x5B,
+				   0, 0, 0, 0, 250, 0xB8, 0x0B, 0, 0, 0,
+				   0, 0, 14, 0, 0, 0, 1};
 
 //[PROCI_ONETOUCHGESTUREPROCESSOR_T27 INSTANCE 0]
 #if 0
@@ -77,7 +77,7 @@ unsigned char cfg_641TD_T80[14] = {1, 1, 125, 45, 15, 202, 0, 50, 2, 0,
 
 
 //[TOUCH_MULTITOUCHSCREEN_T100 INSTANCE 0]
-unsigned char cfg_641TD_T100[72] = {135, 192, 0, 0, 0, 0, 10, 136, 0, 32,
+unsigned char cfg_641TD_T100[72] = {135, 192, 0, 2, 0, 0, 10, 136, 0, 32,
 								   42, 0, 0, 0xFF, 0x04, 0, 0, 0, 0, 0,   // 799 -> 1F 03 1279 -> FF 04
 								   19, 42, 0, 0, 0xCF, 0x2, 0, 0, 14, 255,  // 479 -> DF 01 719 -> CF 02
 								   50, 5, 20, 0, 0, 20, 0, 8, 0, 2,

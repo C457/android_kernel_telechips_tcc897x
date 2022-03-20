@@ -366,6 +366,9 @@ void mip4_ts_input_event_handler(struct mip4_ts_info *info, u8 sz, u8 *buf)
 #endif
 	//print_hex_dump(KERN_ERR, MIP4_TS_DEVICE_NAME " Event Packet : ", DUMP_PREFIX_OFFSET, 16, 1, buf, sz, false);
 
+	if(info->event_size == 0)
+		return;
+
 	for (i = 0; i < sz; i += info->event_size) {
 		u8 *packet = &buf[i];
 
@@ -457,7 +460,7 @@ void mip4_ts_input_event_handler(struct mip4_ts_info *info, u8 sz, u8 *buf)
                                 	debug_cnt++;
 
 #ifdef CONFIG_KERNEL_DEBUG_SEC
-				if((melfas_debug >= DEBUG_MESSAGE&&melfas_debug <= DEBUG_TRACE)||(id==3&&debug_cnt%100 == 0))
+				if((melfas_debug >= DEBUG_MESSAGE&&melfas_debug <= DEBUG_TRACE)||(id==3&&debug_cnt%100 == 0)||(melfas_touch_cnt > 0))
 				{
 					dev_info(&info->client->dev, "%s - Screen : ID[%d] X[%d] Y[%d] Z[%d] Major[%d] Minor[%d] Size[%d] Pressure[%d] Palm[%d] Hover[%d]\n", __func__, id, x, y, pressure, touch_major, touch_minor, size, pressure, palm, hover);
 				}
@@ -475,8 +478,12 @@ void mip4_ts_input_event_handler(struct mip4_ts_info *info, u8 sz, u8 *buf)
 				info->touch_state[id] = 0;
 
 #ifdef CONFIG_KERNEL_DEBUG_SEC
-				if((melfas_debug >= DEBUG_MESSAGE&&melfas_debug <= DEBUG_TRACE)||debug_cnt > 100)
+				if((melfas_debug >= DEBUG_MESSAGE&&melfas_debug <= DEBUG_TRACE)||(debug_cnt > 100)||(melfas_touch_cnt > 0))
+				{
 					dev_info(&info->client->dev, "%s - Screen : ID[%d] Count[%d] Release\n", __func__, id, debug_cnt);
+					if(melfas_touch_cnt > 0)
+						melfas_touch_cnt--;
+				}
 #endif
 				debug_cnt = 0;
 				/* Final release event */

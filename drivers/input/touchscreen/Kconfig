@@ -392,6 +392,13 @@ config TOUCHSCREEN_MAX11801
 	  To compile this driver as a module, choose M here: the
 	  module will be called max11801_ts.
 
+config TOUCHSCREEN_SERDES_INIT
+        tristate "CONFIG_TOUCHSCREEN_SERDES_INIT"
+        depends on I2C
+
+config TOUCHSCREEN_ONEBIN
+	tristate "CONFIG_TOUCHSCREEN_ONEBIN"
+
 config TOUCHSCREEN_MCS5000
 	tristate "MELFAS MCS-5000 touchscreen"
 	depends on I2C

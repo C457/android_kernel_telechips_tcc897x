@@ -39,6 +39,11 @@
 #include <asm/uaccess.h>
 #include <linux/tcccp_ioctl.h>
 
+#if defined(CONFIG_DAUDIO_KK)
+#include <mach/daudio.h>
+#include <mach/daudio_info.h>
+#endif
+
 #define CP_DEV_NAME			"tcc-cp"
 
 #define CP_GPIO_HI			1
@@ -118,26 +123,29 @@ void tcc_cp_pwr_control(int value)
 
 void tcc_cp_reset_control(int value)
 {
-    cp_dbg("%s value : %d\n", __FUNCTION__, value);
-	if (gpio_cansleep(gCPResetGpio))
-		gpio_set_value_cansleep(gCPResetGpio, value);
-	else
-		gpio_set_value(gCPResetGpio, value);
+    if((gCPPowerState == 1) || (gCpVersion == 0x20B))
+    {
+        cp_dbg("%s value : %d\n", __FUNCTION__, value);
+        if (gpio_cansleep(gCPResetGpio))
+            gpio_set_value_cansleep(gCPResetGpio, value);
+        else
+            gpio_set_value(gCPResetGpio, value);
 
-    if(gCpVersion == 0x20B) 
-        mdelay(30);
+        if(gCpVersion == 0x20B)
+            mdelay(30);
+    }
 }
 
 
 long tcc_cp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     cp_dbg("%s  (0x%x)  \n", __FUNCTION__, cmd);
-	
+
     switch (cmd)
     {
         case IOCTL_CP_CTRL_INIT:
         {
-            tcc_cp_gpio_init();		
+            tcc_cp_gpio_init();
             cp_dbg("%s:  IOCTL_CP_SET_GPIO_INIT (0x%x) \n", __FUNCTION__, cmd);
         }
             break;
@@ -156,10 +164,10 @@ long tcc_cp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
                 tcc_cp_reset_control(CP_GPIO_HI);
             else
                 tcc_cp_reset_control(CP_GPIO_LOW);
-            
+
             cp_dbg("%s:  IOCTL_CP_CTRL_RESET arg(%lu) \n", __FUNCTION__, arg);			
         }
-            break;  
+            break;
         case IOCTL_CP_CTRL_ALL:
         {
             if(arg != 0){
@@ -169,21 +177,21 @@ long tcc_cp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
                 tcc_cp_pwr_control(CP_GPIO_LOW);
                 tcc_cp_reset_control(CP_GPIO_LOW);
             }
-            
+
             cp_dbg("%s:  IOCTL_CP_CTRL_ALL arg(%lu) \n", __FUNCTION__, arg);			
         }
-            break;              
+            break;
         case IOCTL_CP_GET_VERSION:
             if(copy_to_user((unsigned int*) arg, &gCpVersion, sizeof(unsigned int))!=0)
             {
                 printk(" %s copy version error~!\n",__func__);
-            }			                
+            }
             break;
         case IOCTL_CP_GET_CHANNEL:
             if(copy_to_user((unsigned int*) arg, &gCpI2cChannel, sizeof(unsigned int))!=0)
             {
                 printk(" %s copy channel error~!\n",__func__);
-            }			                
+            }
             break;
 #ifdef CONFIG_DAUDIO_KK
         case IOCTL_CP_SET_STATE:
@@ -201,7 +209,7 @@ long tcc_cp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
             break;
 #endif
         default:
-            cp_dbg("cp: unrecognized ioctl (0x%x)\n", cmd); 
+            cp_dbg("cp: unrecognized ioctl (0x%x)\n", cmd);
             return -EINVAL;
             break;
     }
@@ -283,6 +291,13 @@ static int tcc_cp_ctrl_probe(struct platform_device *pdev)
 		cp_dbg("default 2.0C type\n");
 	}
 
+#if defined(CONFIG_DAUDIO_KK)
+	if (daudio_main_version() == DAUDIOKK_PLATFORM_WS7) {
+		cp_dbg("2.0C type\n");
+		gCpVersion = 0x20C;
+	}
+#endif
+
 	if (of_find_property(dev->of_node, "i2c-channel", 0)) {
 		of_property_read_u32(dev->of_node, "i2c-channel", &gCpI2cChannel);
 		cp_dbg("cp i2c channel (%d)\n", gCpI2cChannel);
@@ -308,6 +323,31 @@ static int tcc_cp_ctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int tcc_cp_ctrl_suspend(struct platform_device *pdev)
+{
+	cp_dbg("%s\n", __FUNCTION__);
+
+	return 0;
+}
+
+static int tcc_cp_ctrl_resume(struct platform_device *pdev)
+{
+	cp_dbg("%s\n", __FUNCTION__);
+
+#if defined(CONFIG_DAUDIO_KK)
+	if (daudio_main_version() == DAUDIOKK_PLATFORM_WS7) {
+		cp_dbg("2.0C type\n");
+		gCpVersion = 0x20C;
+	} else {
+		cp_dbg("2.0B type\n");
+		gCpVersion = 0x20B;
+	}
+#endif
+	return 0;
+}
+#endif
+
 /*****************************************************************************
  * TCC_CP_CTRL Module Init/Exit
  ******************************************************************************/
@@ -322,6 +362,10 @@ MODULE_DEVICE_TABLE(of, tcc_cp_ctrl_of_match);
 static struct platform_driver tcc_cp_ctrl = {
 	.probe	= tcc_cp_ctrl_probe,
 	.remove	= tcc_cp_ctrl_remove,
+#ifdef CONFIG_PM
+	.suspend = tcc_cp_ctrl_suspend,
+	.resume = tcc_cp_ctrl_resume,
+#endif
 	.driver	= {
 		.name	= CP_DEV_NAME,
 		.owner	= THIS_MODULE,

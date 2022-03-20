@@ -162,6 +162,11 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&ws5_touch_i2c21_bus>;
 
+		serdes@40 {
+                        compatible = "serdes,serdes_recovery";
+                        reg = <0x40>;
+                };
+
 		mxt336s@4A {
 			compatible = "atmel,mxt336s";
 			reg = <0x4A>;

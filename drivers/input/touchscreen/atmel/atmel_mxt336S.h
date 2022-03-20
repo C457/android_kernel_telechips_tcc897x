@@ -18,7 +18,9 @@
 #define INCLUDE_LCD_TOUCHKEY
 
 #include <linux/semaphore.h>
+#ifdef CONFIG_DAUDIO_KK
 #include <linux/earlysuspend.h>
+#endif
 #include <linux/wakelock.h>
 #include <linux/input.h>
 /* For Special Test */
@@ -1239,5 +1241,12 @@ int try_sw_reset_chip(struct mxt_data *mxt, u8 mode);
 void hw_reset_chip(struct mxt_data *mxt);
 
 void mxt_hw_reset(void);
+
+int mobis_touch_update_check(void);
+void mobis_touch_update_complete(void);
+#if defined(CONFIG_WIDE_PE_COMMON)||defined(CONFIG_TOUCHSCREEN_ONEBIN)
+int mxt336s_init(void);
+void mxt336s_cleanup(void);
+#endif
 
 #endif

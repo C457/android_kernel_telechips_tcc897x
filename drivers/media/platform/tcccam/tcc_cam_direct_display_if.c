@@ -450,12 +450,12 @@ int direct_display_set_vin(struct tcc_camera_device * vdev) {
 
 	//2017.12.22 - LVDS SVM Display Timing Fixed. Horizontal Blank(128) Vertical Blank(4)
 	//2018.06.15 - LVDS SVM PCLK Changed(2208 -> 2528). Horizontal Blank(128+320 = 448)
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS)
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_DVRS_RVM)
 	{
-		if(gpio_get_value(TCC_GPB(19)))	//b110
+//		if(gpio_get_value(TCC_GPB(19)))	//b110
 			VIOC_VIN_SetImageOffset(pVIN, 448, 4, 0);
-		else				//b100
-			VIOC_VIN_SetImageOffset(pVIN, 128, 4, 0);
+//		else				//b100
+//			VIOC_VIN_SetImageOffset(pVIN, 128, 4, 0);
 	} else if (vdev->data.cam_info == DAUDIO_ADAS_PRK) 
 	{
 		VIOC_VIN_SetImageOffset(pVIN, 288, 0, 0);
@@ -469,7 +469,7 @@ int direct_display_set_vin(struct tcc_camera_device * vdev) {
 
 	//2018.05.08 - Using VIN-LUT for LVDS SVM Display Image Enhancement
 	//	     - Don't use Y2R block of VIN component when the camera device uses VIN-LUT.
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK) {
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK || vdev->data.cam_info == DAUDIO_DVRS_RVM) {
 		VIOC_VIN_SetLUT(pVIN, vdev->vioc.lut.address);
 		VIOC_VIN_SetLUTEnable(pVIN, ON, ON, ON);
 //		VIOC_VIN_SetLUT_by_table(pVIN, rgb);
@@ -631,7 +631,7 @@ int direct_display_set_wdma(struct tcc_camera_device * vdev, unsigned int addrY,
 		//VIOC_WDMA_SetImageY2REnable(pWDMA, OFF);
 
 	// Because of using YCbCr color space LUT formala to set VIN_LUT
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK) {
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK || vdev->data.cam_info == DAUDIO_DVRS_RVM) {
 		VIOC_WDMA_SetImageY2RMode(pWDMA, 2);
 		VIOC_WDMA_SetImageY2REnable(pWDMA, 1);
 	}
@@ -949,7 +949,10 @@ int direct_display_monitor_thread(void * data) {
 }
 
 int direct_display_start_monitor(struct tcc_camera_device * vdev) {
-	vdev->threadRecovery = kthread_run(direct_display_monitor_thread, vdev, "threadRecovery");
+//	if(vdev->gParams.camera_type != 0 && vdev->gParams.camera_type != 1) // camera type 5/6/7 will return 0
+//		return 0;
+
+	vdev->threadRecovery = kthread_run(direct_display_monitor_thread, vdev, "threadRecovery"); // camera type 0 & 1 will do recovery from here
 	if(IS_ERR_OR_NULL(vdev->threadRecovery)) {
 		printk("%s - FAILED: kthread_run\n", __func__);
 		vdev->threadRecovery = NULL;
@@ -959,7 +962,10 @@ int direct_display_start_monitor(struct tcc_camera_device * vdev) {
 }
 
 int direct_display_stop_monitor(struct tcc_camera_device * vdev) {
-	if(IS_ERR_OR_NULL(vdev->threadRecovery)) {
+//	if(vdev->gParams.camera_type != 0 && vdev->gParams.camera_type != 1) // camera type 5/6/7 will return 0
+//		return 0;
+
+	if(IS_ERR_OR_NULL(vdev->threadRecovery)) { // camera type 0 & 1 will do recovery from here
 		printk("%s - FAILED: threadRecovery is NULL\n", __func__);
 		return -1;
 	}

@@ -297,7 +297,7 @@ static struct siw_touch_chip_data chip_data = {
         .bus_drv = NULL,
 };
 
-#ifdef CONFIG_DAUDIO_KK
+#if defined(CONFIG_DAUDIO_KK) && !defined(CONFIG_TOUCHSCREEN_ONEBIN)
 int factory_connect_for_lcd(void)
 {
         if((!gpio_get_value(TCC_GPB(8)))&&daudio_lcd_version()==DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_LG)
@@ -344,7 +344,7 @@ static void __exit sw17700_cleanup(void)
         (void)siw_touch_bus_del_driver(&chip_data);
 }
 module_exit(sw17700_cleanup);
-#elif defined(CONFIG_WIDE_PE_COMMON)
+#elif defined(CONFIG_WIDE_PE_COMMON) || defined(CONFIG_TOUCHSCREEN_ONEBIN)
 int sw17700_init(void)
 {
 	int err;

@@ -164,6 +164,15 @@ void siw_touch_report_event(void *ts_data)
 			siw_input_report_abs(input, ABS_MT_ORIENTATION, tdata->orientation);
 
 			if (press_mask & (1 << i)) {
+				if(siw_touch_cnt > 0)
+				t_dev_info(dev, "%s: %d finger press <%d> (%4d, %4d, %4d)\n",
+                                                dev_name(idev),
+                                                ts->tcount,
+                                                i,
+                                                tdata->x,
+                                                tdata->y,
+                                                tdata->pressure);
+				else
 				t_dev_dbg_button(dev, "%s: %d finger press <%d> (%4d, %4d, %4d)\n",
 						dev_name(idev),
 						ts->tcount,
@@ -172,7 +181,16 @@ void siw_touch_report_event(void *ts_data)
 						tdata->y,
 						tdata->pressure);
 			}
-			else
+			else {
+				if(siw_touch_cnt > 0)
+				t_dev_info(dev, "%s: %d finger move <%d> (%4d, %4d, %4d)\n",
+                                                dev_name(idev),
+                                                ts->tcount,
+                                                i,
+                                                tdata->x,
+                                                tdata->y,
+                                                tdata->pressure);
+				else
 				t_dev_dbg_button(dev, "%s: %d finger move <%d> (%4d, %4d, %4d)\n",
                                                 dev_name(idev),
                                                 ts->tcount,
@@ -180,6 +198,7 @@ void siw_touch_report_event(void *ts_data)
                                                 tdata->x,
                                                 tdata->y,
                                                 tdata->pressure);
+			}
 
 			continue;
 		}
@@ -191,6 +210,17 @@ void siw_touch_report_event(void *ts_data)
 		#else	/* __SIW_CONFIG_INPUT_ANDROID */
 			siw_input_report_abs(ts->input, ABS_MT_TRACKING_ID, -1);
 		#endif	/* __SIW_CONFIG_INPUT_ANDROID */
+			if(siw_touch_cnt > 0)
+			{
+			t_dev_info(dev, "%s: finger release <%d> (%4d, %4d, %4d)\n",
+                                        dev_name(idev),
+                                        i,
+                                        tdata->x,
+                                        tdata->y,
+                                        tdata->pressure);
+					siw_touch_cnt--;
+			}
+			else
 			t_dev_dbg_button(dev, "%s: finger release <%d> (%4d, %4d, %4d)\n",
 					dev_name(idev),
 					i,

@@ -41,6 +41,7 @@
 #include <linux/reboot.h>
 
 #include "siw_touch.h"
+#include "touch_sw17700.h"
 #include "siw_touch_hal.h"
 #include "siw_touch_bus.h"
 #include "siw_touch_event.h"
@@ -911,7 +912,10 @@ static void siw_touch_init_work_func(struct work_struct *work)
 
 	if (do_fw_upgrade) {
 		t_dev_info(dev, "Touch F/W upgrade triggered(%Xh)\n", do_fw_upgrade);
-		siw_touch_qd_upgrade_work_now(ts);
+		if(mobis_touch_update_check())
+			siw_touch_qd_upgrade_work_now(ts);
+		else
+			atomic_set(&ts->state.core, CORE_NORMAL);
 		return;
 	}
 
@@ -973,6 +977,9 @@ static int siw_touch_upgrade_work(struct siw_ts *ts)
 			t_dev_err(dev, "FW upgrade halted, %d\n", ret);
 		}
 	}
+
+	if(ret == 0 || ret == -EPERM)
+		mobis_touch_update_complete();
 
 	return 1;		/* do reset */
 }
@@ -1454,7 +1461,6 @@ static int _siw_touch_do_irq_thread(struct siw_ts *ts)
 	int ret = 0;
 
 	ts->intr_status = 0;
-
 	if (atomic_read(&ts->state.core) != CORE_NORMAL) {
 		goto out;
 	}
@@ -1521,6 +1527,7 @@ static irqreturn_t __used siw_touch_irq_thread(int irq, void *dev_id)
 	}
 
 	if (ts->ops->irq_dbg_handler) {
+		printk("%s ts->ops->irq_dbg_handler %d\n",__func__,ts->ops->irq_dbg_handler);
 		ret = ts->ops->irq_dbg_handler(dev);
 		goto out;
 	}
@@ -1913,18 +1920,38 @@ int serdes_i2c_bitrate_6gbps_to_3gbps(struct i2c_client *client)
         u8 buf[3];
         int retry;
         unsigned short addr;
+	int lcd_type;
 
         addr = client->addr;
 
-        printk("-----------%s\n", __func__);
+	lcd_type = daudio_lcd_version();
+
+#ifdef CONFIG_WIDE_PE_COMMON
+        if(lcd_type == DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_175mV_LG)
+                printk("-----------%s_175mV\n", __func__);
+        else
+#endif
+                printk("-----------%s\n", __func__);
 
         for(i = 0; i < 4; i++) {
                 retry = 0;
 
-                client->addr = serdes_3gbps_config[i][0];
-                buf[0] = (serdes_3gbps_config[i][1] >> 8) & 0xff;
-                buf[1] = serdes_3gbps_config[i][1] & 0xff;
-                buf[2] = serdes_3gbps_config[i][2];
+#ifdef CONFIG_WIDE_PE_COMMON
+		if(lcd_type == DAUDIOKK_LCD_OD_10_25_1920_720_INCELL_LTPS_175mV_LG)
+                {
+                        client->addr = serdes_3gbps_175mV_config[i][0];
+                        buf[0] = (serdes_3gbps_175mV_config[i][1] >> 8) & 0xff;
+                        buf[1] = serdes_3gbps_175mV_config[i][1] & 0xff;
+                        buf[2] = serdes_3gbps_175mV_config[i][2];
+                }
+                else
+#endif
+                {
+                        client->addr = serdes_3gbps_config[i][0];
+                        buf[0] = (serdes_3gbps_config[i][1] >> 8) & 0xff;
+                        buf[1] = serdes_3gbps_config[i][1] & 0xff;
+                        buf[2] = serdes_3gbps_config[i][2];
+                }
 
                 if(client->addr == DES_DELAY)
                 {
@@ -2371,9 +2398,7 @@ static void __siw_serdes_reset(struct siw_ts *ts)
 static void siw_serdes_reset(struct siw_ts *ts)
 {
 	mutex_lock(&ts->lock);
-	siw_serdes_block_touch_irq(ts);
 	__siw_serdes_reset(ts);
-	siw_serdes_unblock_touch_irq(ts);
 	mutex_unlock(&ts->lock);
 }
 

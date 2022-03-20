@@ -49,7 +49,7 @@ void cam_clock_clkrate(struct tcc_camera_device * vdev)
 	
 #else
 
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK)
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK || vdev->data.cam_info == DAUDIO_DVRS_RVM)
 		module_np = of_find_node_by_name(cam_np,LVDS_MODULE_NODE);
 	else
 		module_np = of_find_node_by_name(cam_np,MODULE_NODE);

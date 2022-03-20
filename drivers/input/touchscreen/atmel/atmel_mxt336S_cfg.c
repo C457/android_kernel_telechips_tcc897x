@@ -50,7 +50,7 @@
 #include <linux/syscalls.h>
 #include <linux/slab.h>
 
-#include <linux/atmel_mxt336S.h>
+#include "atmel_mxt336S.h"
 #include "atmel_mxt336S_cfg.h"
 #include "atmel_mxt336S_parse.h"
 #include "device_config_mxt336S.h"
@@ -2536,22 +2536,31 @@ int mxt_config_settings(struct mxt_data *mxt, u8 *mem, int which, unsigned int t
 
 	switch(touch_type){
 		case 5:
-			if (mxt_userdata_config_1189T(mxt) < 0) /* T38 */
-                		return -1;
+			if (which != TOMEM)
+			{
+				if (mxt_userdata_config_1189T(mxt) < 0) /* T38 */
+					return -1;
+			}
 
 		        if (mxt_config_write_1189T(mxt, mem, which, touch_type) < 0)            /* ALL */
 		                return -1;
 			break;
 		case 6:
-			if (mxt_userdata_config_641T(mxt) < 0) /* T38 */
-		                return -1;
+			if (which != TOMEM)
+			{
+				if (mxt_userdata_config_641T(mxt) < 0) /* T38 */
+			                return -1;
+			}
 
 		        if (mxt_config_write_641T(mxt, mem, which) < 0)            /* ALL */
 		                return -1;
 			break;
 		case 7:
-			if (mxt_userdata_config(mxt) < 0)       /* T38 */
-		                return -1;
+			if (which != TOMEM)
+			{
+				if (mxt_userdata_config(mxt) < 0)       /* T38 */
+			                return -1;
+			}
 
 		        if (mxt_power_config(mxt, mem, which) < 0)              /* T7 */
 		                return -1;
@@ -2575,8 +2584,11 @@ int mxt_config_settings(struct mxt_data *mxt, u8 *mem, int which, unsigned int t
 		                return -1;	
 			break;
 		case 8:
-                        if (mxt_userdata_config_641TD(mxt) < 0) /* T38 */
-                                return -1;
+			if (which != TOMEM)
+			{
+	                        if (mxt_userdata_config_641TD(mxt) < 0) /* T38 */
+	                                return -1;
+			}
 
                         if (mxt_config_write_641TD(mxt, mem, which) < 0)            /* ALL */
                                 return -1;

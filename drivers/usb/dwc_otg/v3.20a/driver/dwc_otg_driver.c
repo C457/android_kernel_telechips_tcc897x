@@ -1979,19 +1979,6 @@ static int dwc_otg_driver_resume(struct platform_device *pdev)
 
 	dwc_otg_device = platform_get_drvdata(pdev);
 
-#if defined(CONFIG_DAUDIO_KK)
-	if ((daudio_main_version() >= DAUDIOKK_PLATFORM_WS7) &&
-	    (daudio_hw_version() >= DAUDIOKK_HW_3RD)) {
-		tcc_gpio_config(TCC_GPC(17), GPIO_FN0 | GPIO_OUTPUT | GPIO_HIGH | GPIO_PULL_DISABLE);	/* USB_VBUS_OFF */
-		tcc_gpio_config(TCC_GPC(18), GPIO_FN0 | GPIO_OUTPUT | GPIO_HIGH | GPIO_PULL_DISABLE);	/* USB_CHARGE_EN */
-		tcc_gpio_config(TCC_GPC(19), GPIO_FN0 | GPIO_OUTPUT | GPIO_LOW | GPIO_PULL_DISABLE);	/* USB_CHARGE_MODE */
-	} else {
-		tcc_gpio_config(TCC_GPC(17), GPIO_FN0 | GPIO_INPUT | GPIO_PULL_DISABLE);
-		tcc_gpio_config(TCC_GPC(18), GPIO_FN0 | GPIO_INPUT | GPIO_PULL_DISABLE);
-		tcc_gpio_config(TCC_GPC(19), GPIO_FN0 | GPIO_INPUT | GPIO_PULL_DISABLE);
-	}
-#endif
-
 	tcc_otg_vbus_init();
 
 	clk_enable(dwc_otg_device->hclk);
