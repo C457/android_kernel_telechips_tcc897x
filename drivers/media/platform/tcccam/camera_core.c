@@ -62,7 +62,9 @@ static int debug	= 0;
 #define FUNCTION_IN	log("In\n");
 #define FUNCTION_OUT	log("Out\n");
 
-static const int LVDS_SVM = 4;
+static const int LVDS_SVM_97 = 4;
+static const int LVDS_SVM_111 = 6;
+static const int DVRS_RVM = 5;
 static const int ADAS_PRK = 7;
 
 //extern unsigned int do_hibernation;
@@ -117,12 +119,12 @@ int tcc_videobuf_s_caminfo(unsigned int *input, struct tcc_camera_device * vdev)
 	{
 		camera_type = get_camera_type();
 
-		if(camera_type == LVDS_SVM || camera_type == 6)
+		if(camera_type == LVDS_SVM_97 || camera_type == LVDS_SVM_111 || camera_type == DVRS_RVM) // Digital - 1920*720p, SVM = 97.5MHz(4), 111.8MHz(6) / DVRS RVM(5)
 			vdev->data.cam_info = DAUDIO_CAMERA_LVDS;
 		else if (camera_type == ADAS_PRK)
-			vdev->data.cam_info = DAUDIO_ADAS_PRK;
+			vdev->data.cam_info = DAUDIO_ADAS_PRK; // Digital - 1280*720p, 74.25MHz
 		else
-			vdev->data.cam_info = DAUDIO_CAMERA_REAR;
+			vdev->data.cam_info = DAUDIO_CAMERA_REAR; // Analog(Default) - CVBS, 720*480i
 	}
 	else if(vdev->CameraID == DAUDIO_CAMERA_LVDS)
 		vdev->data.cam_info = DAUDIO_CAMERA_LVDS;
@@ -719,6 +721,11 @@ static long camera_core_do_ioctl(struct file * file, unsigned int cmd, void * ar
 		case VIDIOC_CHECK_CAMERA_MODULE:
 			return sensor_if_check_camera_module(vdev);
 
+		case VIDIOC_CHECK_CAMERA_SIGNAL_ERROR:	// Incoming Camera DATA Error
+			//printk("%s cmd:VIDIOC_CHECK_CAMERA_SIGNAL_ERR\n",__func__);
+			*(int *)arg = sensor_if_check_camera_signal_error(vdev);
+			return retval;
+
 		case VIDIOC_USER_READ_SENSOR_REGISTER:
 			return sensor_if_read_i2c(*(int *)arg, vdev);
 
@@ -745,7 +752,8 @@ static long camera_core_do_ioctl(struct file * file, unsigned int cmd, void * ar
 					break;
 				case 4:	//LVDS 97.5MHz
 				//hklee 2019.08.23 - get preview size from application. (0,0) will be set as (1920*720)
-				/*case 6:	//LVDS 111.8MHz - SVM,DVRS,SVM Camera
+				//case 5: // DVRS RVM
+				/*case 6:	//LVDS 111.8MHz - SVM Camera
 					((DIRECT_DISPLAY_IF_PARAMETERS *)arg)->preview_width = 1920;
 					((DIRECT_DISPLAY_IF_PARAMETERS *)arg)->preview_height = 720;
 					break;

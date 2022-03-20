@@ -139,6 +139,9 @@ typedef struct
 	
 	int (*ReadSensorRegister)(int reg, struct tcc_camera_device * vdev);
 	int (*CheckCameraModule)(struct tcc_camera_device * vdev);
+
+	unsigned int (*Enable_signal_error_monitoring)(unsigned int enable, struct tcc_camera_device * vdev);
+	unsigned int (*Signal_error_monitoring)(struct tcc_camera_device * vdev);
 }
 SENSOR_FUNC_TYPE;
 
@@ -274,4 +277,5 @@ extern int sensor_get_port(int port);
 
 extern int sensor_if_read_i2c(int reg, struct tcc_camera_device * vdev);
 extern int sensor_if_check_camera_module(struct tcc_camera_device * vdev);
+extern int sensor_if_check_camera_signal_error(struct tcc_camera_device * vdev);
 #endif

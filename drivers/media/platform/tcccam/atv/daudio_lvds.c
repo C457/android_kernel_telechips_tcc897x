@@ -149,6 +149,41 @@ static int lvds_write(unsigned char* data, unsigned char reg_bytes, unsigned cha
 	return FAIL_I2C;
 }
 
+// mhlee - This is to check Camera Data error (DET_ERR & DET_THR)(2020.10.23)
+#define REG_det_err	0x15	// Detected error count
+#define REG_det_thr 0x0E	// Detected errors Threshold
+#define NUM_ERR_THR		255	// 0 ~ 255
+
+
+static unsigned int sensor_enable_signal_error_monitoring(unsigned int enable, struct tcc_camera_device * vdev)
+{
+	unsigned int ret = false;
+
+	//	VPRINTK("%s++\n", __func__);
+
+	//	VPRINTK("%s--\n", __func__);
+
+	return ret;
+}
+
+//sensor camera DATA error monitoring
+static unsigned int sensor_signal_error_monitoring(struct tcc_camera_device * vdev)
+{
+	unsigned int error_det = false;
+
+	//	VPRINTK("%s++\n", __func__);
+
+	if(lvds_read(REG_det_err, vdev) >= NUM_ERR_THR)
+	{
+		printk("%s More than %d errors were detected!\n", __func__, NUM_ERR_THR);
+		error_det = true;
+	}
+
+	//	VPRINTK("%s--\n", __func__);
+
+	return error_det;
+}
+
 static int lvds_sensor_open(eTW_YSEL yin, struct tcc_camera_device * vdev)
 {
 
@@ -634,4 +669,7 @@ void lvds_sensor_init_fnc(SENSOR_FUNC_TYPE_DAUDIO *sensor_func)
 
 	sensor_func->Check_ESD					= NULL;
 	sensor_func->Check_Luma					= NULL;
+
+	sensor_func->Enable_signal_error_monitoring		= sensor_enable_signal_error_monitoring;
+	sensor_func->Signal_error_monitoring				= sensor_signal_error_monitoring;
 }

@@ -40,8 +40,8 @@ CONFIG_TOUCHSCREEN_SIW_$(CHIP_NAME)=y
 
 LIBS=-lm
 
-//obj-$(CONFIG_TOUCHSCREEN_SIW_SW17700) += $(MODULE_NAME).o
-obj-m := $(MODULE_NAME).o
+#obj-$(CONFIG_TOUCHSCREEN_SIW_SW17700) += $(MODULE_NAME).o
+obj-$(CONFIG_TOUCHSCREEN_SIW) := $(MODULE_NAME).o
 $(MODULE_NAME)-objs := siw_touch.o
 $(MODULE_NAME)-objs += siw_touch_hal.o siw_touch_hal_sysfs.o
 $(MODULE_NAME)-objs += siw_touch_hal_abt.o

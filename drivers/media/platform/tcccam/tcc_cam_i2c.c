@@ -46,7 +46,9 @@ static int debug	= 0;
 #include <linux/i2c.h>
 
 static int camera_type = 0;
-static const int LVDS_SVM = 4;
+static const int LVDS_SVM_97 = 4;
+static const int LVDS_SVM_111 = 6;
+static const int DVRS_RVM = 5;
 static const int ADAS_PRK = 7;
 static unsigned char camic_error = 0;
 
@@ -383,7 +385,7 @@ static int cam_i2c_probe(struct i2c_client *client, const struct i2c_device_id *
 
 	camera_type = gpio_get_camera_variant();
 
-	if(camera_type == LVDS_SVM || camera_type == 6 || camera_type == ADAS_PRK) {
+	if(camera_type == LVDS_SVM_97 || camera_type == LVDS_SVM_111 || camera_type == ADAS_PRK || camera_type == DVRS_RVM) {
 		client->addr = (MAX96706_ID >> 1);
 	}
 	else {
@@ -445,7 +447,7 @@ static int cam_i2c_resume(struct i2c_client *client)
 {
 	camera_type = gpio_get_camera_variant();
 
-	if(camera_type == LVDS_SVM || camera_type == 6 || camera_type == ADAS_PRK) {
+	if(camera_type == LVDS_SVM_97 || camera_type == LVDS_SVM_111 || camera_type == ADAS_PRK || camera_type == DVRS_RVM) {
 		client->addr = (MAX96706_ID >> 1);
 	}
 	else {
@@ -585,8 +587,8 @@ static int __init cam_i2c_init(void)
 	
 	camera_type = gpio_get_camera_variant();
 
-	if(camera_type == LVDS_SVM || camera_type == 6) {
-		dprintk("camera_type : LVDS(%d) \n", camera_type);
+	if(camera_type == LVDS_SVM_97 || camera_type == LVDS_SVM_111 || camera_type == DVRS_RVM) {
+		dprintk("camera_type : LVDS or DVRS_RVM(%d) \n", camera_type);
 	}
 	else if(camera_type == ADAS_PRK) {
 		dprintk("camera_type : ADAS_PRK(%d) \n", camera_type);

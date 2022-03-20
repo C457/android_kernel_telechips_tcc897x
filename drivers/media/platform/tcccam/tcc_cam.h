@@ -48,7 +48,8 @@ Suite 330, Boston, MA 02111-1307 USA
 #define DAUDIO_CAMERA_CMMB		1
 #define DAUDIO_CAMERA_AUX		2
 #define DAUDIO_CAMERA_LVDS		3
-#define DAUDIO_ADAS_PRK  4
+#define DAUDIO_ADAS_PRK			4
+#define DAUDIO_DVRS_RVM			5
 
 #define DAUDIO_CMMB_CROP_X             20
 #define DAUDIO_CMMB_CROP_Y             20

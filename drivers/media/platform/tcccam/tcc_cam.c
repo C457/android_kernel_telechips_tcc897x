@@ -660,12 +660,12 @@ int tccxxx_vioc_vin_main(struct tcc_camera_device * vdev)
 			vdev->data.cif_cfg.vs_mask, vdev->data.cif_cfg.input_fmt, vdev->data.cif_cfg.data_order);
 	VIOC_VIN_SetInterlaceMode((VIOC_VIN *)vdev->vioc.vin.address, vdev->data.cif_cfg.intl_en, vdev->data.cif_cfg.intpl_en);
 	VIOC_VIN_SetImageSize((VIOC_VIN *)vdev->vioc.vin.address, width, height);
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS)
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_DVRS_RVM)
 	{
-		if(gpio_get_value(TCC_GPB(19)))	//b110
+//		if(gpio_get_value(TCC_GPB(19)))	//b110
 			VIOC_VIN_SetImageOffset((VIOC_VIN *)vdev->vioc.vin.address, 448, 4, 0);
-		else				//b100
-			VIOC_VIN_SetImageOffset((VIOC_VIN *)vdev->vioc.vin.address, 128, 0, 0);
+//		else				//b100
+//			VIOC_VIN_SetImageOffset((VIOC_VIN *)vdev->vioc.vin.address, 128, 0, 0);
 	}
 	else if (vdev->data.cam_info == DAUDIO_ADAS_PRK) 
 		VIOC_VIN_SetImageOffset((VIOC_VIN *)vdev->vioc.vin.address, 288, 0, 0);

@@ -59,6 +59,7 @@
 		siw_snprintf(_buf, _size, "# 0x%04X [%s]\n", _reg->_element, #_element)
 
 int siw_debug;
+int siw_touch_cnt = 5;
 
 static int __show_reg_list(struct device *dev, char *buf, int size)
 {
@@ -1079,15 +1080,15 @@ static ssize_t _show_serdes_setting(struct device *dev, const char *buf)
         struct siw_touch_chip *chip = to_touch_chip(dev);
         struct siw_ts *ts = chip->ts;
 
-        mutex_lock(&ts->serdes.lock);
-
-	siw_serdes_block_touch_irq(ts);
+	siw_serdes_reset_dwork_stop(chip->ts);
+	mutex_lock(&ts->serdes.lock);
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
 
         serdes_i2c_show(ts);
 
-	siw_serdes_unblock_touch_irq(ts);
-
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
         mutex_unlock(&ts->serdes.lock);
+	siw_serdes_reset_dwork_start(chip->ts);
 
         return;
 }
@@ -1100,8 +1101,9 @@ static ssize_t _set_serdes_setting(struct device *dev, const char *buf, size_t c
         u8 ser_bitrate = 0;
 	u8 des_bitrate = 0;
 
-        mutex_lock(&ts->serdes.lock);
-        siw_serdes_block_touch_irq(ts);
+	siw_serdes_reset_dwork_stop(chip->ts);
+	mutex_lock(&ts->serdes.lock);
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
 
         ser_bitrate = ser_i2c_bitrate_check(client);
 	des_bitrate = des_i2c_bitrate_check(client);
@@ -1110,8 +1112,9 @@ static ssize_t _set_serdes_setting(struct device *dev, const char *buf, size_t c
 
         serdes_i2c_reset(ts, false);
 
-        siw_serdes_unblock_touch_irq(ts);
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
         mutex_unlock(&ts->serdes.lock);
+	siw_serdes_reset_dwork_start(chip->ts);
 
         return count;
 }
@@ -1124,8 +1127,9 @@ static ssize_t _set_des_setting(struct device *dev, const char *buf, size_t coun
         u8 ser_bitrate = 0;
         u8 des_bitrate = 0;
 
-        mutex_lock(&ts->serdes.lock);
-        siw_serdes_block_touch_irq(ts);
+	siw_serdes_reset_dwork_stop(chip->ts);
+	mutex_lock(&ts->serdes.lock);
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
 
         ser_bitrate = ser_i2c_bitrate_check(client);
         des_bitrate = des_i2c_bitrate_check(client);
@@ -1134,8 +1138,9 @@ static ssize_t _set_des_setting(struct device *dev, const char *buf, size_t coun
 
 	serdes_i2c_reset(ts,true);
 
-        siw_serdes_unblock_touch_irq(ts);
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
         mutex_unlock(&ts->serdes.lock);
+	siw_serdes_reset_dwork_start(chip->ts);
 
         return count;
 }
@@ -1148,8 +1153,9 @@ static ssize_t _set_serdes_6gbps(struct device *dev, const char *buf, size_t cou
         u8 ser_bitrate = 0;
         u8 des_bitrate = 0;
 
-        mutex_lock(&ts->serdes.lock);
-        siw_serdes_block_touch_irq(ts);
+	siw_serdes_reset_dwork_stop(chip->ts);
+	mutex_lock(&ts->serdes.lock);
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
 
         ser_bitrate = ser_i2c_bitrate_check(client);
         des_bitrate = des_i2c_bitrate_check(client);
@@ -1164,8 +1170,9 @@ static ssize_t _set_serdes_6gbps(struct device *dev, const char *buf, size_t cou
 
         printk("Now Ser_Bitrate : 0x%x Des_Bitrate : 0x%x\n",ser_bitrate,des_bitrate);
 
-        siw_serdes_unblock_touch_irq(ts);
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
         mutex_unlock(&ts->serdes.lock);
+	siw_serdes_reset_dwork_start(chip->ts);
 
         return count;
 }
@@ -1178,8 +1185,9 @@ static ssize_t _set_serdes_3gbps(struct device *dev, const char *buf, size_t cou
         u8 ser_bitrate = 0;
         u8 des_bitrate = 0;
 
-        mutex_lock(&ts->serdes.lock);
-        siw_serdes_block_touch_irq(ts);
+	siw_serdes_reset_dwork_stop(chip->ts);
+	mutex_lock(&ts->serdes.lock);
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
 
         ser_bitrate = ser_i2c_bitrate_check(client);
         des_bitrate = des_i2c_bitrate_check(client);
@@ -1194,8 +1202,9 @@ static ssize_t _set_serdes_3gbps(struct device *dev, const char *buf, size_t cou
 
         printk("Now Ser_Bitrate : 0x%x Des_Bitrate : 0x%x\n",ser_bitrate,des_bitrate);
 
-        siw_serdes_unblock_touch_irq(ts);
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
         mutex_unlock(&ts->serdes.lock);
+	siw_serdes_reset_dwork_start(chip->ts);
 
         return count;
 }
@@ -1210,9 +1219,9 @@ static ssize_t _show_read_register(struct device *dev, const char *buf)
 	u8 buf2[3];
 	unsigned short addr;
 
-        mutex_lock(&ts->serdes.lock);
-
-        siw_serdes_block_touch_irq(ts);
+	siw_serdes_reset_dwork_stop(chip->ts);
+	mutex_lock(&ts->serdes.lock);
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
 
         addr = client->addr;
 
@@ -1227,7 +1236,7 @@ static ssize_t _show_read_register(struct device *dev, const char *buf)
 
         mdelay(20);
 
-        for(i = 0; i < 8 ;i++) {
+        for(i = 0; i < 9 ;i++) {
 
                 client->addr = serdes_read[i][0];
                 buf1[0] = (serdes_read[i][1] >> 8) & 0xff;
@@ -1262,9 +1271,9 @@ static ssize_t _show_read_register(struct device *dev, const char *buf)
 
 	client->addr = addr;
 
-        siw_serdes_unblock_touch_irq(ts);
-
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
         mutex_unlock(&ts->serdes.lock);
+	siw_serdes_reset_dwork_start(chip->ts);
 
         return;
 }
@@ -1296,16 +1305,6 @@ static ssize_t _set_adm(struct device *dev, const char *buf, size_t count)
 	        buf1[2] = 0xC7;
 
 	        i2c_master_send(client, buf1, 3);
-#ifdef CONFIG_WIDE_PE_COMMON
-		printk("%s Set Mute off Mode\n",__func__);
-
-		client->addr = 0x48;
-		buf1[0] = 0x02;
-		buf1[1] = 0x21;
-		buf1[2] = 0x80;
-
-		i2c_master_send(client, buf1, 3);
-#endif
 	        client->addr = addr;
 	}
 	else{
@@ -1382,269 +1381,349 @@ static ssize_t _show_mute_off(struct device *dev, const char *buf)
         return;
 }
 
-static ssize_t _set_dddrag_test(struct device *dev, const char *buf, size_t count)
+static ssize_t _set_int_on(struct device *dev, char *buf)
 {
-        int state;
-        struct siw_touch_chip *chip = to_touch_chip(dev);
+        int ret;
+	struct siw_touch_chip *chip = to_touch_chip(dev);
         struct siw_ts *ts = chip->ts;
-        u8 buf1[3];
-        unsigned short addr;
         struct i2c_client *client = to_i2c_client(dev);
 
-        struct input_dev *input = ts->input;
+        printk("%s [Start]\n",__func__);
 
-        sscanf(buf, "%d", &state);
-
-        printk("%s Start\n",__func__);
-
-        input_report_key(input, BTN_TOUCH, 1);
-
-        input_report_key(input, BTN_TOOL_FINGER, 1);
-
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, 0x630);
-
-        input_report_abs(input, ABS_MT_POSITION_Y, 0x17e);
-
-        input_report_abs(input, ABS_MT_PRESSURE, 0x7);
-
-        input_sync(input);
-
-        mdelay(state);
-#if 0
-	input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, 0x640);
-
-        input_sync(input);
-
-        mdelay(16);
-
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, state);
-
-        input_sync(input);
-
-        mdelay(16);
-
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, state);
-
-        input_sync(input);
-
-	mdelay(16);
-
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, state);
-
-        input_sync(input);
-
-        mdelay(16);
-#endif
-
-        input_report_abs(input, ABS_MT_TRACKING_ID, -1);
-
-        input_sync(input);
-
-        return count;
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
 }
 
-static ssize_t _set_ddrag_test(struct device *dev, const char *buf, size_t count)
+static ssize_t _set_int_off(struct device *dev, char *buf)
 {
-        int state;
-        struct siw_touch_chip *chip = to_touch_chip(dev);
+        int ret;
+	struct siw_touch_chip *chip = to_touch_chip(dev);
         struct siw_ts *ts = chip->ts;
-        u8 buf1[3];
-        unsigned short addr;
         struct i2c_client *client = to_i2c_client(dev);
 
-        struct input_dev *input = ts->input;
+        printk("%s [Start]\n",__func__);
 
-        sscanf(buf, "%d", &state);
-
-        printk("%s Start\n",__func__);
-
-        input_report_key(input, BTN_TOUCH, 1);
-
-        input_report_key(input, BTN_TOOL_FINGER, 1);
-
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, 0x630);
-
-	input_report_abs(input, ABS_MT_POSITION_Y, 0x17e);
-
-	input_report_abs(input, ABS_MT_PRESSURE, 0x7);
-
-        input_sync(input);
-
-        mdelay(16);
-#if 0
-	input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, 0x630);
-
-        input_sync(input);
-
-        mdelay(16);
-	input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, 0x640);
-
-        input_sync(input);
-
-        mdelay(16);
-
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, state);
-
-        input_sync(input);
-
-        mdelay(16);
-#endif
-
-	input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, 0x640);
-
-        input_sync(input);
-
-        mdelay(state);
-
-        input_report_abs(input, ABS_MT_TRACKING_ID, -1);
-
-        input_sync(input);
-
-        return count;
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
 }
 
-static ssize_t _set_drag_test(struct device *dev, const char *buf, size_t count)
+static ssize_t _set_lvds_con(struct device *dev, const char *buf, size_t count)
 {
         int state;
-        struct siw_touch_chip *chip = to_touch_chip(dev);
+	struct siw_touch_chip *chip = to_touch_chip(dev);
         struct siw_ts *ts = chip->ts;
+        struct i2c_client *client = to_i2c_client(dev);
         u8 buf1[3];
         unsigned short addr;
-        struct i2c_client *client = to_i2c_client(dev);
-
-        struct input_dev *input = ts->input;
 
         sscanf(buf, "%d", &state);
 
-        printk("%s Start\n",__func__);
+        printk("%s Start %d\n",__func__,state);
 
-        input_report_key(input, BTN_TOUCH, 1);
+	siw_serdes_reset_dwork_stop(chip->ts);
+	mutex_lock(&ts->serdes.lock);
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
 
-        input_report_key(input, BTN_TOOL_FINGER, 1);
+	if(state)
+	{
+		addr = client->addr;
 
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
+                client->addr = 0x48;
+                buf1[0] = 0x01;
+                buf1[1] = 0xCF;
+                buf1[2] = 0x01;
 
-        input_report_abs(input, ABS_MT_POSITION_X, 0x630);
+                i2c_master_send(client, buf1, 3);
+                client->addr = addr;
+	}
+	else
+	{
+		addr = client->addr;
 
-        input_report_abs(input, ABS_MT_POSITION_Y, 0x17e);
+                client->addr = 0x48;
+                buf1[0] = 0x01;
+                buf1[1] = 0xCF;
+                buf1[2] = 0xC7;
 
-        input_report_abs(input, ABS_MT_PRESSURE, 0x7);
+                i2c_master_send(client, buf1, 3);
+                client->addr = addr;
+	}
 
-        input_sync(input);
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
+        mutex_unlock(&ts->serdes.lock);
+	siw_serdes_reset_dwork_start(chip->ts);
 
-        mdelay(16);
-#if 0
-	input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, 0x630);
-
-        input_sync(input);
-
-        mdelay(16);
-#endif
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, 0x640);
-
-        input_sync(input);
-
-        mdelay(16);
-
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
-
-        input_report_abs(input, ABS_MT_POSITION_X, state);
-
-        input_sync(input);
-
-        mdelay(16);
-
-	input_report_abs(input, ABS_MT_TRACKING_ID, -1);
-
-        input_sync(input);
-
-        return count;
+	return count;
 }
 
-static ssize_t _set_long_drag_test(struct device *dev, const char *buf, size_t count)
+static ssize_t _show_blu_reg(struct device *dev, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct siw_touch_chip *chip = to_touch_chip(dev);
+        struct siw_ts *ts = chip->ts;
+        u8 buf1[3];
+	u8 buf2[3];
+        unsigned short addr;
+
+	printk("%s [Start]\n",__func__);
+
+	siw_serdes_reset_dwork_stop(chip->ts);
+	mutex_lock(&ts->serdes.lock);
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
+
+	addr = client->addr;
+
+	client->addr = 0x40;
+	buf1[0] = 0x02;
+	buf1[1] = 0x06;
+
+	i2c_master_send(client, buf1, 2);
+        i2c_master_recv(client, buf2, 3);
+
+	printk("SER 0x0206 : 0x%x\n",buf2[0]);
+
+	client->addr = 0x48;
+        buf1[0] = 0x02;
+        buf1[1] = 0x12;
+
+        i2c_master_send(client, buf1, 2);
+        i2c_master_recv(client, buf2, 3);
+
+        printk("DES 0x0212 : 0x%x\n",buf2[0]);
+
+	client->addr = 0x40;
+        buf1[0] = 0x02;
+        buf1[1] = 0x15;
+
+        i2c_master_send(client, buf1, 2);
+        i2c_master_recv(client, buf2, 3);
+
+        printk("SER 0x0215 : 0x%x\n",buf2[0]);
+	if((buf2[0]&0x08)==0x08)
+		printk("Micom BLU HIGH\n");
+	else
+		printk("Micom BLU LOW\n");
+
+        client->addr = 0x48;
+        buf1[0] = 0x02;
+        buf1[1] = 0x15;
+
+        i2c_master_send(client, buf1, 2);
+        i2c_master_recv(client, buf2, 3);
+
+        printk("DES 0x0215 : 0x%x\n",buf2[0]);
+
+	if((buf2[0]&0x06)==0x04)
+		printk("DES BLU Default");
+	else if((buf2[0]&0x06)==0x02)
+		printk("DES BLU Forced");
+	else
+		printk("DES BLU Unknown");
+
+	if((buf2[0]&0x08)==0x08)
+		printk(" HIGH\n");
+	else
+		printk(" LOW\n");
+
+	client->addr = addr;
+
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
+        mutex_unlock(&ts->serdes.lock);
+	siw_serdes_reset_dwork_start(chip->ts);
+}
+
+static ssize_t _set_blu_con(struct device *dev,  const char *buf, size_t count)
 {
         int state;
-        struct siw_touch_chip *chip = to_touch_chip(dev);
+        struct i2c_client *client = to_i2c_client(dev);
+	struct siw_touch_chip *chip = to_touch_chip(dev);
         struct siw_ts *ts = chip->ts;
         u8 buf1[3];
         unsigned short addr;
-        struct i2c_client *client = to_i2c_client(dev);
-
-        struct input_dev *input = ts->input;
 
         sscanf(buf, "%d", &state);
 
-        printk("%s Start\n",__func__);
+        printk("%s Start %d\n",__func__,state);
 
-        input_report_key(input, BTN_TOUCH, 1);
+	siw_serdes_reset_dwork_stop(chip->ts);
+	mutex_lock(&ts->serdes.lock);
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
 
-        input_report_key(input, BTN_TOOL_FINGER, 1);
+        if(state == 1) //default to micom
+        {
+                addr = client->addr;
 
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
+		client->addr = 0x48;
+                buf1[0] = 0x02;
+                buf1[1] = 0x15;
+                buf1[2] = 0x24;
 
-        input_report_abs(input, ABS_MT_POSITION_X, 0x620);
+                i2c_master_send(client, buf1, 3);
 
-        input_report_abs(input, ABS_MT_POSITION_Y, 0x17e);
+		client->addr = 0x48;
+                buf1[0] = 0x00;
+                buf1[1] = 0x10;
+                buf1[2] = 0x31;
 
-        input_report_abs(input, ABS_MT_PRESSURE, 0x7);
+                i2c_master_send(client, buf1, 3);
 
-        input_sync(input);
+                client->addr = addr;
+        }
+	else if(state == 2) //forced on
+	{
+		addr = client->addr;
 
-        mdelay(16);
+                client->addr = 0x48;
+                buf1[0] = 0x02;
+                buf1[1] = 0x15;
+                buf1[2] = 0x32;
 
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
+                i2c_master_send(client, buf1, 3);
 
-        input_report_abs(input, ABS_MT_POSITION_X, 0x630);
+                client->addr = addr;
+	}
+        else //forced off
+        {
+                addr = client->addr;
 
-        input_sync(input);
+		client->addr = 0x48;
+                buf1[0] = 0x02;
+                buf1[1] = 0x15;
+                buf1[2] = 0x22;
 
-        mdelay(16);
+                i2c_master_send(client, buf1, 3);
 
-	input_report_abs(input, ABS_MT_TRACKING_ID, 0);
+                client->addr = addr;
+        }
 
-        input_report_abs(input, ABS_MT_POSITION_X, 0x640);
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
+        mutex_unlock(&ts->serdes.lock);
+	siw_serdes_reset_dwork_start(chip->ts);
 
-        input_sync(input);
+	return count;
+}
 
-        mdelay(16);
+static ssize_t _set_touch_log(struct device *dev, char *buf)
+{
+        int ret;
+        struct i2c_client *client = to_i2c_client(dev);
+	struct siw_touch_chip *chip = to_touch_chip(dev);
+        struct siw_ts *ts = chip->ts;
+	int ser_bitrate, des_bitrate;
+	u8 buf1[3];
+        u8 buf2[3];
+	unsigned short addr;
+	int i;
 
-        input_report_abs(input, ABS_MT_TRACKING_ID, 0);
+	printk("\n----------------------------------------------------\n\n");
+        printk("%s [Start]\n\n",__func__);
 
-        input_report_abs(input, ABS_MT_POSITION_X, state);
+	siw_serdes_reset_dwork_stop(chip->ts);
+	mutex_lock(&ts->serdes.lock);
+	siw_touch_irq_control(dev, INTERRUPT_DISABLE);
 
-        input_sync(input);
+	siw_touch_get(dev, CMD_ATCMD_VERSION, buf);
+	printk("F/W Version : %s\n", buf);
 
-        mdelay(16);
+	if(!get_montype())
+	{
+		ser_bitrate = ser_i2c_bitrate_check(client);
+	        des_bitrate = des_i2c_bitrate_check(client);
 
-        input_report_abs(input, ABS_MT_TRACKING_ID, -1);
+		printk("Ser_bitrate : ");
+		if(ser_bitrate == 0x88)
+			printk("6Gbps");
+		else if(ser_bitrate == 0x84)
+			printk("3Gbps");
+		else
+			printk("Wrong");
 
-        input_sync(input);
+		printk(" Des_bitrate : ");
+                if(des_bitrate == 0x02)
+                        printk("6Gbps");
+                else if(des_bitrate == 0x01)
+                        printk("3Gbps");
+		else if(des_bitrate == 0x81)
+			printk("3Gbps 175mV");
+                else
+                        printk("Wrong");
+                printk("\n\n");
 
-        return count;
+
+		addr = client->addr;
+
+		client->addr = 0x40;
+	        buf1[0] = 0x02;
+	        buf1[1] = 0x15;
+
+	        i2c_master_send(client, buf1, 2);
+	        i2c_master_recv(client, buf2, 3);
+
+	        printk("SER 0x0215 read:0x%x\n",buf2[0]);
+	        if((buf2[0]&0x08)==0x08)
+	                printk("Micom BLU HIGH\n");
+	        else
+	                printk("Micom BLU LOW\n");
+
+	        client->addr = 0x48;
+	        buf1[0] = 0x02;
+	        buf1[1] = 0x15;
+
+	        i2c_master_send(client, buf1, 2);
+	        i2c_master_recv(client, buf2, 3);
+
+	        printk("DES 0x0215 read:0x%x\n",buf2[0]);
+
+	        if((buf2[0]&0x06)==0x04)
+	                printk("DES BLU Default");
+	        else if((buf2[0]&0x06)==0x02)
+	                printk("DES BLU Forced");
+	        else
+	                printk("DES BLU Unknown");
+
+	        if((buf2[0]&0x08)==0x08)
+	                printk(" HIGH");
+	        else
+	                printk(" LOW");
+
+	        client->addr = addr;
+
+		printk("\n\n");
+
+
+		addr = client->addr;
+		for(i = 0; i < 9 ;i++) {
+			client->addr = serdes_read[i][0];
+			buf1[0] = (serdes_read[i][1] >> 8) & 0xff;
+			buf1[1] = serdes_read[i][1] & 0xff;
+			buf1[2] = serdes_read[i][2];
+
+			if(client->addr != DES_DELAY)
+			{
+				i2c_master_send(client, buf1, 2);
+				i2c_master_recv(client, buf2, 3);
+			}
+
+			if(client->addr == SER_ADDRESS)
+				printk("SER ");
+			else if(client->addr == DES_ADDRESS)
+                                printk("DES ");
+			printk("0x%04X write:0x%02X read:0x%02X\n",serdes_read[i][1], serdes_read[i][2], buf2[0]);
+		}
+		client->addr = addr;
+
+		printk("\n");
+
+		serdes_i2c_show(ts);
+
+                printk("\n");
+	}
+
+	siw_touch_cnt = 5;
+
+	printk("----------------------------------------------------\n");
+
+	siw_touch_irq_control(dev, INTERRUPT_ENABLE);
+        mutex_unlock(&ts->serdes.lock);
+	siw_serdes_reset_dwork_start(chip->ts);
 }
 
 static ssize_t _set_touch_test(struct device *dev, const char *buf, size_t count)
@@ -1681,8 +1760,6 @@ static ssize_t _set_touch_test(struct device *dev, const char *buf, size_t count
         input_sync(input);
 
         return count;
-
-
 }
 
 ssize_t siw_set_adm(struct device *dev, const char *buf, size_t count)
@@ -1735,13 +1812,14 @@ static SIW_TOUCH_HAL_ATTR(adm, NULL, _set_adm);
 static SIW_TOUCH_HAL_ATTR(test, NULL, _set_test);
 static SIW_TOUCH_HAL_ATTR(mute_on, _show_mute_on, NULL);
 static SIW_TOUCH_HAL_ATTR(mute_off, _show_mute_off, NULL);
+static SIW_TOUCH_HAL_ATTR(int_on, _set_int_on, NULL);
+static SIW_TOUCH_HAL_ATTR(int_off, _set_int_off, NULL);
 static SIW_TOUCH_HAL_ATTR(set_serdes_6gbps, NULL, _set_serdes_6gbps);
 static SIW_TOUCH_HAL_ATTR(set_serdes_3gbps, NULL, _set_serdes_3gbps);
-static SIW_TOUCH_HAL_ATTR(drag_test, NULL, _set_drag_test);
-static SIW_TOUCH_HAL_ATTR(ddrag_test, NULL, _set_ddrag_test);
-static SIW_TOUCH_HAL_ATTR(dddrag_test, NULL, _set_dddrag_test);
 static SIW_TOUCH_HAL_ATTR(touch_test, NULL, _set_touch_test);
-static SIW_TOUCH_HAL_ATTR(long_drag_test, NULL, _set_long_drag_test);
+static SIW_TOUCH_HAL_ATTR(lvds_con, NULL, _set_lvds_con);
+static SIW_TOUCH_HAL_ATTR(blu_con, _show_blu_reg, _set_blu_con);
+static SIW_TOUCH_HAL_ATTR(touch_log, _set_touch_log, NULL);
 
 static struct attribute *siw_hal_attribute_list[] = {
 	&_SIW_TOUCH_HAL_ATTR_T(reg_list).attr,
@@ -1779,13 +1857,14 @@ static struct attribute *siw_hal_attribute_list[] = {
 	&_SIW_TOUCH_HAL_ATTR_T(test).attr,
 	&_SIW_TOUCH_HAL_ATTR_T(mute_on).attr,
         &_SIW_TOUCH_HAL_ATTR_T(mute_off).attr,
+	&_SIW_TOUCH_HAL_ATTR_T(int_on).attr,
+        &_SIW_TOUCH_HAL_ATTR_T(int_off).attr,
         &_SIW_TOUCH_HAL_ATTR_T(set_serdes_6gbps).attr,
         &_SIW_TOUCH_HAL_ATTR_T(set_serdes_3gbps).attr,
-	&_SIW_TOUCH_HAL_ATTR_T(drag_test).attr,
-	&_SIW_TOUCH_HAL_ATTR_T(ddrag_test).attr,
-	&_SIW_TOUCH_HAL_ATTR_T(dddrag_test).attr,
 	&_SIW_TOUCH_HAL_ATTR_T(touch_test).attr,
-	&_SIW_TOUCH_HAL_ATTR_T(long_drag_test).attr,
+	&_SIW_TOUCH_HAL_ATTR_T(lvds_con).attr,
+	&_SIW_TOUCH_HAL_ATTR_T(blu_con).attr,
+	&_SIW_TOUCH_HAL_ATTR_T(touch_log).attr,
 	NULL,
 };
 

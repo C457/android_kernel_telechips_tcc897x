@@ -46,10 +46,13 @@ typedef enum {
 	STOP_EARLY_CAMERA	= 0x51,
 	EXIT_EARLY_CAMERA	= 0x52,
 	GET_CAM_TYPE		= 0x53,
+	SET_HANDOVER_PROPERTY   = 0x54,
+	GET_HANDOVER_PROPERTY   = 0x55,
 } CM_AVN_CMD;
 
 int	pinGear;
 int	pinActive;
+static int handover_property = 1;
 
 extern int get_camera_type(void);
 
@@ -240,6 +243,14 @@ int CM_AVN_Proc(unsigned long arg) {
 
 		case ENABLE_RECOVERY:
 			msg = tcc_cm_ctrl_enable_recovery();
+			break;
+
+		case SET_HANDOVER_PROPERTY:
+			handover_property = 0;
+			break;
+
+		case GET_HANDOVER_PROPERTY:
+			msg = handover_property;
 			break;
 
 		default:

@@ -33,6 +33,7 @@ enum mobis_misc_nvdata_offset {
 
 	// Please add offset of data that you want to use
 	MOBIS_NVDATA_MISC_RGB_COLOR_TUNE		= 4096,
+	MOBIS_NVDATA_MISC_TOUCH_UPDATE                  = 5120,
 
 };
 

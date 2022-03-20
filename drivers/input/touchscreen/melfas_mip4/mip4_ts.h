@@ -261,8 +261,10 @@
 #define FW_PATH_INTERNAL_12_3 "melfas/melfas_mip4_ts_12_3.fw"
 #define FW_PATH_INTERNAL_10_25_plastic "melfas/melfas_mip4_ts_10_25_plastic.fw"
 #define FW_PATH_EXTERNAL "/sdcard/melfas_mip4_ts.fw" /* path of firmware in the external storage */
-#define FW_PATH_EXTERNAL_10_25 "/storage/usb0/melfas_10_25.bin"
-#define FW_PATH_EXTERNAL_12_3 "/storage/usb0/melfas_12_3.bin"
+#define FW_PATH_EXTERNAL_10_25 "/res/firmware/touchscreen/melfas_10_25.bin"
+#define FW_PATH_EXTERNAL_12_3 "/res/firmware/touchscreen/melfas_12_3.bin"
+#define FW_PATH_EXTERNAL_USB_10_25 "/storage/usb0/melfas_10_25.bin"
+#define FW_PATH_EXTERNAL_USB_12_3 "/storage/usb0/melfas_12_3.bin"
 #define BL_PATH_INTERNAL "melfas/melfas_mip4_ts_bl.fw"  /* path of bootloader included in the kernel image (/firmware) */
 #define BL_PATH_EXTERNAL "/sdcard/melfas_mip4_ts_bl.fw" /* path of bootloader in the external storage */
 #define FW_MAX_SECT_NUM         4
@@ -514,7 +516,10 @@ int mip4_ts_lpwg_event_handler(struct mip4_ts_info *info, u8 *rbuf, u8 size);
 #endif
 
 extern int melfas_debug;
-#ifdef CONFIG_WIDE_PE_COMMON
+extern int melfas_touch_cnt;
+int mobis_touch_update_check(void);
+void mobis_touch_update_complete(void);
+#if defined(CONFIG_WIDE_PE_COMMON)||defined(CONFIG_TOUCHSCREEN_ONEBIN)
 int mip4_init(void);
 void mip4_cleanup(void);
 #endif

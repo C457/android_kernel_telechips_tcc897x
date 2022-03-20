@@ -1648,24 +1648,94 @@ static int mmc_can_poweroff_notify(const struct mmc_card *card)
 		(card->ext_csd.power_off_notification == EXT_CSD_POWER_ON);
 }
 
+static void mmc_print_status(struct mmc_card *card, u32 status)
+{
+    if (card == NULL)
+	    return;
+
+    switch (R1_CURRENT_STATE(status)) {
+	    case R1_STATE_IDLE:
+		    pr_info("%s : MMC STATUS IDLE ( 0x%X )\n", mmc_hostname(card->host), R1_CURRENT_STATE(status));
+		    break;
+	    case R1_STATE_READY:
+		    pr_info("%s : MMC STATUS READY( 0x%X )\n", mmc_hostname(card->host), R1_CURRENT_STATE(status));
+		    break;
+	    case R1_STATE_STBY:
+		    pr_info("%s : MMC STATUS STANDBY( 0x%X )\n", mmc_hostname(card->host), R1_CURRENT_STATE(status));
+		    break;
+	    case R1_STATE_TRAN:
+		    pr_info("%s : MMC STATUS TRANSLATE( 0x%X )\n", mmc_hostname(card->host), R1_CURRENT_STATE(status));
+		    break;
+	    case R1_STATE_PRG:
+		    pr_info("%s : MMC STATUS PRG( 0x%X )\n", mmc_hostname(card->host), R1_CURRENT_STATE(status));
+		    break;
+	    default:
+		    pr_err("%s: Untracked card status. Card state=%d\n",
+				    mmc_hostname(card->host), R1_CURRENT_STATE(status));
+    }
+}
+
 static int mmc_poweroff_notify(struct mmc_card *card, unsigned int notify_type)
 {
 	unsigned int timeout = card->ext_csd.generic_cmd6_time;
+	u8 *ext_csd = NULL;
 	int err;
+	u32 status;
 
 	/* Use EXT_CSD_POWER_OFF_SHORT as default notification type. */
 	if (notify_type == EXT_CSD_POWER_OFF_LONG)
 		timeout = card->ext_csd.power_off_longtime;
 
+	/* STEP 1. Send power off notification command */
+	pr_info("Sending Power off notification\n");
 	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 			EXT_CSD_POWER_OFF_NOTIFICATION,
 			notify_type, timeout, true, false, false);
 	if (err)
 		pr_err("%s: Power Off Notification timed out, %u\n",
-		       mmc_hostname(card->host), timeout);
+				mmc_hostname(card->host), timeout);
 
 	/* Disable the power off notification after the switch operation. */
 	card->ext_csd.power_off_notification = EXT_CSD_NO_POWER_NOTIFICATION;
+
+	/* STEP 2. Verify power off notification ECSD register */
+//	pr_info("Verifying ECSD register\n");
+//	err = mmc_get_ext_csd(card, &ext_csd);
+//	if (err || ext_csd == NULL){
+//		pr_err("( %s ): get ext csd failed\n", __func__);
+//	} else {
+//		if (notify_type == ext_csd[EXT_CSD_POWER_OFF_NOTIFICATION])
+//			pr_info("Power off notification set done :  0x%X\n", notify_type);
+//		else
+//			pr_err("Failed to set power off notification : 0x%X\n", ext_csd[EXT_CSD_POWER_OFF_NOTIFICATION]);
+//		mmc_free_ext_csd(ext_csd);
+//	}
+
+	/* STEP 3. Sleep 500 ms */
+	msleep(500);
+
+	/* STEP 4. Deselect card */
+	err = mmc_deselect_cards(card->host);
+	if (err)
+		return err;
+
+	/* STEP 5. Check mmc standby mode */
+	do {
+		err = mmc_send_status(card, &status);
+		if (err)
+			break;
+
+		if (card->host->caps & MMC_CAP_WAIT_WHILE_BUSY)
+			break;
+
+		if (mmc_host_is_spi(card->host))
+			break;
+	} while(R1_CURRENT_STATE(status) != R1_STATE_STBY);
+
+	if (err)
+		pr_err("%s: Get card status fail\n", mmc_hostname(card->host));
+	else
+		mmc_print_status(card, status);
 
 	return err;
 }

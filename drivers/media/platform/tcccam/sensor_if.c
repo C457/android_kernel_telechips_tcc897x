@@ -417,7 +417,7 @@ int sensor_if_parse_gpio_dt_data(struct tcc_camera_device * vdev)
 	
 #else
 
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK)
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_ADAS_PRK || vdev->data.cam_info == DAUDIO_DVRS_RVM)
 		module_np = of_find_node_by_name(cam_np,LVDS_MODULE_NODE);
 	else
 		module_np = of_find_node_by_name(cam_np,MODULE_NODE);
@@ -594,7 +594,7 @@ void sensor_if_set(struct tcc_camera_device * vdev, int index)
 	if(index)	sensor_info_init_front(&vdev->tcc_sensor_info);
 	else		sensor_info_init_back(&vdev->tcc_sensor_info);
 #else
-	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS)
+	if(vdev->data.cam_info == DAUDIO_CAMERA_LVDS || vdev->data.cam_info == DAUDIO_DVRS_RVM)
 		lvds_sensor_info_init(&vdev->tcc_sensor_info);
     else if(vdev->data.cam_info == DAUDIO_ADAS_PRK)
         adas_sensor_info_init(&vdev->tcc_sensor_info);
@@ -705,6 +705,16 @@ int sensor_if_check_camera_module(struct tcc_camera_device * vdev) {
 		return 0;
 	}
 	return vdev->sensor_func.CheckCameraModule(vdev);
+}
+
+// check Camera DATA error (2020.07.28)
+int sensor_if_check_camera_signal_error(struct tcc_camera_device * vdev)
+{
+	if(vdev->sensor_func.Signal_error_monitoring == NULL) {
+		printk("%s() - Not support Signal_error_monitoring \n", __func__);
+		return 0;
+	}
+	return vdev->sensor_func.Signal_error_monitoring(vdev);
 }
 
 MODULE_DESCRIPTION("Camera SENSOR  driver");

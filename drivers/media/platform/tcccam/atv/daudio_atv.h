@@ -133,6 +133,9 @@ typedef struct SENSOR_FUNC_TYPE_DAUDIO_ {
 
 	int (*Check_ESD)(int val);
 	int (*Check_Luma)(int val);
+
+	unsigned int (*Enable_signal_error_monitoring)(unsigned int enable, struct tcc_camera_device * vdev);
+	unsigned int (*Signal_error_monitoring)(struct tcc_camera_device * vdev);
 } SENSOR_FUNC_TYPE_DAUDIO;
 
 

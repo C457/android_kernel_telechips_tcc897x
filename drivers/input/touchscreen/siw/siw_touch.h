@@ -62,7 +62,6 @@
 #include <mobis/daudio.h>
 #include <mobis/daudio_pinctl.h>
 #include <mobis/serdes/serdes.h>
-#include "touch_sw17700.h"
 #endif
 #include <linux/gpio.h>
 
@@ -74,6 +73,7 @@
 
 extern int LCD_TOUCH_INT_CHECK;
 extern int FW_UPDATE_RESULT;
+extern int siw_touch_cnt;
 
 #define I2C_RETRY_COUNT 3
 
@@ -1743,6 +1743,8 @@ extern int des_i2c_bitrate_check(struct i2c_client *client);
 extern int ser_i2c_bitrate_check(struct i2c_client *client);
 extern int des_i2c_bitrate_reset(struct i2c_client *client);
 extern int ser_i2c_bitrate_reset(struct i2c_client *client);
+int mobis_touch_update_check(void);
+void mobis_touch_update_complete(void);
 
 extern int siw_setup_params(struct siw_ts *ts, struct siw_touch_pdata *pdata);
 
