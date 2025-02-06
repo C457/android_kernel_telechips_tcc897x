@@ -97,13 +97,17 @@ static int sensor_open(struct tcc_camera_device * vdev, bool bChangeCamera)
 		yin=TW_YIN0;
 	}
 
-	if (what == SENSOR_TW9990)
+	if(what == SENSOR_TW9990)
 		yin_sel = yin;
 
-	if (sf_daudio[what].sensor_open != NULL)
-		return sf_daudio[what].sensor_open(yin,vdev);
-	else
+	if(sf_daudio[what].sensor_open == NULL)
 		return FAIL;
+
+	if(sf_daudio[what].sensor_open(yin,vdev)) {
+		printk("sensor_open fail\n");
+	}
+
+	return 0;
 }
 
 static int sensor_close(struct tcc_camera_device * vdev)
