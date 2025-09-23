@@ -214,12 +214,15 @@ static int lvds_sensor_open(eTW_YSEL yin, struct tcc_camera_device * vdev)
 	VPRINTK("%s, LVDS_REG_ID = 0x%x(%u)\n", __func__, id, ret);
 
 	if(FAIL_I2C == ret) {
-		//printk("%s: I2C error occur\n", __func__);	
+		printk("%s: I2C error occurs\n", __func__);	
+		vdev->cam_err.des_ic_err = 1;
+	}
+	else {
+		vdev->cam_err.des_ic_err = 0;
 	}
 
 	if( id == LVDS_VAL_ID )
 	{
-		vdev->cam_err.des_ic_err = 0;
 		val[0]	= 0x04; //main_config
 		lvds_read(val[0], &val[1], vdev);
 		VPRINTK("%s, OLD LVDS_REG_DESLOCK = 0x%x \n", __func__, val[1]);
@@ -232,9 +235,7 @@ static int lvds_sensor_open(eTW_YSEL yin, struct tcc_camera_device * vdev)
 
 		lvds_write_ie(0,0,0);
 	}
-	else {
-		vdev->cam_err.des_ic_err = 1;
-	}
+
 	mutex_unlock(&sensor_lock);
 
 	return ret;
@@ -323,7 +324,7 @@ int lvds_check_video_signal(struct tcc_camera_device * vdev)
 	mutex_lock(&sensor_lock);
 
 	i2c_ret = lvds_read(LVDS_REG_ID, &id, vdev);
-	if(id != LVDS_VAL_ID) {
+	if(i2c_ret == FAIL_I2C) {
 		vdev->cam_err.des_ic_err = 1;
 
 		status = SERDES_I2C_FAIL;
